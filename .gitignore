@@ -1,0 +1,19 @@
+# Build outputs
+Binaries/
+Intermediate/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
