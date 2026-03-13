@@ -6,6 +6,7 @@ import "htn_nodes.d.gs";
 let constant_path = SoftObjectPath("/Game/Maps/TestLevel");
 let spawn_point = FVector("0,0,100");
 
+[Comment("title", "Kitchen sink test - all features"), Comment("note", "Second comment")]
 Graph KitchenSink {
     in health : int;
     in name : FString;
@@ -13,9 +14,13 @@ Graph KitchenSink {
     out score : int;
     var temp_buffer : float;
 
+    [Position(X = 100, Y = 200)]
     PrintString logger1{};
+    [Position(X = 300, Y = 200)]
     PrintString logger2{};
+    [Position(X = 200, Y = 100)]
     Delay timer{};
+    [Position(X = 100, Y = 400)]
     GetActorLocation locator{};
 
     event OnStart {
@@ -33,25 +38,12 @@ Graph KitchenSink {
     }
 
     function CalculateScore {
-        context.start(logger1.enter);
-        link logger1.message = score;
+        context.start(context.done);
+        link context.result = score;
     }
 
     function LogLocation {
-        context.start(logger2.enter);
-        link logger2.message = name;
-    }
-
-    generate {
-        Comment title = "Kitchen sink test - all features";
-        Comment note = "Second comment";
-        position:logger1.x(100);
-        position:logger1.y(200);
-        position:logger2.x(300);
-        position:logger2.y(200);
-        position:timer.x(200);
-        position:timer.y(100);
-        position:locator.x(100);
-        position:locator.y(400);
+        context.start(context.done);
+        link context.result = name;
     }
 }

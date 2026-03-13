@@ -7,6 +7,10 @@ Graph CutsceneIntro : CinematicGraph {
     in actor : AActor;
     in bgm : USoundBase;
     in vfx : UParticleSystem;
+    in defaultVol : float;
+    in bowAnim : UAnimMontage;
+    in playSpeed : float;
+    in introText : FString;
     out finished : bool;
 
     PlayMontage bow{};

@@ -39,6 +39,7 @@ private:
     std::unique_ptr<LinkStmtNode>      parse_link_stmt();
     std::unique_ptr<CommentNode>       parse_comment();
     std::unique_ptr<MetadataNode>      parse_metadata();
+    std::vector<Annotation>            parse_annotations();
 
     std::vector<Token> tokens_;
     size_t             pos_ = 0;

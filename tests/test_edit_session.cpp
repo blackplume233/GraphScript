@@ -216,6 +216,66 @@ TEST(EditSession, FlowOnMissingBlockFails) {
     EXPECT_TRUE(r.is_err());
 }
 
+TEST(EditSession, FunctionCannotReferenceGraphNodes) {
+    Environment env;
+    EditSession s(env);
+    load_core(s);
+    s.new_graph("G");
+    s.add_param(ParamDirection::In, "health", "int");
+    s.add_node("PrintString", "logger");
+    s.add_function("MyFunc");
+
+    // Function referencing a graph-level node instance must fail
+    auto r1 = s.add_flow("MyFunc", "context", "start", "logger", "enter");
+    EXPECT_TRUE(r1.is_err());
+    EXPECT_NE(r1.error().find("cannot reference"), std::string::npos);
+
+    auto r2 = s.add_link("MyFunc", "logger", "message", "health");
+    EXPECT_TRUE(r2.is_err());
+    EXPECT_NE(r2.error().find("cannot reference"), std::string::npos);
+
+    // Function referencing context and params must succeed
+    auto r3 = s.add_flow("MyFunc", "context", "start", "context", "done");
+    EXPECT_TRUE(r3.is_ok());
+
+    auto r4 = s.add_link("MyFunc", "context", "result", "health");
+    EXPECT_TRUE(r4.is_ok());
+
+    // Events can still reference graph nodes
+    s.add_event("OnStart");
+    auto r5 = s.add_flow("OnStart", "context", "start", "logger", "enter");
+    EXPECT_TRUE(r5.is_ok());
+
+    auto r6 = s.add_link("OnStart", "logger", "message", "health");
+    EXPECT_TRUE(r6.is_ok());
+}
+
+TEST(EditSession, EventCannotReferenceDanglingNames) {
+    Environment env;
+    EditSession s(env);
+    load_core(s);
+    s.new_graph("G");
+    s.add_param(ParamDirection::In, "health", "int");
+    s.add_node("PrintString", "logger");
+    s.add_event("OnStart");
+
+    // Event referencing valid entities: context, params, nodes → OK
+    auto r1 = s.add_flow("OnStart", "context", "start", "logger", "enter");
+    EXPECT_TRUE(r1.is_ok());
+
+    auto r2 = s.add_link("OnStart", "logger", "message", "health");
+    EXPECT_TRUE(r2.is_ok());
+
+    // Event referencing a name that doesn't exist anywhere → fail
+    auto r3 = s.add_flow("OnStart", "logger", "exit", "nonexistent", "enter");
+    EXPECT_TRUE(r3.is_err());
+    EXPECT_NE(r3.error().find("unknown reference"), std::string::npos);
+
+    auto r4 = s.add_link("OnStart", "logger", "message", "ghost_param");
+    EXPECT_TRUE(r4.is_err());
+    EXPECT_NE(r4.error().find("unknown reference"), std::string::npos);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Undo / Redo
 // ═══════════════════════════════════════════════════════════════════
@@ -433,9 +493,9 @@ TEST(EditSession, FullWorkflowSimulation) {
     s.add_link("OnActivate", "dmgLog", "message", "damage");
     s.add_link("OnActivate", "cooldown", "duration", "damage");
 
-    // Step 4: Create function
+    // Step 4: Create function (functions can only reference context and params)
     s.add_function("Reset");
-    s.add_flow("Reset", "context", "start", "dmgLog", "enter");
+    s.add_flow("Reset", "context", "start", "context", "done");
 
     // Step 5: Add generate metadata
     s.add_comment("desc", "Gameplay ability with cooldown");

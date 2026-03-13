@@ -17,6 +17,8 @@ Graph ConfigurableNode {
 }
 
 Graph UseConfigurable {
+    in label : FString;
+
     ConfigurableNode worker{};
 
     event OnStart {

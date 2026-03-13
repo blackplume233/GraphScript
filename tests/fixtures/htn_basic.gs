@@ -3,6 +3,7 @@ import "htn_nodes.d.gs";
 
 Graph SimpleHTN : HTNGraph {
     in target : AActor;
+    in speed_default : float;
 
     HTN_CheckDistance check{};
     HTN_MoveToTarget move{};

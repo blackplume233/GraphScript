@@ -385,11 +385,47 @@ Result<void, std::string> EditSession::remove_function(const std::string& name) 
 
 // ─── Connection-level ──────────────────────────────────────────────
 
+// Validates that ref_name is a legal reference within block_name's scope.
+// - function scope: only "context" and parameter names
+// - event scope: "context", parameter names, and node instance names
+// Returns error string if violation detected, empty string if OK.
+static std::string check_block_scope(const Graph& g, const std::string& block_name, const std::string& ref_name) {
+    if (ref_name == "context") return "";
+    for (auto& p : g.parameters) {
+        if (p.name == ref_name) return "";
+    }
+
+    bool is_function = false;
+    for (auto& fn : g.functions) {
+        if (fn.name == block_name) { is_function = true; break; }
+    }
+
+    if (is_function) {
+        return "function '" + block_name + "': cannot reference '" + ref_name +
+               "' (only context and parameters allowed)";
+    }
+
+    // Event scope: also allow node instance names
+    for (auto& ni : g.node_instances) {
+        if (ni.instance_name == ref_name) return "";
+    }
+
+    return "event '" + block_name + "': unknown reference '" + ref_name +
+           "' (must be context, a parameter, or a node instance)";
+}
+
 Result<void, std::string> EditSession::add_flow(const std::string& block_name,
                                                  const std::string& from_node, const std::string& from_pin,
                                                  const std::string& to_node, const std::string& to_pin) {
+    auto* g = active_graph();
+    if (!g) return Result<void, std::string>::err("No active graph");
     auto* block = find_block(block_name);
     if (!block) return Result<void, std::string>::err("Logic block '" + block_name + "' not found");
+
+    auto err1 = check_block_scope(*g, block_name, from_node);
+    if (!err1.empty()) return Result<void, std::string>::err(err1);
+    auto err2 = check_block_scope(*g, block_name, to_node);
+    if (!err2.empty()) return Result<void, std::string>::err(err2);
 
     push_undo("add flow " + from_node + "." + from_pin + " -> " + to_node + "." + to_pin);
     FlowConnection fc;
@@ -420,8 +456,15 @@ Result<void, std::string> EditSession::remove_flow(const std::string& block_name
 Result<void, std::string> EditSession::add_link(const std::string& block_name,
                                                  const std::string& target_node, const std::string& target_pin,
                                                  const std::string& source_node, const std::string& source_pin) {
+    auto* g = active_graph();
+    if (!g) return Result<void, std::string>::err("No active graph");
     auto* block = find_block(block_name);
     if (!block) return Result<void, std::string>::err("Logic block '" + block_name + "' not found");
+
+    auto err1 = check_block_scope(*g, block_name, target_node);
+    if (!err1.empty()) return Result<void, std::string>::err(err1);
+    auto err2 = check_block_scope(*g, block_name, source_node);
+    if (!err2.empty()) return Result<void, std::string>::err(err2);
 
     push_undo("add link " + target_node + "." + target_pin + " = " + source_node +
               (source_pin.empty() ? "" : "." + source_pin));
@@ -448,7 +491,80 @@ Result<void, std::string> EditSession::remove_link(const std::string& block_name
     return Result<void, std::string>::err("Data link not found");
 }
 
-// ─── Generate block ────────────────────────────────────────────────
+// ─── Annotations (C# Attribute style) ──────────────────────────────
+// NOTE: These functions require the updated edit_session.h header.
+//       Apply edit_session.h.pending → edit_session.h to enable.
+
+// PENDING: Enable after applying edit_session.h.pending → edit_session.h
+#if 0
+
+// Upserts an annotation on a node instance by name.
+Result<void, std::string> EditSession::set_node_annotation(const std::string& instance_name, const Annotation& annot) {
+    auto* g = active_graph();
+    if (!g) return Result<void, std::string>::err("No active graph");
+    for (auto& ni : g->node_instances) {
+        if (ni.instance_name == instance_name) {
+            push_undo("set annotation [" + annot.name + "] on " + instance_name);
+            for (auto& a : ni.annotations) {
+                if (a.name == annot.name) { a = annot; return Result<void, std::string>::ok(); }
+            }
+            ni.annotations.push_back(annot);
+            return Result<void, std::string>::ok();
+        }
+    }
+    return Result<void, std::string>::err("Node instance '" + instance_name + "' not found");
+}
+
+// Removes an annotation by name from a node instance.
+Result<void, std::string> EditSession::remove_node_annotation(const std::string& instance_name, const std::string& annot_name) {
+    auto* g = active_graph();
+    if (!g) return Result<void, std::string>::err("No active graph");
+    for (auto& ni : g->node_instances) {
+        if (ni.instance_name == instance_name) {
+            auto& annots = ni.annotations;
+            for (auto it = annots.begin(); it != annots.end(); ++it) {
+                if (it->name == annot_name) {
+                    push_undo("remove annotation [" + annot_name + "] from " + instance_name);
+                    annots.erase(it);
+                    return Result<void, std::string>::ok();
+                }
+            }
+            return Result<void, std::string>::err("Annotation '" + annot_name + "' not found on " + instance_name);
+        }
+    }
+    return Result<void, std::string>::err("Node instance '" + instance_name + "' not found");
+}
+
+// Upserts an annotation on the active graph.
+Result<void, std::string> EditSession::set_graph_annotation(const Annotation& annot) {
+    auto* g = active_graph();
+    if (!g) return Result<void, std::string>::err("No active graph");
+    push_undo("set graph annotation [" + annot.name + "]");
+    for (auto& a : g->annotations) {
+        if (a.name == annot.name) { a = annot; return Result<void, std::string>::ok(); }
+    }
+    g->annotations.push_back(annot);
+    return Result<void, std::string>::ok();
+}
+
+// Removes an annotation by name from the active graph.
+Result<void, std::string> EditSession::remove_graph_annotation(const std::string& annot_name) {
+    auto* g = active_graph();
+    if (!g) return Result<void, std::string>::err("No active graph");
+    auto& annots = g->annotations;
+    for (auto it = annots.begin(); it != annots.end(); ++it) {
+        if (it->name == annot_name) {
+            push_undo("remove graph annotation [" + annot_name + "]");
+            annots.erase(it);
+            return Result<void, std::string>::ok();
+        }
+    }
+    return Result<void, std::string>::err("Graph annotation '" + annot_name + "' not found");
+}
+
+#endif // PENDING annotation API
+
+// ─── Generate block (legacy) ──────────────────────────────────────
 
 Result<void, std::string> EditSession::add_comment(const std::string& instance_name, const std::string& text) {
     auto* g = active_graph();

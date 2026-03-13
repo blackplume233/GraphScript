@@ -7,6 +7,7 @@
 
 #include "graphscript/parse/token.h"
 #include "graphscript/core/pin.h"
+#include "graphscript/core/annotation.h"
 
 namespace gs {
 
@@ -59,19 +60,21 @@ struct LetDeclNode : ASTNode {
     std::string constructor_arg;
 };
 
-/// Graph parameter (name, type, direction, default).
+/// Graph parameter (name, type, direction, default, annotations).
 struct ParamDeclNode : ASTNode {
     std::string  name;
     std::string  type_name;
     std::string  direction;  // "in", "out", "var"
     std::string  default_value;
+    std::vector<Annotation> annotations;  ///< C# 风格前缀标注
 };
 
-/// Node instance in a graph (type, instance name, initializer).
+/// Node instance in a graph (type, instance name, initializer, annotations).
 struct NodeInstanceNode : ASTNode {
     std::string type_name;
     std::string instance_name;
     std::string initializer;
+    std::vector<Annotation> annotations;  ///< C# 风格前缀标注
 };
 
 /// Exec flow statement (from node/pin to node/pin).
@@ -124,10 +127,11 @@ struct GenerateNode : ASTNode {
     std::vector<std::unique_ptr<MetadataNode>> metadata;
 };
 
-/// Graph definition (name, base, params, instances, events, functions, generate).
+/// Graph definition (name, base, annotations, params, instances, events, functions, generate).
 struct GraphNode : ASTNode {
     std::string                                  name;
     std::optional<std::string>                   base_type;
+    std::vector<Annotation>                      annotations;  ///< C# 风格前缀标注
     std::vector<std::unique_ptr<ParamDeclNode>>  params;
     std::vector<std::unique_ptr<NodeInstanceNode>> node_instances;
     std::vector<std::unique_ptr<EventNode>>      events;

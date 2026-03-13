@@ -3,21 +3,27 @@
 import "ue_core.d.gs";
 import "levelscript_nodes.d.gs";
 
-let spawn_loc_a = FVector("100,0,0");
-let spawn_loc_b = FVector("200,0,0");
-let spawn_loc_c = FVector("300,0,0");
-
+[Comment("layout", "Arena encounter with 3 spawn waves")]
 Graph ArenaEncounter : LevelScriptGraph {
     in triggerVolume : AActor;
     in bossClass : FName;
+    in spawn_loc_a : FVector;
+    in spawn_loc_b : FVector;
+    in spawn_loc_c : FVector;
     out arenaCleared : bool;
     var waveCount : int;
 
+    [Position(X = 0, Y = 0)]
     TriggerVolume mainTrigger{};
+    [Position(X = 200, Y = 0)]
     SpawnActor spawner1{};
+    [Position(X = 400, Y = 0)]
     SpawnActor spawner2{};
+    [Position(X = 200, Y = 200)]
     SpawnActor spawner3{};
+    [Position(X = 600, Y = 0)]
     PrintString waveAnnounce{};
+    [Position(X = 400, Y = 200)]
     PrintString bossAnnounce{};
 
     event OnLevelStart {
@@ -38,21 +44,5 @@ Graph ArenaEncounter : LevelScriptGraph {
         link spawner3.actorClass = bossClass;
         link spawner3.location = spawn_loc_c;
         link bossAnnounce.message = bossClass;
-    }
-
-    generate {
-        Comment layout = "Arena encounter with 3 spawn waves";
-        position:mainTrigger.x(0);
-        position:mainTrigger.y(0);
-        position:spawner1.x(200);
-        position:spawner1.y(0);
-        position:spawner2.x(400);
-        position:spawner2.y(0);
-        position:spawner3.x(200);
-        position:spawner3.y(200);
-        position:waveAnnounce.x(600);
-        position:waveAnnounce.y(0);
-        position:bossAnnounce.x(400);
-        position:bossAnnounce.y(200);
     }
 }

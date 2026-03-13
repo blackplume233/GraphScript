@@ -1,10 +1,11 @@
 import "ue_core.d.gs";
 import "levelscript_nodes.d.gs";
 
-let spawn_point = FVector("100,200,0");
-
 Graph LevelSetup : LevelScriptGraph {
     in triggerActor : AActor;
+    in enemyClass : FName;
+    in spawn_point : FVector;
+    in spawnMessage : FString;
 
     TriggerVolume trigger{};
     SpawnActor spawner{};

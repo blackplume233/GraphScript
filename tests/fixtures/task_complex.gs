@@ -3,50 +3,38 @@
 import "ue_core.d.gs";
 import "task_nodes.d.gs";
 
+[Comment("desc", "Multi-stage quest with branching dialogue")]
 Graph MultiStageQuest : TaskGraph {
     in questTitle : FString;
     in rewardAmount : int;
     out questComplete : bool;
     var currentStage : int;
 
+    [Position(X = 50, Y = 100)]
     TaskStart beginning{};
+    [Position(X = 200, Y = 100)]
     ShowDialogue intro{};
+    [Position(X = 350, Y = 100)]
     ShowDialogue midpoint{};
+    [Position(X = 500, Y = 100)]
     ShowDialogue conclusion{};
+    [Position(X = 650, Y = 100)]
     TaskComplete ending{};
 
     event OnBegin {
         beginning.begin(intro.enter);
         intro.exit(midpoint.enter);
         link intro.text = questTitle;
-        link intro.speaker = narrator;
+        link intro.speaker = questTitle;
     }
 
     function AdvanceStage {
-        context.start(midpoint.enter);
-        midpoint.exit(conclusion.enter);
-        link midpoint.text = questTitle;
-        link midpoint.speaker = narrator;
+        context.start(context.done);
+        link context.result = questTitle;
     }
 
     function CompleteQuest {
-        context.start(conclusion.enter);
-        conclusion.exit(ending.finish);
-        link conclusion.text = questTitle;
-        link ending.result = questComplete;
-    }
-
-    generate {
-        Comment desc = "Multi-stage quest with branching dialogue";
-        position:beginning.x(50);
-        position:beginning.y(100);
-        position:intro.x(200);
-        position:intro.y(100);
-        position:midpoint.x(350);
-        position:midpoint.y(100);
-        position:conclusion.x(500);
-        position:conclusion.y(100);
-        position:ending.x(650);
-        position:ending.y(100);
+        context.start(context.done);
+        link context.result = questComplete;
     }
 }

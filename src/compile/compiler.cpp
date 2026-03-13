@@ -1,4 +1,5 @@
 #include "graphscript/compile/compiler.h"
+#include <unordered_set>
 
 namespace gs {
 
@@ -35,6 +36,54 @@ Result<Module, std::string> Compiler::compile(const ModuleNode& ast, const std::
     // 4. Compile graphs and derive nodes
     for (auto& graph_ast : ast.graphs) {
         Graph graph = compile_graph(*graph_ast);
+
+        // Validate scope: every flow/link reference must resolve within its block's scope.
+        //   function scope = { "context" } ∪ { parameter names }
+        //   event scope    = { "context" } ∪ { parameter names } ∪ { node instance names }
+        {
+            std::unordered_set<std::string> param_names;
+            std::unordered_set<std::string> node_names;
+            param_names.insert("context");
+            for (auto& p : graph.parameters) param_names.insert(p.name);
+            for (auto& ni : graph.node_instances) node_names.insert(ni.instance_name);
+
+            auto check_ref = [&](const std::string& block_kind, const std::string& block_name,
+                                 const std::string& ref, bool allow_nodes) -> std::string {
+                if (param_names.count(ref)) return "";
+                if (allow_nodes && node_names.count(ref)) return "";
+                if (!allow_nodes && node_names.count(ref))
+                    return block_kind + " '" + block_name + "': cannot reference graph node '" +
+                           ref + "' (only context and parameters allowed)";
+                return block_kind + " '" + block_name + "': unknown reference '" + ref +
+                       "' (must be context" + (allow_nodes ? ", a parameter, or a node instance)" : " or a parameter)");
+            };
+
+            auto validate_block = [&](const std::string& kind, const LogicBlock& block, bool allow_nodes) -> std::string {
+                for (auto& fc : block.flow_connections) {
+                    auto e = check_ref(kind, block.name, fc.from.node_instance, allow_nodes);
+                    if (!e.empty()) return e;
+                    e = check_ref(kind, block.name, fc.to.node_instance, allow_nodes);
+                    if (!e.empty()) return e;
+                }
+                for (auto& dl : block.data_links) {
+                    auto e = check_ref(kind, block.name, dl.target.node_instance, allow_nodes);
+                    if (!e.empty()) return e;
+                    e = check_ref(kind, block.name, dl.source.node_instance, allow_nodes);
+                    if (!e.empty()) return e;
+                }
+                return "";
+            };
+
+            for (auto& ev : graph.events) {
+                auto e = validate_block("event", ev, true);
+                if (!e.empty()) return Result<Module, std::string>::err(e);
+            }
+            for (auto& fn : graph.functions) {
+                auto e = validate_block("function", fn, false);
+                if (!e.empty()) return Result<Module, std::string>::err(e);
+            }
+        }
+
         NodeDefinition derived = derive_node_from_graph(graph);
         mod.graphs.push_back(std::move(graph));
         env_.nodes().register_graph_node(std::move(derived));
@@ -110,11 +159,12 @@ void Compiler::process_declare_schemas(const ModuleNode& ast) {
     }
 }
 
-// Compiles graph AST to Graph IR (params, instances, events, functions, generate).
+// Compiles graph AST to Graph IR (annotations, params, instances, events, functions, generate).
 Graph Compiler::compile_graph(const GraphNode& gn) {
     Graph g;
     g.name = gn.name;
     g.base_type = gn.base_type;
+    g.annotations = gn.annotations;
 
     for (auto& p : gn.params) {
         g.parameters.push_back(compile_param(*p));
@@ -128,6 +178,7 @@ Graph Compiler::compile_graph(const GraphNode& gn) {
     for (auto& fn : gn.functions) {
         g.functions.push_back(compile_function(*fn));
     }
+
     if (gn.generate) {
         g.generate = compile_generate(*gn.generate);
     }
@@ -166,24 +217,26 @@ NodeDefinition Compiler::derive_node_from_graph(const Graph& graph) {
     return def;
 }
 
-// Compiles param declaration to GraphParameter.
+// Compiles param declaration to GraphParameter (with annotations pass-through).
 GraphParameter Compiler::compile_param(const ParamDeclNode& pn) {
     GraphParameter p;
     p.name = pn.name;
     p.type_name = pn.type_name;
     p.default_value = pn.default_value;
+    p.annotations = pn.annotations;
     if (pn.direction == "in")       p.direction = ParamDirection::In;
     else if (pn.direction == "out") p.direction = ParamDirection::Out;
     else                            p.direction = ParamDirection::Var;
     return p;
 }
 
-// Compiles node instance AST to NodeInstance.
+// Compiles node instance AST to NodeInstance (with annotations pass-through).
 NodeInstance Compiler::compile_node_instance(const NodeInstanceNode& ni) {
     NodeInstance inst;
     inst.type_name = ni.type_name;
     inst.instance_name = ni.instance_name;
     inst.initializer = ni.initializer;
+    inst.annotations = ni.annotations;
     return inst;
 }
 

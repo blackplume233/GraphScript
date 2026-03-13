@@ -2,12 +2,15 @@ import "ue_core.d.gs";
 
 let actor_1 = SoftObjectPath("actor_path_1");
 
+[Comment("note1", "This is a test graph")]
 Graph RoundTripTest {
     in hp : int;
     out damage : int;
     var temp : float;
 
+    [Position(X = 100, Y = 200)]
     PrintString printer{};
+    [Position(X = 300, Y = 200)]
     Delay delayer{};
 
     event OnStart {
@@ -18,15 +21,7 @@ Graph RoundTripTest {
     }
 
     function Calculate {
-        context.start(printer.enter);
-        link printer.message = damage;
-    }
-
-    generate {
-        Comment note1 = "This is a test graph";
-        position:printer.x(100);
-        position:printer.y(200);
-        position:delayer.x(300);
-        position:delayer.y(200);
+        context.start(context.done);
+        link context.result = damage;
     }
 }

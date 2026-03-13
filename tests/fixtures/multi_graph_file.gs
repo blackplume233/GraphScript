@@ -49,8 +49,7 @@ Graph MainController {
     }
 
     function DoOutput {
-        context.start(final_output.enter);
-        final_output.exit(wait.enter);
-        link wait.duration = input_value;
+        context.start(context.done);
+        link context.result = input_value;
     }
 }

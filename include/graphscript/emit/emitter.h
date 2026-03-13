@@ -20,6 +20,7 @@ public:
     std::string emit_graph_diagram(const Graph& graph) const;
 
 private:
+    std::string emit_annotations(const std::vector<Annotation>& annots, const std::string& indent) const;
     std::string emit_imports(const std::vector<ImportDecl>& imports) const;
     std::string emit_lets(const std::vector<LetDecl>& lets) const;
     std::string emit_params(const std::vector<GraphParameter>& params) const;

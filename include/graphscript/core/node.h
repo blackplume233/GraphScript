@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include "graphscript/core/pin.h"
+#include "graphscript/core/annotation.h"
 
 namespace gs {
 
@@ -40,6 +41,7 @@ struct NodeInstance {
     std::string type_name;      ///< 节点类型名称
     std::string instance_name;  ///< 实例唯一名称
     std::string initializer;    ///< 初始化表达式或参数
+    std::vector<Annotation> annotations;  ///< C# 风格标注，如 [Position(X=100, Y=200)]
 };
 
 /// 节点注册表，管理所有已注册的节点定义。

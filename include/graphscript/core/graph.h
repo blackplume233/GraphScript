@@ -6,6 +6,7 @@
 
 #include "graphscript/core/node.h"
 #include "graphscript/core/connection.h"
+#include "graphscript/core/annotation.h"
 
 namespace gs {
 
@@ -22,6 +23,7 @@ struct GraphParameter {
     std::string    type_name;     ///< 参数类型名称
     ParamDirection direction = ParamDirection::In;  ///< 参数方向
     std::string    default_value; ///< 默认值（可选）
+    std::vector<Annotation> annotations;  ///< C# 风格标注
 };
 
 /// 逻辑块基类，包含执行流连接与数据连接。
@@ -61,11 +63,12 @@ struct GenerateBlock {
 struct Graph {
     std::string                    name;          ///< 图名称
     std::optional<std::string>     base_type;      ///< 基类类型（若为继承图）
+    std::vector<Annotation>        annotations;    ///< C# 风格标注，如 [Comment("desc")]
     std::vector<GraphParameter>    parameters;     ///< 图参数
     std::vector<NodeInstance>      node_instances; ///< 节点实例列表
     std::vector<Event>             events;         ///< 事件逻辑块
     std::vector<Function>          functions;      ///< 函数逻辑块
-    std::optional<GenerateBlock>   generate;      ///< 代码生成配置（可选）
+    std::optional<GenerateBlock>   generate;      ///< 代码生成配置（可选，未来预留）
 };
 
 } // namespace gs

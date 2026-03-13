@@ -81,9 +81,8 @@ TEST(Emitter, EmitGenerate) {
     Emitter emitter;
     auto output = emitter.emit(mod);
 
-    EXPECT_NE(output.find("generate {"), std::string::npos);
-    EXPECT_NE(output.find("Comment note1 = \"This is a test graph\""), std::string::npos);
-    EXPECT_NE(output.find("position:printer.x(100)"), std::string::npos);
+    EXPECT_NE(output.find("[Comment("), std::string::npos);
+    EXPECT_NE(output.find("[Position("), std::string::npos);
 }
 
 TEST(Emitter, EmitFunction) {

@@ -15,9 +15,35 @@ std::string Emitter::emit(const Module& module) const {
     return out;
 }
 
-// Emits single graph: params, node instances, events, functions, generate.
+// Emits C#-style annotations as a prefix line, e.g. "    [Position(X = 100, Y = 200)]\n".
+std::string Emitter::emit_annotations(const std::vector<Annotation>& annots, const std::string& indent) const {
+    if (annots.empty()) return "";
+    std::string out = indent + "[";
+    for (size_t i = 0; i < annots.size(); ++i) {
+        if (i > 0) out += ", ";
+        out += annots[i].name + "(";
+        for (size_t j = 0; j < annots[i].args.size(); ++j) {
+            if (j > 0) out += ", ";
+            auto& arg = annots[i].args[j];
+            if (!arg.name.empty()) out += arg.name + " = ";
+            bool is_numeric = !arg.value.empty() &&
+                              (arg.value.front() == '-' || std::isdigit(static_cast<unsigned char>(arg.value.front()))) &&
+                              arg.value.find(' ') == std::string::npos;
+            bool is_bool = (arg.value == "true" || arg.value == "false");
+            bool is_string = !arg.value.empty() && !is_numeric && !is_bool;
+            if (is_string) out += "\"" + arg.value + "\"";
+            else out += arg.value;
+        }
+        out += ")";
+    }
+    out += "]\n";
+    return out;
+}
+
+// Emits single graph: annotations, params, node instances, events, functions, generate.
 std::string Emitter::emit_graph(const Graph& graph) const {
     std::string out;
+    out += emit_annotations(graph.annotations, "");
     out += "Graph " + graph.name;
     if (graph.base_type) out += " : " + *graph.base_type;
     out += " {\n";
@@ -61,10 +87,11 @@ std::string Emitter::emit_lets(const std::vector<LetDecl>& lets) const {
     return out;
 }
 
-// Emits graph parameters (in/out/var).
+// Emits graph parameters (in/out/var) with optional C# annotations prefix.
 std::string Emitter::emit_params(const std::vector<GraphParameter>& params) const {
     std::string out;
     for (auto& p : params) {
+        out += emit_annotations(p.annotations, "    ");
         std::string dir;
         switch (p.direction) {
             case ParamDirection::In:  dir = "in"; break;
@@ -78,10 +105,11 @@ std::string Emitter::emit_params(const std::vector<GraphParameter>& params) cons
     return out;
 }
 
-// Emits node instance declarations.
+// Emits node instance declarations with optional C# annotations prefix.
 std::string Emitter::emit_node_instances(const std::vector<NodeInstance>& instances) const {
     std::string out;
     for (auto& ni : instances) {
+        out += emit_annotations(ni.annotations, "    ");
         out += "    " + ni.type_name + " " + ni.instance_name + "{";
         if (!ni.initializer.empty()) out += ni.initializer;
         out += "};\n";

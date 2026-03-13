@@ -13,6 +13,8 @@ Graph SubRoutine {
 }
 
 Graph MainGraph {
+    in inputVal : int;
+
     SubRoutine sub{};
     PrintString final_printer{};
 

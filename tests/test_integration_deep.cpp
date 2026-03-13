@@ -260,9 +260,16 @@ TEST(DeepCycle, S3_TaskComplex_FullPipeline) {
     EXPECT_EQ(g.node_instances.size(), 5u);
     EXPECT_EQ(g.events.size(), 1u);
     EXPECT_EQ(g.functions.size(), 2u);
-    ASSERT_TRUE(g.generate.has_value());
-    EXPECT_EQ(g.generate->comments.size(), 1u);
-    EXPECT_GE(g.generate->metadata.size(), 10u);
+    // Graph-level annotations (was Comment in generate)
+    EXPECT_GE(g.annotations.size(), 1u);
+    // Node-level annotations (was position in generate)
+    size_t nodes_with_position = 0;
+    for (auto& ni : g.node_instances) {
+        for (auto& a : ni.annotations) {
+            if (a.name == "Position") { nodes_with_position++; break; }
+        }
+    }
+    EXPECT_GE(nodes_with_position, 1u);
 
     // Bake
     auto eg = EditGraph::build(g, env);
@@ -316,11 +323,11 @@ TEST(DeepCycle, S4_LevelScriptComplex_FullPipeline) {
     EXPECT_EQ(*g.base_type, "LevelScriptGraph");
     EXPECT_EQ(g.events.size(), 2u);
     EXPECT_EQ(g.node_instances.size(), 6u);
-    ASSERT_TRUE(g.generate.has_value());
+    // Graph-level annotations (was Comment in generate)
+    EXPECT_GE(g.annotations.size(), 1u);
 
-    // Verify let declarations
-    EXPECT_EQ(mod.top_level_lets.size(), 3u);
-    EXPECT_EQ(mod.top_level_lets[0].name, "spawn_loc_a");
+    // spawn_loc_a/b/c are now graph params, no top-level lets
+    EXPECT_EQ(mod.top_level_lets.size(), 0u);
 
     auto eg = EditGraph::build(g, env);
     auto rt = RuntimeGraph::bake(eg);
@@ -466,9 +473,16 @@ TEST(DeepCycle, S7_AllFeatures_FullPipeline) {
     EXPECT_EQ(g.node_instances.size(), 4u);
     EXPECT_EQ(g.events.size(), 2u);
     EXPECT_EQ(g.functions.size(), 2u);
-    ASSERT_TRUE(g.generate.has_value());
-    EXPECT_EQ(g.generate->comments.size(), 2u);
-    EXPECT_GE(g.generate->metadata.size(), 6u);
+    // Graph-level annotations (was Comment in generate)
+    EXPECT_GE(g.annotations.size(), 2u);
+    // Node-level annotations (was position in generate)
+    size_t nodes_with_position = 0;
+    for (auto& ni : g.node_instances) {
+        for (auto& a : ni.annotations) {
+            if (a.name == "Position") { nodes_with_position++; break; }
+        }
+    }
+    EXPECT_GE(nodes_with_position, 1u);
 
     // Verify flow connections in OnStart
     auto& on_start = g.events[0];
@@ -548,7 +562,7 @@ TEST(DeepCycle, S9_Cinematic_FullPipeline) {
     auto& g = mod.graphs[0];
     EXPECT_EQ(g.name, "CutsceneIntro");
     EXPECT_EQ(*g.base_type, "CinematicGraph");
-    EXPECT_EQ(g.parameters.size(), 4u);
+    EXPECT_EQ(g.parameters.size(), 8u);
     EXPECT_EQ(g.node_instances.size(), 4u);
 
     // Build with schema

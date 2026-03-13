@@ -44,6 +44,16 @@ Result<std::unique_ptr<ModuleNode>, std::string> Parser::parse() {
                 errors_.push_back("Expected 'type', 'Node', or 'Schema' after 'declare' at line " + std::to_string(tok.location.line));
                 return Result<std::unique_ptr<ModuleNode>, std::string>::err(errors_.back());
             }
+        } else if (tok.type == TokenType::LeftBracket) {
+            auto annots = parse_annotations();
+            if (current().type != TokenType::KW_Graph) {
+                errors_.push_back("Expected 'Graph' after annotations at line " + std::to_string(current().location.line));
+                return Result<std::unique_ptr<ModuleNode>, std::string>::err(errors_.back());
+            }
+            auto node = parse_graph();
+            if (!node) return Result<std::unique_ptr<ModuleNode>, std::string>::err(errors_.empty() ? "Failed to parse Graph" : errors_.back());
+            node->annotations = std::move(annots);
+            module->graphs.push_back(std::move(node));
         } else if (tok.type == TokenType::KW_Graph) {
             auto node = parse_graph();
             if (!node) return Result<std::unique_ptr<ModuleNode>, std::string>::err(errors_.empty() ? "Failed to parse Graph" : errors_.back());
@@ -318,7 +328,24 @@ std::unique_ptr<GraphNode> Parser::parse_graph() {
         }
 
         auto& tok = current();
-        if (tok.type == TokenType::KW_in || tok.type == TokenType::KW_out || tok.type == TokenType::KW_var) {
+        if (tok.type == TokenType::LeftBracket) {
+            auto annots = parse_annotations();
+            auto& next = current();
+            if (next.type == TokenType::KW_in || next.type == TokenType::KW_out || next.type == TokenType::KW_var) {
+                auto param = parse_param();
+                if (!param) return nullptr;
+                param->annotations = std::move(annots);
+                node->params.push_back(std::move(param));
+            } else if (next.type == TokenType::Identifier) {
+                auto inst = parse_node_instance();
+                if (!inst) return nullptr;
+                inst->annotations = std::move(annots);
+                node->node_instances.push_back(std::move(inst));
+            } else {
+                errors_.push_back("Expected parameter or node instance after annotations at line " + std::to_string(next.location.line));
+                return nullptr;
+            }
+        } else if (tok.type == TokenType::KW_in || tok.type == TokenType::KW_out || tok.type == TokenType::KW_var) {
             auto param = parse_param();
             if (!param) return nullptr;
             node->params.push_back(std::move(param));
@@ -677,6 +704,57 @@ std::unique_ptr<MetadataNode> Parser::parse_metadata() {
     if (!expect(TokenType::RightParen, "Expected ')' in metadata")) return nullptr;
     expect(TokenType::Semicolon, "Expected ';' after metadata");
     return node;
+}
+
+// Returns true for tokens that can serve as annotation names or named-arg keys
+// (identifiers and keywords are both valid word tokens).
+static bool is_word_token(TokenType t) {
+    return t == TokenType::Identifier ||
+           (t >= TokenType::KW_import && t <= TokenType::KW_data);
+}
+
+// Parses [Name(args), Name2(key = val, ...)] C#-style annotation list.
+std::vector<Annotation> Parser::parse_annotations() {
+    std::vector<Annotation> annotations;
+    advance(); // consume '['
+
+    while (!at_end() && current().type != TokenType::RightBracket) {
+        Annotation annot;
+        if (!is_word_token(current().type)) {
+            errors_.push_back("Expected annotation name at line " + std::to_string(current().location.line));
+            return {};
+        }
+        annot.name = current().text;
+        advance();
+
+        if (!expect(TokenType::LeftParen, "Expected '(' after annotation name")) return {};
+
+        while (!at_end() && current().type != TokenType::RightParen) {
+            AnnotationArg arg;
+            if (is_word_token(current().type) && peek_next().type == TokenType::Assign) {
+                arg.name = current().text;
+                advance(); // consume name
+                advance(); // consume '='
+            }
+            arg.value = current().text;
+            advance();
+
+            annot.args.push_back(std::move(arg));
+
+            if (current().type == TokenType::Comma) {
+                advance();
+            }
+        }
+        if (!expect(TokenType::RightParen, "Expected ')' after annotation arguments")) return {};
+
+        annotations.push_back(std::move(annot));
+
+        if (current().type == TokenType::Comma) {
+            advance();
+        }
+    }
+    expect(TokenType::RightBracket, "Expected ']' closing annotations");
+    return annotations;
 }
 
 } // namespace gs

@@ -213,9 +213,15 @@ TEST(Parser, RoundTripFixture) {
     EXPECT_EQ(g->node_instances.size(), 2u);
     EXPECT_EQ(g->events.size(), 1u);
     EXPECT_EQ(g->functions.size(), 1u);
-    ASSERT_NE(g->generate, nullptr);
-    EXPECT_EQ(g->generate->comments.size(), 1u);
-    EXPECT_EQ(g->generate->metadata.size(), 4u);
+    // Graph-level annotations (was Comment in generate)
+    EXPECT_EQ(g->annotations.size(), 1u);
+    EXPECT_EQ(g->annotations[0].name, "Comment");
+    EXPECT_EQ(g->annotations[0].args.size(), 2u);
+    // Node instance annotations (was position in generate)
+    EXPECT_EQ(g->node_instances[0]->annotations.size(), 1u);
+    EXPECT_EQ(g->node_instances[0]->annotations[0].name, "Position");
+    EXPECT_EQ(g->node_instances[1]->annotations.size(), 1u);
+    EXPECT_EQ(g->node_instances[1]->annotations[0].name, "Position");
 }
 
 TEST(Parser, FlowAndLinkStatements) {
@@ -247,25 +253,24 @@ Graph Test {
 
 TEST(Parser, GenerateBlock) {
     auto result = parse_source(R"(
+[Comment("c1", "hello")]
 Graph Test {
+    [Position(X = 100)]
     PrintString p{};
-    generate {
-        Comment c1 = "hello";
-        position:p.x(100);
-    }
 }
 )");
     ASSERT_TRUE(result.is_ok()) << result.error();
-    auto& gen = result.value()->graphs[0]->generate;
-    ASSERT_NE(gen, nullptr);
-    ASSERT_EQ(gen->comments.size(), 1u);
-    EXPECT_EQ(gen->comments[0]->instance_name, "c1");
-    EXPECT_EQ(gen->comments[0]->text, "hello");
-    ASSERT_EQ(gen->metadata.size(), 1u);
-    EXPECT_EQ(gen->metadata[0]->scope, "position");
-    EXPECT_EQ(gen->metadata[0]->node, "p");
-    EXPECT_EQ(gen->metadata[0]->property, "x");
-    EXPECT_EQ(gen->metadata[0]->value, "100");
+    auto& g = result.value()->graphs[0];
+    EXPECT_EQ(g->annotations.size(), 1u);
+    EXPECT_EQ(g->annotations[0].name, "Comment");
+    EXPECT_EQ(g->annotations[0].args.size(), 2u);
+    EXPECT_EQ(g->annotations[0].args[0].value, "c1");
+    EXPECT_EQ(g->annotations[0].args[1].value, "hello");
+    EXPECT_EQ(g->node_instances[0]->annotations.size(), 1u);
+    EXPECT_EQ(g->node_instances[0]->annotations[0].name, "Position");
+    EXPECT_EQ(g->node_instances[0]->annotations[0].args.size(), 1u);
+    EXPECT_EQ(g->node_instances[0]->annotations[0].args[0].name, "X");
+    EXPECT_EQ(g->node_instances[0]->annotations[0].args[0].value, "100");
 }
 
 TEST(Parser, ErrorOnBadInput) {
