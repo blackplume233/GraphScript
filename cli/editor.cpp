@@ -57,6 +57,7 @@ bool CLIEditor::execute(const std::string& line) {
     else if (cmd == "redo")                cmd_redo();
     else if (cmd == "history")             cmd_history();
     else if (cmd == "emit")                cmd_emit();
+    else if (cmd == "diagram")             cmd_diagram();
     else if (cmd == "validate")            cmd_validate();
     else if (cmd == "bake")                cmd_bake();
     else if (cmd == "types")               cmd_types();
@@ -145,6 +146,7 @@ void CLIEditor::cmd_help() {
         "  meta <scope:node.prop> <val>  Add metadata\n"
         "\n=== Tools ===\n"
         "  emit                     Print .gs text\n"
+        "  diagram                  Print Mermaid flowchart\n"
         "  validate                 Run validation\n"
         "  bake                     Show RuntimeGraph stats\n"
         "  schemas                  List schemas\n"
@@ -518,6 +520,13 @@ void CLIEditor::cmd_emit() {
     auto text = session_.emit();
     if (text.empty()) { print_ok("(empty module)"); return; }
     std::cout << "\n" << text << "\n";
+}
+
+void CLIEditor::cmd_diagram() {
+    Emitter emitter;
+    auto* g = session_.active_graph();
+    if (!g) { print_ok("(no active graph)"); return; }
+    std::cout << "\n" << emitter.emit_graph_diagram(*g) << "\n";
 }
 
 void CLIEditor::cmd_validate() {

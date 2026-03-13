@@ -139,4 +139,140 @@ std::string Emitter::emit_logic_stmts(const std::vector<FlowConnection>& flows, 
     return out;
 }
 
+// ─── Mermaid Diagram Generation ────────────────────────────────────
+
+// Converts a name to a safe Mermaid node ID (no dots, spaces, etc.).
+std::string Emitter::mermaid_id(const std::string& name) {
+    std::string id;
+    for (char c : name) {
+        if (c == '.' || c == ' ' || c == '-') id += '_';
+        else id += c;
+    }
+    return id;
+}
+
+// Escapes text for Mermaid labels (quotes).
+std::string Emitter::mermaid_escape(const std::string& text) {
+    std::string r;
+    for (char c : text) {
+        if (c == '"') r += "#quot;";
+        else r += c;
+    }
+    return r;
+}
+
+// Emits all graphs as Mermaid diagrams in one markdown document.
+std::string Emitter::emit_diagram(const Module& module) const {
+    std::string out;
+    for (auto& g : module.graphs) {
+        out += emit_graph_diagram(g);
+        out += "\n";
+    }
+    return out;
+}
+
+// Emits flow+link connections for one logic block.
+std::string Emitter::emit_block_diagram(const LogicBlock& block, const std::string& kind) const {
+    std::string out;
+    std::string prefix = "    ";
+
+    out += prefix + "subgraph " + mermaid_id(block.name) + "[\"" + kind + " " + mermaid_escape(block.name) + "\"]\n";
+    out += prefix + "    direction LR\n";
+    out += prefix + "end\n";
+
+    // Flow connections: solid arrows with pin labels
+    for (auto& fc : block.flow_connections) {
+        std::string from = mermaid_id(fc.from.node_instance);
+        std::string to   = mermaid_id(fc.to.node_instance);
+        std::string label = fc.from.pin_name + " → " + fc.to.pin_name;
+        out += prefix + from + " ==>|\"" + mermaid_escape(label) + "\"| " + to + "\n";
+    }
+
+    // Data links: dashed arrows with pin labels
+    for (auto& dl : block.data_links) {
+        std::string src = dl.source.pin_name.empty()
+            ? mermaid_id(dl.source.node_instance)
+            : mermaid_id(dl.source.node_instance);
+        std::string tgt = mermaid_id(dl.target.node_instance);
+        std::string src_label = dl.source.pin_name.empty()
+            ? dl.source.node_instance
+            : dl.source.node_instance + "." + dl.source.pin_name;
+        std::string label = src_label + " → " + dl.target.pin_name;
+        out += prefix + src + " -.->|\"" + mermaid_escape(label) + "\"| " + tgt + "\n";
+    }
+
+    return out;
+}
+
+// Emits a single graph as a complete Mermaid flowchart in markdown.
+std::string Emitter::emit_graph_diagram(const Graph& graph) const {
+    std::string out;
+
+    // Markdown header
+    out += "## " + graph.name;
+    if (graph.base_type) out += " : " + *graph.base_type;
+    out += "\n\n";
+    out += "```mermaid\n";
+    out += "flowchart TD\n";
+
+    // Style definitions
+    out += "    classDef param fill:#1a3d2a,stroke:#4a9a6a,color:#a6e3a1\n";
+    out += "    classDef node fill:#1a2d4a,stroke:#4a7a9a,color:#89b4fa\n";
+    out += "    classDef ctx fill:#2a2a3a,stroke:#6c7086,color:#cdd6f4\n";
+
+    // Context node (entry point for events)
+    out += "\n    context((\"" + mermaid_escape(graph.name) + "\")):::ctx\n";
+
+    // Parameters
+    if (!graph.parameters.empty()) {
+        out += "\n    subgraph params[\"Parameters\"]\n";
+        out += "        direction TB\n";
+        for (auto& p : graph.parameters) {
+            std::string id = mermaid_id(p.name);
+            std::string dir_icon;
+            switch (p.direction) {
+                case ParamDirection::In:  dir_icon = "IN"; break;
+                case ParamDirection::Out: dir_icon = "OUT"; break;
+                case ParamDirection::Var: dir_icon = "VAR"; break;
+            }
+            std::string label = dir_icon + " " + p.name + " : " + p.type_name;
+            if (!p.default_value.empty()) label += " = " + p.default_value;
+
+            if (p.direction == ParamDirection::In || p.direction == ParamDirection::Var) {
+                out += "        " + id + "([\"" + mermaid_escape(label) + "\"]):::param\n";
+            } else {
+                out += "        " + id + "([\"" + mermaid_escape(label) + "\"]):::param\n";
+            }
+        }
+        out += "    end\n";
+    }
+
+    // Node instances
+    if (!graph.node_instances.empty()) {
+        out += "\n    subgraph nodes[\"Nodes\"]\n";
+        out += "        direction TB\n";
+        for (auto& ni : graph.node_instances) {
+            std::string id = mermaid_id(ni.instance_name);
+            std::string label = ni.type_name + "\\n" + ni.instance_name;
+            out += "        " + id + "[\"" + mermaid_escape(label) + "\"]:::node\n";
+        }
+        out += "    end\n";
+    }
+
+    // Events
+    for (auto& ev : graph.events) {
+        out += "\n";
+        out += emit_block_diagram(ev, "event");
+    }
+
+    // Functions
+    for (auto& fn : graph.functions) {
+        out += "\n";
+        out += emit_block_diagram(fn, "function");
+    }
+
+    out += "```\n";
+    return out;
+}
+
 } // namespace gs

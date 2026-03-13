@@ -60,6 +60,7 @@ private:
     void cmd_history();
 
     void cmd_emit();
+    void cmd_diagram();
     void cmd_validate();
     void cmd_bake();
     void cmd_types();

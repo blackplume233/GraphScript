@@ -284,6 +284,7 @@ int main(int argc, char* argv[]) {
                   << "  compile   Compile .gs files into Graph structures\n"
                   << "  validate  Validate graph against schema\n"
                   << "  emit      Emit .gs text from compiled graph\n"
+                  << "  diagram   Generate Mermaid flowchart from graph\n"
                   << "  bake      Bake EditGraph into RuntimeGraph\n"
                   << "  info      Show type/node/schema registry info\n"
                   << "  schema    List registered schemas\n\n"
@@ -337,6 +338,26 @@ int main(int argc, char* argv[]) {
     if (opts.command == "compile")  return cmd_compile(opts);
     if (opts.command == "validate") return cmd_validate(opts);
     if (opts.command == "emit")     return cmd_emit(opts);
+    if (opts.command == "diagram") {
+        auto src = read_file(opts.input_file);
+        auto ast = parse_source(src);
+        if (!ast) return 1;
+        gs::Environment env;
+        load_imports(opts.import_files, env);
+        gs::Compiler compiler(env);
+        auto result = compiler.compile(*ast, opts.input_file);
+        if (result.is_err()) { std::cerr << "Compile error: " << result.error() << "\n"; return 1; }
+        gs::Emitter emitter;
+        std::string md = emitter.emit_diagram(result.value());
+        if (!opts.output_file.empty()) {
+            std::ofstream f(opts.output_file);
+            f << md;
+            std::cout << "Diagram written to " << opts.output_file << "\n";
+        } else {
+            std::cout << md;
+        }
+        return 0;
+    }
     if (opts.command == "bake")     return cmd_bake(opts);
     if (opts.command == "info")     return cmd_info(opts);
     if (opts.command == "schema")   return cmd_schema(opts);
