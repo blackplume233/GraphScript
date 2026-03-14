@@ -48,7 +48,7 @@ if(GS_BUILD_CLI)
     target_link_libraries(gs PRIVATE graphscript_core httplib::httplib)
 
     target_compile_definitions(gs PRIVATE
-        GS_WEB_DIR="${CMAKE_CURRENT_SOURCE_DIR}/web"
+        GS_WEB_DIR="${CMAKE_CURRENT_SOURCE_DIR}/webapp/dist"
     )
 endif()
 
@@ -71,6 +71,7 @@ if(GS_BUILD_TESTS)
 
     target_compile_definitions(gs_tests PRIVATE
         GS_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+        GS_PRESETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/presets"
     )
 
     include(GoogleTest)

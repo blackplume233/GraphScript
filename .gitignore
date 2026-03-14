@@ -17,3 +17,10 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Webapp build outputs
+webapp/node_modules/
+webapp/dist/
+
+# CMake build
+build/

@@ -10,9 +10,8 @@
 
 using namespace gs;
 
-// Loads ue_core.d.gs into environment via session.
 static void load_core(EditSession& s) {
-    std::string path = std::string(GS_TEST_FIXTURES_DIR) + "/ue_core.d.gs";
+    std::string path = std::string(GS_PRESETS_DIR) + "/ue_core.d.gs";
     s.load_import(path);
 }
 
@@ -432,10 +431,8 @@ TEST(EditSession, ImportAndModuleState) {
     EXPECT_EQ(s.module().imports.size(), 1u);
 
     // load_import compiles + adds import; total should remain 1 due to dedup
-    std::string path = std::string(GS_TEST_FIXTURES_DIR) + "/ue_core.d.gs";
+    std::string path = std::string(GS_PRESETS_DIR) + "/ue_core.d.gs";
     s.load_import(path);
-    // load_import adds the full path; but our manual add used a relative name,
-    // so they are distinct entries.
     EXPECT_GE(s.module().imports.size(), 1u);
 }
 

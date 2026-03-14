@@ -6,13 +6,21 @@
 
 using namespace gs;
 
-static std::string read_fixture(const std::string& filename) {
-    std::string path = std::string(GS_TEST_FIXTURES_DIR) + "/" + filename;
+static std::string read_file(const std::string& dir, const std::string& filename) {
+    std::string path = dir + "/" + filename;
     std::ifstream f(path);
     if (!f.is_open()) return "";
     std::stringstream ss;
     ss << f.rdbuf();
     return ss.str();
+}
+
+static std::string read_fixture(const std::string& filename) {
+    return read_file(GS_TEST_FIXTURES_DIR, filename);
+}
+
+static std::string read_preset(const std::string& filename) {
+    return read_file(GS_PRESETS_DIR, filename);
 }
 
 static Result<std::unique_ptr<ModuleNode>, std::string> parse_source(std::string_view src) {
@@ -83,7 +91,7 @@ declare Schema HTNGraph {
 }
 
 TEST(Parser, UeCoreFixture) {
-    auto src = read_fixture("ue_core.d.gs");
+    auto src = read_preset("ue_core.d.gs");
     ASSERT_FALSE(src.empty());
     auto result = parse_source(src);
     ASSERT_TRUE(result.is_ok()) << result.error();
@@ -93,7 +101,7 @@ TEST(Parser, UeCoreFixture) {
 }
 
 TEST(Parser, HtnNodesFixture) {
-    auto src = read_fixture("htn_nodes.d.gs");
+    auto src = read_preset("htn_nodes.d.gs");
     ASSERT_FALSE(src.empty());
     auto result = parse_source(src);
     ASSERT_TRUE(result.is_ok()) << result.error();
@@ -103,14 +111,14 @@ TEST(Parser, HtnNodesFixture) {
 }
 
 TEST(Parser, TaskNodesFixture) {
-    auto src = read_fixture("task_nodes.d.gs");
+    auto src = read_preset("task_nodes.d.gs");
     ASSERT_FALSE(src.empty());
     auto result = parse_source(src);
     ASSERT_TRUE(result.is_ok()) << result.error();
 }
 
 TEST(Parser, LevelScriptNodesFixture) {
-    auto src = read_fixture("levelscript_nodes.d.gs");
+    auto src = read_preset("levelscript_nodes.d.gs");
     ASSERT_FALSE(src.empty());
     auto result = parse_source(src);
     ASSERT_TRUE(result.is_ok()) << result.error();

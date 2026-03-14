@@ -21,13 +21,21 @@ using namespace gs;
 
 // ─── Helpers ───────────────────────────────────────────────────────
 
-static std::string read_fixture(const std::string& filename) {
-    std::string path = std::string(GS_TEST_FIXTURES_DIR) + "/" + filename;
+static std::string read_file(const std::string& dir, const std::string& filename) {
+    std::string path = dir + "/" + filename;
     std::ifstream f(path);
     if (!f.is_open()) return "";
     std::stringstream ss;
     ss << f.rdbuf();
     return ss.str();
+}
+
+static std::string read_fixture(const std::string& filename) {
+    return read_file(GS_TEST_FIXTURES_DIR, filename);
+}
+
+static std::string read_preset(const std::string& filename) {
+    return read_file(GS_PRESETS_DIR, filename);
 }
 
 static std::unique_ptr<ModuleNode> do_parse(const std::string& src) {
@@ -49,7 +57,7 @@ static Module do_compile(const std::string& src, Environment& env, const std::st
 }
 
 static void load_core(Environment& env) {
-    do_compile(read_fixture("ue_core.d.gs"), env, "ue_core.d.gs");
+    do_compile(read_preset("ue_core.d.gs"), env, "ue_core.d.gs");
 }
 
 static void assert_modules_eq(const Module& a, const Module& b,

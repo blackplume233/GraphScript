@@ -17,14 +17,21 @@ using namespace gs;
 
 // ─── Helpers ───────────────────────────────────────────────────────
 
-// Reads a test fixture file by name from GS_TEST_FIXTURES_DIR.
-static std::string read_fixture(const std::string& filename) {
-    std::string path = std::string(GS_TEST_FIXTURES_DIR) + "/" + filename;
+static std::string read_file(const std::string& dir, const std::string& filename) {
+    std::string path = dir + "/" + filename;
     std::ifstream f(path);
     if (!f.is_open()) return "";
     std::stringstream ss;
     ss << f.rdbuf();
     return ss.str();
+}
+
+static std::string read_fixture(const std::string& filename) {
+    return read_file(GS_TEST_FIXTURES_DIR, filename);
+}
+
+static std::string read_preset(const std::string& filename) {
+    return read_file(GS_PRESETS_DIR, filename);
 }
 
 // Helper to lex+parse source into AST.
@@ -46,27 +53,22 @@ static Module do_compile(const std::string& src, Environment& env, const std::st
     return std::move(result).value();
 }
 
-// Loads ue_core.d.gs declarations.
 static void load_core(Environment& env) {
-    do_compile(read_fixture("ue_core.d.gs"), env, "ue_core.d.gs");
+    do_compile(read_preset("ue_core.d.gs"), env, "ue_core.d.gs");
 }
 
-// Loads htn_nodes.d.gs declarations.
 static void load_htn(Environment& env) {
-    do_compile(read_fixture("htn_nodes.d.gs"), env, "htn_nodes.d.gs");
+    do_compile(read_preset("htn_nodes.d.gs"), env, "htn_nodes.d.gs");
 }
 
-// Loads task_nodes.d.gs declarations.
 static void load_task(Environment& env) {
-    do_compile(read_fixture("task_nodes.d.gs"), env, "task_nodes.d.gs");
+    do_compile(read_preset("task_nodes.d.gs"), env, "task_nodes.d.gs");
 }
 
-// Loads levelscript_nodes.d.gs declarations.
 static void load_level(Environment& env) {
-    do_compile(read_fixture("levelscript_nodes.d.gs"), env, "levelscript_nodes.d.gs");
+    do_compile(read_preset("levelscript_nodes.d.gs"), env, "levelscript_nodes.d.gs");
 }
 
-// Loads mixed_declarations.d.gs declarations.
 static void load_mixed(Environment& env) {
     do_compile(read_fixture("mixed_declarations.d.gs"), env, "mixed_declarations.d.gs");
 }

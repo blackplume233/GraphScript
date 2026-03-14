@@ -8,13 +8,21 @@
 
 using namespace gs;
 
-static std::string read_fixture(const std::string& filename) {
-    std::string path = std::string(GS_TEST_FIXTURES_DIR) + "/" + filename;
+static std::string read_file(const std::string& dir, const std::string& filename) {
+    std::string path = dir + "/" + filename;
     std::ifstream f(path);
     if (!f.is_open()) return "";
     std::stringstream ss;
     ss << f.rdbuf();
     return ss.str();
+}
+
+static std::string read_fixture(const std::string& filename) {
+    return read_file(GS_TEST_FIXTURES_DIR, filename);
+}
+
+static std::string read_preset(const std::string& filename) {
+    return read_file(GS_PRESETS_DIR, filename);
 }
 
 static Module compile_file(const std::string& src, Environment& env) {
@@ -31,7 +39,7 @@ static Module compile_file(const std::string& src, Environment& env) {
 
 TEST(Emitter, EmitMinimal) {
     Environment env;
-    auto core = read_fixture("ue_core.d.gs");
+    auto core = read_preset("ue_core.d.gs");
     compile_file(core, env);
 
     auto src = read_fixture("minimal.gs");
@@ -49,8 +57,8 @@ TEST(Emitter, EmitMinimal) {
 
 TEST(Emitter, EmitWithBaseType) {
     Environment env;
-    compile_file(read_fixture("ue_core.d.gs"), env);
-    compile_file(read_fixture("htn_nodes.d.gs"), env);
+    compile_file(read_preset("ue_core.d.gs"), env);
+    compile_file(read_preset("htn_nodes.d.gs"), env);
 
     auto mod = compile_file(read_fixture("htn_basic.gs"), env);
 
@@ -62,7 +70,7 @@ TEST(Emitter, EmitWithBaseType) {
 
 TEST(Emitter, EmitLetDecl) {
     Environment env;
-    compile_file(read_fixture("ue_core.d.gs"), env);
+    compile_file(read_preset("ue_core.d.gs"), env);
 
     auto mod = compile_file(read_fixture("round_trip.gs"), env);
 
@@ -74,7 +82,7 @@ TEST(Emitter, EmitLetDecl) {
 
 TEST(Emitter, EmitGenerate) {
     Environment env;
-    compile_file(read_fixture("ue_core.d.gs"), env);
+    compile_file(read_preset("ue_core.d.gs"), env);
 
     auto mod = compile_file(read_fixture("round_trip.gs"), env);
 
@@ -87,7 +95,7 @@ TEST(Emitter, EmitGenerate) {
 
 TEST(Emitter, EmitFunction) {
     Environment env;
-    compile_file(read_fixture("ue_core.d.gs"), env);
+    compile_file(read_preset("ue_core.d.gs"), env);
 
     auto mod = compile_file(read_fixture("round_trip.gs"), env);
 
@@ -99,7 +107,7 @@ TEST(Emitter, EmitFunction) {
 
 TEST(Emitter, EmitVarParam) {
     Environment env;
-    compile_file(read_fixture("ue_core.d.gs"), env);
+    compile_file(read_preset("ue_core.d.gs"), env);
 
     auto mod = compile_file(read_fixture("round_trip.gs"), env);
 
@@ -111,7 +119,7 @@ TEST(Emitter, EmitVarParam) {
 
 TEST(Emitter, RoundTripReparse) {
     Environment env;
-    compile_file(read_fixture("ue_core.d.gs"), env);
+    compile_file(read_preset("ue_core.d.gs"), env);
 
     auto mod1 = compile_file(read_fixture("minimal.gs"), env);
 
@@ -120,7 +128,7 @@ TEST(Emitter, RoundTripReparse) {
 
     // Re-parse the emitted output
     Environment env2;
-    compile_file(read_fixture("ue_core.d.gs"), env2);
+    compile_file(read_preset("ue_core.d.gs"), env2);
     auto mod2 = compile_file(emitted, env2);
 
     ASSERT_EQ(mod2.graphs.size(), 1u);
@@ -132,7 +140,7 @@ TEST(Emitter, RoundTripReparse) {
 
 TEST(Emitter, EmitLinkBareParam) {
     Environment env;
-    compile_file(read_fixture("ue_core.d.gs"), env);
+    compile_file(read_preset("ue_core.d.gs"), env);
 
     auto mod = compile_file(read_fixture("minimal.gs"), env);
 

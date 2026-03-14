@@ -8,13 +8,21 @@
 
 using namespace gs;
 
-static std::string read_fixture(const std::string& filename) {
-    std::string path = std::string(GS_TEST_FIXTURES_DIR) + "/" + filename;
+static std::string read_file(const std::string& dir, const std::string& filename) {
+    std::string path = dir + "/" + filename;
     std::ifstream f(path);
     if (!f.is_open()) return "";
     std::stringstream ss;
     ss << f.rdbuf();
     return ss.str();
+}
+
+static std::string read_fixture(const std::string& filename) {
+    return read_file(GS_TEST_FIXTURES_DIR, filename);
+}
+
+static std::string read_preset(const std::string& filename) {
+    return read_file(GS_PRESETS_DIR, filename);
 }
 
 static std::unique_ptr<ModuleNode> parse(std::string_view src) {
@@ -27,7 +35,7 @@ static std::unique_ptr<ModuleNode> parse(std::string_view src) {
 }
 
 TEST(Compiler, CompileDeclareTypes) {
-    auto ast = parse(read_fixture("ue_core.d.gs"));
+    auto ast = parse(read_preset("ue_core.d.gs"));
     ASSERT_NE(ast, nullptr);
 
     Environment env;
@@ -49,7 +57,7 @@ TEST(Compiler, CompileDeclareTypes) {
 }
 
 TEST(Compiler, CompileDeclareNodes) {
-    auto ast = parse(read_fixture("ue_core.d.gs"));
+    auto ast = parse(read_preset("ue_core.d.gs"));
     ASSERT_NE(ast, nullptr);
 
     Environment env;
@@ -70,7 +78,7 @@ TEST(Compiler, CompileDeclareNodes) {
 }
 
 TEST(Compiler, CompileDeclareSchemas) {
-    auto ast = parse(read_fixture("htn_nodes.d.gs"));
+    auto ast = parse(read_preset("htn_nodes.d.gs"));
     ASSERT_NE(ast, nullptr);
 
     Environment env;
@@ -89,7 +97,7 @@ TEST(Compiler, CompileMinimalGraph) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_fixture("ue_core.d.gs"));
+    auto core_ast = parse(read_preset("ue_core.d.gs"));
     compiler.compile(*core_ast);
 
     auto ast = parse(read_fixture("minimal.gs"));
@@ -109,7 +117,7 @@ TEST(Compiler, GraphAsNodeDerivation) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_fixture("ue_core.d.gs"));
+    auto core_ast = parse(read_preset("ue_core.d.gs"));
     compiler.compile(*core_ast);
 
     auto ast = parse(read_fixture("graph_as_node.gs"));
@@ -147,9 +155,9 @@ TEST(Compiler, GraphWithBaseType) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_fixture("ue_core.d.gs"));
+    auto core_ast = parse(read_preset("ue_core.d.gs"));
     compiler.compile(*core_ast);
-    auto htn_ast = parse(read_fixture("htn_nodes.d.gs"));
+    auto htn_ast = parse(read_preset("htn_nodes.d.gs"));
     compiler.compile(*htn_ast);
 
     auto ast = parse(read_fixture("htn_basic.gs"));
@@ -167,7 +175,7 @@ TEST(Compiler, LetDeclarations) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_fixture("ue_core.d.gs"));
+    auto core_ast = parse(read_preset("ue_core.d.gs"));
     compiler.compile(*core_ast);
 
     auto ast = parse(read_fixture("round_trip.gs"));
@@ -201,7 +209,7 @@ TEST(Compiler, FlowConnections) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_fixture("ue_core.d.gs"));
+    auto core_ast = parse(read_preset("ue_core.d.gs"));
     compiler.compile(*core_ast);
 
     auto ast = parse(read_fixture("minimal.gs"));

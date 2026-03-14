@@ -38,12 +38,17 @@ static std::string esc(const std::string& s) {
 int WebServer::run() {
     httplib::Server svr;
 
-    // ── Serve web UI ──────────────────────────────────────────────
+    // ── Serve web UI (Vite build output from webapp/dist) ─────────
+    if (!web_dir_.empty()) {
+        svr.set_mount_point("/", web_dir_);
+    }
+
+    // Fallback: serve index.html for SPA client-side routing
     svr.Get("/", [this](const httplib::Request&, httplib::Response& res) {
         std::string html = read_file(web_dir_ + "/index.html");
         if (html.empty()) {
             res.set_content("<h1>GraphScript Editor</h1>"
-                "<p>web/index.html not found at: " + web_dir_ + "</p>",
+                "<p>webapp/dist/index.html not found at: " + web_dir_ + "</p>",
                 "text/html");
         } else {
             res.set_content(html, "text/html");

@@ -1,0 +1,142 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* ─── Base palette: deep blueprint dark ─── */
+  --color-background: oklch(0.13 0.015 250);
+  --color-foreground: oklch(0.92 0.008 250);
+  --color-card: oklch(0.16 0.018 250);
+  --color-card-foreground: oklch(0.92 0.008 250);
+  --color-popover: oklch(0.16 0.018 250);
+  --color-popover-foreground: oklch(0.92 0.008 250);
+
+  /* ─── Primary: electric blue accent ─── */
+  --color-primary: oklch(0.65 0.18 240);
+  --color-primary-foreground: oklch(0.13 0.015 250);
+
+  /* ─── Secondary / Muted ─── */
+  --color-secondary: oklch(0.20 0.02 250);
+  --color-secondary-foreground: oklch(0.85 0.01 250);
+  --color-muted: oklch(0.20 0.015 250);
+  --color-muted-foreground: oklch(0.52 0.015 250);
+  --color-accent: oklch(0.22 0.025 250);
+  --color-accent-foreground: oklch(0.92 0.008 250);
+
+  /* ─── Semantic ─── */
+  --color-destructive: oklch(0.58 0.22 25);
+  --color-destructive-foreground: oklch(0.95 0.01 25);
+  --color-success: oklch(0.6 0.18 145);
+  --color-warning: oklch(0.72 0.15 80);
+
+  /* ─── Borders / inputs ─── */
+  --color-border: oklch(0.25 0.02 250);
+  --color-input: oklch(0.22 0.02 250);
+  --color-ring: oklch(0.65 0.18 240);
+
+  /* ─── Pin colors by type ─── */
+  --color-exec: oklch(0.88 0.04 90);
+  --color-data-float: oklch(0.65 0.2 145);
+  --color-data-int: oklch(0.58 0.2 230);
+  --color-data-bool: oklch(0.62 0.22 25);
+  --color-data-string: oklch(0.62 0.18 330);
+  --color-data-object: oklch(0.55 0.15 270);
+
+  /* ─── Node title gradients ─── */
+  --color-node-exec-start: oklch(0.22 0.05 240);
+  --color-node-exec-end: oklch(0.16 0.04 250);
+  --color-node-pure-start: oklch(0.22 0.05 155);
+  --color-node-pure-end: oklch(0.16 0.04 165);
+
+  /* ─── Canvas ─── */
+  --color-canvas-bg: oklch(0.11 0.012 250);
+  --color-canvas-grid: oklch(0.16 0.01 250);
+  --color-canvas-grid-major: oklch(0.19 0.012 250);
+
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-lg: 0.75rem;
+}
+
+/* ─── Global resets ─── */
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+/* ─── Scrollbar styling ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.3 0.015 250);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.38 0.02 250);
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: oklch(0.45 0.15 240 / 0.4);
+  color: white;
+}
+
+/* ─── Blueprint grid background for canvas ─── */
+.blueprint-grid {
+  background-color: var(--color-canvas-bg);
+  background-image:
+    linear-gradient(var(--color-canvas-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-canvas-grid) 1px, transparent 1px),
+    linear-gradient(var(--color-canvas-grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-canvas-grid-major) 1px, transparent 1px);
+  background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+}
+
+/* ─── Glow effects ─── */
+.glow-primary {
+  box-shadow: 0 0 12px oklch(0.65 0.18 240 / 0.25);
+}
+.glow-success {
+  box-shadow: 0 0 8px oklch(0.6 0.18 145 / 0.3);
+}
+
+/* ─── Panel transitions ─── */
+.panel-enter {
+  animation: panel-slide-in 0.2s ease-out;
+}
+@keyframes panel-slide-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Node hover effect ─── */
+.node-card {
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.node-card:hover {
+  box-shadow: 0 0 16px oklch(0.65 0.18 240 / 0.2);
+  border-color: oklch(0.4 0.08 240);
+}
+
+/* ─── FlowGram overrides ─── */
+.gedit-playground {
+  background-color: var(--color-canvas-bg) !important;
+}
