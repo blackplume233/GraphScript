@@ -143,6 +143,46 @@ def update_state_for_command(state, command):
         return
 
     graph = current_graph(state)
+    if parts[0] == "add_node" and len(parts) >= 3:
+        if not any(node["instance"] == parts[2] for node in graph["nodes"]):
+            graph["nodes"].append(positioned_node(parts[1], parts[2], 0, 0))
+        return
+
+    if parts[0] == "annotate" and len(parts) >= 6 and parts[1] == "node":
+        node_name = parts[2]
+        annotation = parse_annotation(parts, 3)
+        if annotation is None:
+            return
+        for node in graph["nodes"]:
+            if node["instance"] == node_name:
+                node.setdefault("annotations", [])
+                node["annotations"] = [
+                    existing for existing in node["annotations"]
+                    if existing["name"] != annotation["name"]
+                ]
+                node["annotations"].append(annotation)
+                return
+
+    if parts[0] == "annotate" and len(parts) >= 4 and parts[1] == "graph":
+        annotation = parse_annotation(parts, 2)
+        if annotation is None:
+            return
+        graph.setdefault("annotations", [])
+        graph["annotations"] = [
+            existing for existing in graph["annotations"]
+            if existing["name"] != annotation["name"]
+        ]
+        graph["annotations"].append(annotation)
+        return
+
+    if parts[0] == "unannotate" and len(parts) >= 3 and parts[1] == "graph":
+        graph.setdefault("annotations", [])
+        graph["annotations"] = [
+            existing for existing in graph["annotations"]
+            if existing["name"] != parts[2]
+        ]
+        return
+
     if parts[0] == "event" and len(parts) >= 2:
         get_or_create_event(graph, parts[1])
         return

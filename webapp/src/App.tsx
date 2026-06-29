@@ -14,7 +14,7 @@ import {
 } from '@/api/client'
 import type { Annotation, DataLink, Diagnostic, DiagnosticAction, FlowConn, GraphDef, GSState, LogicBlock, NodeInst, SourceRange } from '@/api/types'
 import type { SourceDiagnosticsEnvironment } from '@/api/types'
-import FlowCanvas, { type EdgeEditPayload } from '@/canvas/FlowCanvas'
+import FlowCanvas, { type CommentBoxEditPayload, type EdgeEditPayload } from '@/canvas/FlowCanvas'
 import Toolbar from '@/panels/Toolbar'
 import type { GraphSearchResult } from '@/panels/GraphSearch'
 import NodePalette from '@/panels/NodePalette'
@@ -136,6 +136,60 @@ function nodeInstancePrefix(typeName: string): string {
     .toLowerCase()
   if (!sanitized) return 'node'
   return /^[A-Za-z_]/.test(sanitized) ? sanitized : `node_${sanitized}`
+}
+
+function annotationValue(node: NodeInst, annotationName: string, argName: string): string | undefined {
+  const annotation = node.annotations.find(item => item.name === annotationName)
+  return annotation?.args.find(arg => arg.name === argName)?.value
+}
+
+function nodeCanvasPosition(node: NodeInst, fallbackIndex: number): { x: number, y: number } {
+  const x = Number(annotationValue(node, 'Position', 'X'))
+  const y = Number(annotationValue(node, 'Position', 'Y'))
+  if (Number.isFinite(x) && Number.isFinite(y)) return { x, y }
+  return {
+    x: 200 + (fallbackIndex % 4) * 300,
+    y: 120 + Math.floor(fallbackIndex / 4) * 200,
+  }
+}
+
+function nextDuplicateNodeName(instance: string, existingNames: Set<string>): string {
+  const base = `${instance}_copy`
+  if (!existingNames.has(base)) {
+    existingNames.add(base)
+    return base
+  }
+  for (let index = 2; index < 10000; index += 1) {
+    const candidate = `${base}${index}`
+    if (!existingNames.has(candidate)) {
+      existingNames.add(candidate)
+      return candidate
+    }
+  }
+  const fallback = `${base}_${Date.now() % 100000}`
+  existingNames.add(fallback)
+  return fallback
+}
+
+function nextCommentBoxAnnotationName(graph: GraphDef): string {
+  const existing = new Set(graph.annotations.map(annotation => annotation.name))
+  for (let index = 1; index < 10000; index += 1) {
+    const candidate = `CommentBox_${index}`
+    if (!existing.has(candidate)) return candidate
+  }
+  return `CommentBox_${Date.now() % 100000}`
+}
+
+function commentBoxCommand(annotationName: string, box: Omit<CommentBoxEditPayload, 'annotationName'>): string {
+  return [
+    'annotate graph',
+    annotationName,
+    `Text=${quoteCommandArg(box.text || 'Comment')}`,
+    `X=${Math.round(box.x)}`,
+    `Y=${Math.round(box.y)}`,
+    `W=${Math.round(box.width)}`,
+    `H=${Math.round(box.height)}`,
+  ].join(' ')
 }
 
 function offsetForLocation(source: string, location: SourceRange['start']): number | null {
@@ -1651,6 +1705,42 @@ export default function App() {
 
   const currentGraph = state?.module.graphs[graphIndex]
   const currentGraphText = useMemo(() => currentGraphSource(currentGraph), [currentGraph])
+  const handleNodesDuplicate = useCallback(async (instanceNames: string[]) => {
+    if (!currentGraph || instanceNames.length === 0) return
+    const selected = new Set(instanceNames)
+    const orderedNodes = currentGraph.nodes.filter(node => selected.has(node.instance))
+    if (orderedNodes.length === 0) return
+
+    const existingNames = new Set(currentGraph.nodes.map(node => node.instance))
+    const createdNames: string[] = []
+    for (const node of orderedNodes) {
+      const newName = nextDuplicateNodeName(node.instance, existingNames)
+      const position = nodeCanvasPosition(node, currentGraph.nodes.indexOf(node))
+      const initializer = node.init?.trim()
+      const addResult = await runCommand(`add_node ${node.type} ${newName}${initializer ? ` ${quoteCommandArg(initializer)}` : ''}`)
+      if (!addResult.ok) return
+      const positionResult = await runCommand(
+        `annotate node ${newName} Position X=${Math.round(position.x + 48)} Y=${Math.round(position.y + 48)}`,
+      )
+      if (!positionResult.ok) return
+      createdNames.push(newName)
+    }
+    if (createdNames.length > 0) {
+      setSelectedNode(createdNames[createdNames.length - 1])
+      setSelectedEdge(null)
+    }
+  }, [currentGraph, runCommand])
+  const handleCommentBoxCreate = useCallback(async (box: CommentBoxEditPayload) => {
+    if (!currentGraph) return
+    const annotationName = nextCommentBoxAnnotationName(currentGraph)
+    await runCommand(commentBoxCommand(annotationName, box))
+  }, [currentGraph, runCommand])
+  const handleCommentBoxMove = useCallback(async (box: CommentBoxEditPayload) => {
+    await runCommand(commentBoxCommand(box.annotationName, box))
+  }, [runCommand])
+  const handleCommentBoxDelete = useCallback(async (annotationName: string) => {
+    await runCommand(`unannotate graph ${annotationName}`)
+  }, [runCommand])
   const sourceEnvNotice = useMemo(
     () => sourceEnvironmentNotice(sourceText, state, sourceResolverEnvironment),
     [sourceText, state, sourceResolverEnvironment],
@@ -1766,6 +1856,10 @@ export default function App() {
                   onNodeSelect={handleNodeSelect}
                   onNodeMove={handleNodeMove}
                   onNodeDelete={handleNodeDelete}
+                  onNodesDuplicate={handleNodesDuplicate}
+                  onCommentBoxCreate={handleCommentBoxCreate}
+                  onCommentBoxMove={handleCommentBoxMove}
+                  onCommentBoxDelete={handleCommentBoxDelete}
                   onRefresh={refresh}
                   activeLogicBlock={activeLogicBlock}
                   onEdgeCreate={(edge) => handleEdgeEdit('add', edge)}

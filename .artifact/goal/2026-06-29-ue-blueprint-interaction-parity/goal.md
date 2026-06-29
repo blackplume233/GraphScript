@@ -4,9 +4,9 @@ updated_at: 2026-06-30
 artifact_language: zh-CN
 execution_mode: native-codex-goal
 native_goal_id: 019f0434-47f7-7c60-9496-6fea360aa994
-current_loop: loops/loop-008.md
-next_sub_goal: 继续收敛兼容 pin 截图级验证，以及复制/对齐/注释框的蓝图式基础操作
-last_verified_loop: loops/loop-008.md
+current_loop: loops/loop-014.md
+next_sub_goal: 继续收敛注释框 resize/文本编辑/包裹节点联动；同时校准多选集合外框、节点标题/category 色、fields declaration source/default 显示
+last_verified_loop: loops/loop-014.md
 references: references.md
 ---
 

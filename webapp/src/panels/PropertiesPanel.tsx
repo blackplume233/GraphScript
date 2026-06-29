@@ -3000,6 +3000,9 @@ function NodeInfo({
   const [initCtorTypeValue, setInitCtorTypeValue] = useState('')
   const [renameInitOldName, setRenameInitOldName] = useState('')
   const [renameInitNewName, setRenameInitNewName] = useState('')
+  const defFields = def?.fields ?? []
+  const defPins = def?.pins ?? []
+  const defAnnotations = def?.annotations ?? []
 
   useEffect(() => {
     setInitExpression(node.init ?? '')
@@ -3066,15 +3069,15 @@ function NodeInfo({
 
   const nodeInitializerConstructorTypeDef = (state.declared_types ?? [])
     .find(typeDef => typeDef.name === constructorTypeName(node.init))
-  const intrinsicFields = def?.fields && def.fields.length > 0
-    ? def.fields
-    : (def?.pins ?? [])
+  const intrinsicFields = defFields.length > 0
+    ? defFields
+    : defPins
       .filter(pin => pin.kind === 'data' && pin.direction === 'in')
       .map(pin => ({
         name: pin.name,
         type: pin.type,
         default: '',
-        annotations: pin.annotations,
+        annotations: pin.annotations ?? [],
         source_file: pin.source_file,
         source_range: pin.source_range,
         name_source_range: pin.name_source_range,
@@ -3390,16 +3393,16 @@ function NodeInfo({
         />
       </PanelSection>
 
-      {def && def.annotations.length > 0 && (
+      {defAnnotations.length > 0 && (
         <>
           <Separator className="opacity-50" />
           <PanelSection title="Node Type Annotations">
             <AnnotationPanel
-              annotations={def.annotations}
+              annotations={defAnnotations}
               readOnly
               onSourceRangeFocus={onSourceRangeFocus}
               sourceKeyPrefix={`node-type-${node.instance}`}
-              sourceFile={def.source_file}
+              sourceFile={def?.source_file}
               declaredTypes={state.declared_types ?? []}
             />
           </PanelSection>
@@ -3416,7 +3419,7 @@ function NodeInfo({
                   key={field.id ?? `${field.name}-${field.value}`}
                   field={field}
                   nodeInstance={node.instance}
-                  fieldPinDef={def?.pins.find(pin => pin.name === field.name)}
+                  fieldPinDef={defPins.find(pin => pin.name === field.name)}
                   declaredTypes={state.declared_types ?? []}
                   onSourceRangeFocus={onSourceRangeFocus}
                   onExec={onExec}
@@ -3427,7 +3430,7 @@ function NodeInfo({
         </>
       )}
 
-      {def && def.pins.length > 0 && (
+      {defPins.length > 0 && (
         <>
           <Separator className="opacity-50" />
           <div>
@@ -3435,7 +3438,7 @@ function NodeInfo({
               Pins
             </div>
             <div className="space-y-0.5">
-              {def.pins.map(p => {
+              {defPins.map(p => {
                 const pinTypeDef = (state.declared_types ?? []).find(typeDef => typeDef.name === p.type)
                 return (
                   <div key={`${p.direction}-${p.name}`} className="space-y-1 py-0.5">
@@ -3486,7 +3489,7 @@ function NodeInfo({
                       />
                     </div>
                     <AnnotationPanel
-                      annotations={p.annotations}
+                      annotations={p.annotations ?? []}
                       readOnly
                       onSourceRangeFocus={onSourceRangeFocus}
                       sourceKeyPrefix={`node-pin-${node.instance}-${p.name}`}

@@ -18,8 +18,10 @@ import {
   type Edge,
   type EdgeChange,
   type EdgeProps,
+  type Node,
   type NodeChange,
   type NodeMouseHandler,
+  type NodeProps,
   type OnNodesDelete,
   type OnSelectionChangeFunc,
   type OnConnect,
@@ -41,6 +43,10 @@ interface FlowCanvasProps {
   onNodeSelect?: (instanceName: string | null) => void
   onNodeMove?: (instanceName: string, x: number, y: number) => Promise<void> | void
   onNodeDelete?: (instanceName: string) => Promise<void> | void
+  onNodesDuplicate?: (instanceNames: string[]) => Promise<void> | void
+  onCommentBoxCreate?: (box: CommentBoxEditPayload) => Promise<void> | void
+  onCommentBoxMove?: (box: CommentBoxEditPayload) => Promise<void> | void
+  onCommentBoxDelete?: (annotationName: string) => Promise<void> | void
   onRefresh?: () => Promise<void> | void
   activeLogicBlock?: LogicBlockRef | null
   onEdgeCreate?: (edge: EdgeEditPayload) => Promise<void> | void
@@ -91,6 +97,18 @@ interface ManualReconnectState {
   endpoint: 'source' | 'target'
 }
 
+type NodeAlignment = 'left' | 'right' | 'top' | 'bottom' | 'middle' | 'center'
+type NodeDistribution = 'horizontal' | 'vertical'
+
+export interface CommentBoxEditPayload {
+  annotationName: string
+  text: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 interface ContextNodeGroup {
   category: string
   items: NodeTypeDef[]
@@ -114,6 +132,16 @@ interface PendingConnection {
 }
 
 type GraphScriptEdge = Edge<EdgeEditPayload, 'blueprint'>
+
+interface CommentBoxNodeData extends Record<string, unknown> {
+  annotationName: string
+  text: string
+  width: number
+  height: number
+}
+
+type CommentBoxFlowNode = Node<CommentBoxNodeData, 'commentBox'>
+type GraphScriptNode = BlueprintFlowNode | CommentBoxFlowNode
 
 export interface EdgeEditPayload extends Record<string, unknown> {
   id?: string
@@ -175,6 +203,33 @@ function roundPosition(pos: XYPosition): FlowPosition {
     x: Math.round(pos.x),
     y: Math.round(pos.y),
   }
+}
+
+function nodeMeasuredWidth(node: BlueprintFlowNode): number {
+  return node.measured?.width ?? node.width ?? 190
+}
+
+function nodeMeasuredHeight(node: BlueprintFlowNode): number {
+  return node.measured?.height ?? node.height ?? 96
+}
+
+function graphNodeMeasuredWidth(node: GraphScriptNode): number {
+  if (node.type === 'commentBox') return node.data.width
+  return nodeMeasuredWidth(node)
+}
+
+function graphNodeMeasuredHeight(node: GraphScriptNode): number {
+  if (node.type === 'commentBox') return node.data.height
+  return nodeMeasuredHeight(node)
+}
+
+function annotationArg(annotation: Annotation, name: string): string | undefined {
+  return annotation.args.find(arg => arg.name === name)?.value
+}
+
+function annotationNumber(annotation: Annotation, name: string, fallback: number): number {
+  const value = Number(annotationArg(annotation, name))
+  return Number.isFinite(value) ? value : fallback
 }
 
 function parsePortId(portId: string | null | undefined): PortRef | null {
@@ -491,8 +546,31 @@ function BlueprintEdge({
   )
 }
 
+function CommentBoxNode({ data, selected }: NodeProps<CommentBoxFlowNode>) {
+  return (
+    <div
+      className="rounded-[6px] border px-3 py-2 text-[12px] font-semibold text-foreground/80 shadow-sm"
+      data-comment-box={data.annotationName}
+      style={{
+        width: data.width,
+        height: data.height,
+        background: 'oklch(0.18 0.04 92 / 0.38)',
+        borderColor: selected ? 'oklch(0.78 0.16 82)' : 'oklch(0.64 0.12 82 / 0.55)',
+        boxShadow: selected
+          ? '0 0 0 1px oklch(0.78 0.16 82), 0 8px 20px oklch(0 0 0 / 0.34)'
+          : '0 6px 18px oklch(0 0 0 / 0.24)',
+      }}
+    >
+      <div className="truncate uppercase tracking-[0.08em] text-[10px] text-yellow-200/80">
+        {data.text || 'Comment'}
+      </div>
+    </div>
+  )
+}
+
 const nodeTypes = {
   blueprint: BlueprintNode,
+  commentBox: CommentBoxNode,
 }
 
 const edgeTypes = {
@@ -546,7 +624,30 @@ function toReactFlowNodes(
   })
 }
 
-function preserveNodeSelection(nextNodes: BlueprintFlowNode[], currentNodes: BlueprintFlowNode[]): BlueprintFlowNode[] {
+function toReactFlowCommentBoxes(graph: GraphDef): CommentBoxFlowNode[] {
+  return graph.annotations
+    .filter(annotation => /^CommentBox_[A-Za-z0-9_]+$/.test(annotation.name))
+    .map(annotation => {
+      const x = annotationNumber(annotation, 'X', 120)
+      const y = annotationNumber(annotation, 'Y', 120)
+      const width = Math.max(160, annotationNumber(annotation, 'W', 360))
+      const height = Math.max(100, annotationNumber(annotation, 'H', 220))
+      return {
+        id: `comment:${annotation.name}`,
+        type: 'commentBox',
+        position: { x, y },
+        data: {
+          annotationName: annotation.name,
+          text: annotationArg(annotation, 'Text') ?? 'Comment',
+          width,
+          height,
+        },
+        zIndex: -1,
+      }
+    })
+}
+
+function preserveNodeSelection(nextNodes: GraphScriptNode[], currentNodes: GraphScriptNode[]): GraphScriptNode[] {
   const selectedById = new Map(currentNodes.map(node => [node.id, Boolean(node.selected)]))
   return nextNodes.map(node => ({
     ...node,
@@ -639,6 +740,10 @@ function FlowCanvasInner({
   onNodeSelect,
   onNodeMove,
   onNodeDelete,
+  onNodesDuplicate,
+  onCommentBoxCreate,
+  onCommentBoxMove,
+  onCommentBoxDelete,
   onRefresh,
   activeLogicBlock,
   onEdgeCreate,
@@ -649,7 +754,7 @@ function FlowCanvasInner({
   focusedDiagnostic = null,
 }: FlowCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const reactFlow = useReactFlow<BlueprintFlowNode, GraphScriptEdge>()
+  const reactFlow = useReactFlow<GraphScriptNode, GraphScriptEdge>()
   const graph: GraphDef | undefined = state?.module.graphs[graphIndex]
   const activeBlock = useMemo(() => activeBlockForGraph(graph, activeLogicBlock), [activeLogicBlock, graph])
   const diagnosticHighlights = useMemo(() => {
@@ -665,7 +770,10 @@ function FlowCanvasInner({
 
   const initialNodes = useMemo(() => {
     if (!state || !graph) return []
-    return toReactFlowNodes(graph, state, diagnosticHighlights, connectionPreview)
+    return [
+      ...toReactFlowCommentBoxes(graph),
+      ...toReactFlowNodes(graph, state, diagnosticHighlights, connectionPreview),
+    ]
   }, [connectionPreview, diagnosticHighlights, graph, state])
 
   const initialEdges = useMemo(() => {
@@ -673,10 +781,10 @@ function FlowCanvasInner({
     return toReactFlowEdges(graph, activeBlock, diagnosticHighlights)
   }, [activeBlock, diagnosticHighlights, graph])
 
-  const [nodes, setNodes] = useState<BlueprintFlowNode[]>(initialNodes)
+  const [nodes, setNodes] = useState<GraphScriptNode[]>(initialNodes)
   const [edges, setEdges] = useState<GraphScriptEdge[]>(initialEdges)
   const [connectionFeedback, setConnectionFeedback] = useState<ConnectionFeedback | null>(null)
-  const nodesRef = useRef<BlueprintFlowNode[]>(nodes)
+  const nodesRef = useRef<GraphScriptNode[]>(nodes)
   const feedbackTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -755,7 +863,7 @@ function FlowCanvasInner({
     }
   }, [])
 
-  const onNodesChange = useCallback((changes: NodeChange<BlueprintFlowNode>[]) => {
+  const onNodesChange = useCallback((changes: NodeChange<GraphScriptNode>[]) => {
     setNodes(current => applyNodeChanges(changes, current))
   }, [])
 
@@ -918,16 +1026,32 @@ function FlowCanvasInner({
     }
   }, [onEdgeDelete])
 
-  const onNodesDelete = useCallback<OnNodesDelete<BlueprintFlowNode>>((deleted) => {
+  const onNodesDelete = useCallback<OnNodesDelete<GraphScriptNode>>((deleted) => {
     for (const node of deleted) {
-      void onNodeDelete?.(node.id)
+      if (node.type === 'commentBox') {
+        void onCommentBoxDelete?.(node.data.annotationName)
+      } else {
+        void onNodeDelete?.(node.id)
+      }
     }
     onNodeSelect?.(null)
     onEdgeSelect?.(null)
-  }, [onEdgeSelect, onNodeDelete, onNodeSelect])
+  }, [onCommentBoxDelete, onEdgeSelect, onNodeDelete, onNodeSelect])
 
-  const onNodeDragStop = useCallback((_event: globalThis.MouseEvent | TouchEvent, node: BlueprintFlowNode) => {
-    const selectedNodes = nodes.filter(item => item.selected)
+  const onNodeDragStop = useCallback((_event: globalThis.MouseEvent | TouchEvent, node: GraphScriptNode) => {
+    if (node.type === 'commentBox') {
+      void onCommentBoxMove?.({
+        annotationName: node.data.annotationName,
+        text: node.data.text,
+        x: Math.round(node.position.x),
+        y: Math.round(node.position.y),
+        width: node.data.width,
+        height: node.data.height,
+      })
+      return
+    }
+
+    const selectedNodes = nodes.filter((item): item is BlueprintFlowNode => item.type === 'blueprint' && Boolean(item.selected))
     const nodesToPersist = selectedNodes.length > 1 && selectedNodes.some(item => item.id === node.id)
       ? selectedNodes
       : [node]
@@ -938,11 +1062,17 @@ function FlowCanvasInner({
     }
   }, [nodes, onNodeMove])
 
-  const onNodeClick = useCallback<NodeMouseHandler<BlueprintFlowNode>>((event, node) => {
+  const onNodeClick = useCallback<NodeMouseHandler<GraphScriptNode>>((event, node) => {
+    if (node.type === 'commentBox') {
+      onNodeSelect?.(null)
+      onEdgeSelect?.(null)
+      return
+    }
     const additive = event.shiftKey || event.ctrlKey || event.metaKey
     window.setTimeout(() => {
       const snapshot = selectionSnapshotRef.current
-      const selectedIdsBefore = snapshot?.nodeId === node.id && snapshot.additive === additive
+      const snapshotMatches = Boolean(snapshot && snapshot.nodeId === node.id && snapshot.additive === additive)
+      const selectedIdsBefore = snapshotMatches && snapshot
         ? snapshot.selectedIds
         : new Set(nodesRef.current.filter(item => item.selected).map(item => item.id))
       const nodeSelected = additive ? !selectedIdsBefore.has(node.id) : true
@@ -966,7 +1096,7 @@ function FlowCanvasInner({
     }
   }, [onEdgeSelect, onNodeSelect])
 
-  const onSelectionChange = useCallback<OnSelectionChangeFunc<BlueprintFlowNode, GraphScriptEdge>>(({ nodes: selectedNodes, edges: selectedEdges }) => {
+  const onSelectionChange = useCallback<OnSelectionChangeFunc<GraphScriptNode, GraphScriptEdge>>(({ nodes: selectedNodes, edges: selectedEdges }) => {
     if (selectedEdges.length > 0) {
       const edge = selectedEdges[selectedEdges.length - 1]
       if (edge.data) {
@@ -978,7 +1108,7 @@ function FlowCanvasInner({
 
     if (selectedNodes.length > 0) {
       const node = selectedNodes[selectedNodes.length - 1]
-      onNodeSelect?.(node.id)
+      onNodeSelect?.(node.type === 'blueprint' ? node.id : null)
       onEdgeSelect?.(null)
       return
     }
@@ -1060,6 +1190,141 @@ function FlowCanvasInner({
     await onEdgeCreate?.(payload)
   }, [activeLogicBlock, closeContextMenu, contextMenu, graph, onEdgeCreate, onNodeCreate, showConnectionFeedback, state?.types])
 
+  const alignSelectedNodes = useCallback((alignment: NodeAlignment): boolean => {
+    const selectedNodes = nodes.filter((node): node is BlueprintFlowNode => node.type === 'blueprint' && Boolean(node.selected))
+    if (selectedNodes.length < 2) return false
+
+    const bounds = selectedNodes.reduce((acc, node) => {
+      const width = nodeMeasuredWidth(node)
+      const height = nodeMeasuredHeight(node)
+      return {
+        left: Math.min(acc.left, node.position.x),
+        right: Math.max(acc.right, node.position.x + width),
+        top: Math.min(acc.top, node.position.y),
+        bottom: Math.max(acc.bottom, node.position.y + height),
+      }
+    }, {
+      left: Number.POSITIVE_INFINITY,
+      right: Number.NEGATIVE_INFINITY,
+      top: Number.POSITIVE_INFINITY,
+      bottom: Number.NEGATIVE_INFINITY,
+    })
+
+    const nextPositions = new Map<string, FlowPosition>()
+    for (const node of selectedNodes) {
+      const width = nodeMeasuredWidth(node)
+      const height = nodeMeasuredHeight(node)
+      const next = roundPosition({
+        x: alignment === 'left'
+          ? bounds.left
+          : alignment === 'right'
+            ? bounds.right - width
+            : alignment === 'center'
+              ? (bounds.left + bounds.right) / 2 - width / 2
+              : node.position.x,
+        y: alignment === 'top'
+          ? bounds.top
+          : alignment === 'bottom'
+            ? bounds.bottom - height
+            : alignment === 'middle'
+              ? (bounds.top + bounds.bottom) / 2 - height / 2
+              : node.position.y,
+      })
+      const current = roundPosition(node.position)
+      if (next.x !== current.x || next.y !== current.y) {
+        nextPositions.set(node.id, next)
+      }
+    }
+    if (nextPositions.size === 0) return true
+
+    setNodes(current => current.map(node => {
+      const next = nextPositions.get(node.id)
+      return next ? { ...node, position: next } : node
+    }))
+    for (const [nodeId, position] of nextPositions) {
+      void onNodeMove?.(nodeId, position.x, position.y)
+    }
+    return true
+  }, [nodes, onNodeMove])
+
+  const straightenSelectedEdges = useCallback((): boolean => {
+    const selectedEdges = edges.filter(edge => edge.selected)
+    if (selectedEdges.length === 0) return false
+
+    const nodesById = new Map(nodes.filter((node): node is BlueprintFlowNode => node.type === 'blueprint').map(node => [node.id, node]))
+    const nextPositions = new Map<string, FlowPosition>()
+    for (const edge of selectedEdges) {
+      const source = nodesById.get(edge.source)
+      const target = nodesById.get(edge.target)
+      if (!source || !target) continue
+      const sourceCenterY = source.position.y + nodeMeasuredHeight(source) / 2
+      const next = roundPosition({
+        x: target.position.x,
+        y: sourceCenterY - nodeMeasuredHeight(target) / 2,
+      })
+      const current = roundPosition(target.position)
+      if (next.x !== current.x || next.y !== current.y) {
+        nextPositions.set(target.id, next)
+      }
+    }
+    if (nextPositions.size === 0) return true
+
+    setNodes(current => current.map(node => {
+      const next = nextPositions.get(node.id)
+      return next ? { ...node, position: next } : node
+    }))
+    for (const [nodeId, position] of nextPositions) {
+      void onNodeMove?.(nodeId, position.x, position.y)
+    }
+    return true
+  }, [edges, nodes, onNodeMove])
+
+  const distributeSelectedNodes = useCallback((distribution: NodeDistribution): boolean => {
+    const selectedNodes = nodes.filter((node): node is BlueprintFlowNode => node.type === 'blueprint' && Boolean(node.selected))
+    if (selectedNodes.length < 3) return false
+
+    const sorted = [...selectedNodes].sort((left, right) => {
+      return distribution === 'horizontal'
+        ? left.position.x - right.position.x
+        : left.position.y - right.position.y
+    })
+    const first = sorted[0]
+    const last = sorted[sorted.length - 1]
+    const totalSize = sorted.reduce((sum, node) => {
+      return sum + (distribution === 'horizontal' ? nodeMeasuredWidth(node) : nodeMeasuredHeight(node))
+    }, 0)
+    const start = distribution === 'horizontal' ? first.position.x : first.position.y
+    const end = distribution === 'horizontal'
+      ? last.position.x + nodeMeasuredWidth(last)
+      : last.position.y + nodeMeasuredHeight(last)
+    const gap = (end - start - totalSize) / (sorted.length - 1)
+
+    let cursor = start
+    const nextPositions = new Map<string, FlowPosition>()
+    for (const node of sorted) {
+      const size = distribution === 'horizontal' ? nodeMeasuredWidth(node) : nodeMeasuredHeight(node)
+      const next = roundPosition({
+        x: distribution === 'horizontal' ? cursor : node.position.x,
+        y: distribution === 'vertical' ? cursor : node.position.y,
+      })
+      const current = roundPosition(node.position)
+      if (next.x !== current.x || next.y !== current.y) {
+        nextPositions.set(node.id, next)
+      }
+      cursor += size + gap
+    }
+    if (nextPositions.size === 0) return true
+
+    setNodes(current => current.map(node => {
+      const next = nextPositions.get(node.id)
+      return next ? { ...node, position: next } : node
+    }))
+    for (const [nodeId, position] of nextPositions) {
+      void onNodeMove?.(nodeId, position.x, position.y)
+    }
+    return true
+  }, [nodes, onNodeMove])
+
   useEffect(() => {
     if (!contextMenu) return
     function close() {
@@ -1081,7 +1346,73 @@ function FlowCanvasInner({
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented || isEditableKeyboardTarget(event.target)) return
-      if (event.key !== 'f' && event.key !== 'F') return
+      const key = event.key.toLowerCase()
+      const duplicateRequested = (event.ctrlKey || event.metaKey) && (key === 'd' || key === 'w')
+      if (duplicateRequested) {
+        const selectedNodes = nodes.filter(node => node.type === 'blueprint' && node.selected)
+        if (selectedNodes.length === 0) return
+        event.preventDefault()
+        void onNodesDuplicate?.(selectedNodes.map(node => node.id))
+        return
+      }
+
+      if (key === 'c' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        const selectedNodes = nodes.filter(node => node.type === 'blueprint' && node.selected)
+        if (selectedNodes.length === 0 || !onCommentBoxCreate) return
+        const left = Math.min(...selectedNodes.map(node => node.position.x))
+        const top = Math.min(...selectedNodes.map(node => node.position.y))
+        const right = Math.max(...selectedNodes.map(node => node.position.x + graphNodeMeasuredWidth(node)))
+        const bottom = Math.max(...selectedNodes.map(node => node.position.y + graphNodeMeasuredHeight(node)))
+        event.preventDefault()
+        void onCommentBoxCreate({
+          annotationName: '',
+          text: 'Comment',
+          x: Math.round(left - 32),
+          y: Math.round(top - 56),
+          width: Math.round(right - left + 64),
+          height: Math.round(bottom - top + 88),
+        })
+        return
+      }
+
+      const alignmentByKey: Record<string, NodeAlignment> = {
+        a: 'left',
+        d: 'right',
+        w: 'top',
+        s: 'bottom',
+      }
+      const alignment = event.shiftKey && !event.ctrlKey && !event.metaKey
+        ? event.altKey
+          ? key === 'w'
+            ? 'middle'
+            : key === 's'
+              ? 'center'
+              : undefined
+          : alignmentByKey[key]
+        : undefined
+      if (alignment && alignSelectedNodes(alignment)) {
+        event.preventDefault()
+        return
+      }
+
+      if (key === 'q' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && straightenSelectedEdges()) {
+        event.preventDefault()
+        return
+      }
+
+      const distribution = event.shiftKey && event.altKey && !event.ctrlKey && !event.metaKey
+        ? key === 'h'
+          ? 'horizontal'
+          : key === 'v'
+            ? 'vertical'
+            : undefined
+        : undefined
+      if (distribution && distributeSelectedNodes(distribution)) {
+        event.preventDefault()
+        return
+      }
+
+      if (key !== 'f') return
       event.preventDefault()
 
       const selectedNodes = nodes.filter(node => node.selected)
@@ -1117,7 +1448,7 @@ function FlowCanvasInner({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [edges, nodes, reactFlow])
+  }, [alignSelectedNodes, distributeSelectedNodes, edges, nodes, onNodesDuplicate, reactFlow, straightenSelectedEdges])
 
   if (!state || !graph) {
     return (
