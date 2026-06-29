@@ -43,19 +43,15 @@ def state_with_reset_targets():
 def drag_line_target_to_port(page, line_id, node_name, port_id):
     line = page.locator(f'[data-line-id="{line_id}"]').first
     line.wait_for(state="attached", timeout=10000)
-    path = line.locator('path[d^="M"]').first
-    path.wait_for(state="attached", timeout=10000)
-    start = path.evaluate("""
-        el => {
-            const length = el.getTotalLength()
-            const local = el.getPointAtLength(length * 0.92)
-            const screen = new DOMPoint(local.x, local.y).matrixTransform(el.getScreenCTM())
-            return { x: screen.x, y: screen.y }
-        }
-    """)
+    target_handle = line.locator('[data-edge-reconnect-handle="target"]').first
+    target_handle.wait_for(state="attached", timeout=10000)
+    handle_box = target_handle.bounding_box()
+    start = {
+        "x": handle_box["x"] + handle_box["width"] / 2,
+        "y": handle_box["y"] + handle_box["height"] / 2,
+    }
     target = page.locator(
-        f'.node-card:has-text("{node_name}") [data-port-id="{port_id}"] '
-        '[data-testid="sdk.workflow.canvas.node.port"]'
+        f'[data-blueprint-node="{node_name}"] [data-port-id="{port_id}"][data-testid="sdk.workflow.canvas.node.port"]'
     ).first
     target.wait_for(state="visible", timeout=10000)
     target_box = target.bounding_box()

@@ -311,12 +311,10 @@ def start_vite():
 
 def drag_port(page, source_node, source_port, target_node, target_port):
     source = page.locator(
-        f'.node-card:has-text("{source_node}") [data-port-id="{source_port}"] '
-        '[data-testid="sdk.workflow.canvas.node.port"]'
+        f'[data-blueprint-node="{source_node}"] [data-port-id="{source_port}"][data-testid="sdk.workflow.canvas.node.port"]'
     ).first
     target = page.locator(
-        f'.node-card:has-text("{target_node}") [data-port-id="{target_port}"] '
-        '[data-testid="sdk.workflow.canvas.node.port"]'
+        f'[data-blueprint-node="{target_node}"] [data-port-id="{target_port}"][data-testid="sdk.workflow.canvas.node.port"]'
     ).first
     source.wait_for(state="visible", timeout=10000)
     target.wait_for(state="visible", timeout=10000)

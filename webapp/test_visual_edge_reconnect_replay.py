@@ -122,9 +122,9 @@ def main():
             page.route("**/api/exec", handle_exec)
 
             page.goto(visual.URL, wait_until="domcontentloaded", timeout=20000)
+            page.locator('select[title="Active event/function for visual edge edits"]').select_option("event:BeginPlay")
             page.wait_for_selector('[data-line-id="branch_exec-out-onTrue-printer_exec-in-enter"]', state="attached", timeout=10000)
             page.wait_for_selector('[data-line-id="text_data-out-value-printer_data-in-message"]', state="attached", timeout=10000)
-            page.locator('select[title="Active event/function for visual edge edits"]').select_option("event:BeginPlay")
             page.wait_for_timeout(500)
             page.screenshot(path=OUT / "01_before_reconnect.png", full_page=True)
 
@@ -154,9 +154,9 @@ def main():
 
             state = state_with_reconnect_annotations()
             page.goto(visual.URL, wait_until="domcontentloaded", timeout=20000)
+            page.locator('select[title="Active event/function for visual edge edits"]').select_option("event:BeginPlay")
             page.wait_for_selector('[data-line-id="branch_exec-out-onTrue-printer_exec-in-enter"]', state="attached", timeout=10000)
             page.wait_for_selector('[data-line-id="text_data-out-value-printer_data-in-message"]', state="attached", timeout=10000)
-            page.locator('select[title="Active event/function for visual edge edits"]').select_option("event:BeginPlay")
             page.wait_for_timeout(500)
 
             reset_guard.drag_line_target_to_port(

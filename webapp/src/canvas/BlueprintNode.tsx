@@ -136,6 +136,7 @@ function PinRow({
         title={`${pin.direction} ${pin.name}: ${pin.type}`}
         data-port-id={pinHandleId(pin)}
         data-port-type={handleType}
+        data-testid="sdk.workflow.canvas.node.port"
       />
       <span
         className="text-[11px] leading-none whitespace-nowrap transition-colors duration-100 group-hover/pin:text-foreground"
@@ -207,6 +208,14 @@ export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlo
     <div
       className="node-card min-w-[190px] rounded-lg overflow-hidden border border-border/60 select-none"
       data-blueprint-node={label}
+      onPointerDownCapture={(event) => {
+        window.dispatchEvent(new CustomEvent('graphscript:node-pointer-down', {
+          detail: {
+            nodeId: label,
+            additive: event.shiftKey || event.ctrlKey || event.metaKey,
+          },
+        }))
+      }}
       style={{
         background: 'var(--color-card)',
         borderColor: nodeBorder,

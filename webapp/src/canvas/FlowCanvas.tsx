@@ -3,10 +3,13 @@ import {
   applyEdgeChanges,
   applyNodeChanges,
   Background,
+  BaseEdge,
   ConnectionMode,
   Controls,
+  getSmoothStepPath,
   MarkerType,
   MiniMap,
+  Position,
   ReactFlow,
   ReactFlowProvider,
   SelectionMode,
@@ -14,6 +17,7 @@ import {
   type Connection,
   type Edge,
   type EdgeChange,
+  type EdgeProps,
   type NodeChange,
   type NodeMouseHandler,
   type OnNodesDelete,
@@ -62,11 +66,29 @@ interface CanvasContextMenu {
   pendingConnection?: PendingConnection | null
 }
 
+interface ConnectionFeedback {
+  localX: number
+  localY: number
+  message: string
+  tone: 'warning' | 'error'
+}
+
 interface PointerDragState {
   button: number
   startX: number
   startY: number
   dragged: boolean
+}
+
+interface SelectionSnapshot {
+  nodeId: string
+  additive: boolean
+  selectedIds: Set<string>
+}
+
+interface ManualReconnectState {
+  edge: EdgeEditPayload
+  endpoint: 'source' | 'target'
 }
 
 interface ContextNodeGroup {
@@ -91,7 +113,7 @@ interface PendingConnection {
   type: string
 }
 
-type GraphScriptEdge = Edge<EdgeEditPayload, 'smoothstep'>
+type GraphScriptEdge = Edge<EdgeEditPayload, 'blueprint'>
 
 export interface EdgeEditPayload extends Record<string, unknown> {
   id?: string
@@ -107,10 +129,6 @@ export interface EdgeEditPayload extends Record<string, unknown> {
   sourceEndpointRange?: SourceRange
   targetEndpointRange?: SourceRange
   annotations: Annotation[]
-}
-
-const nodeTypes = {
-  blueprint: BlueprintNode,
 }
 
 function findAnnotationArg(node: NodeInst, annotationName: string, argName: string): string | undefined {
@@ -189,6 +207,40 @@ function compatiblePinsForPending(type: NodeTypeDef, pending: PendingConnection 
     if (pin.kind === 'exec') return true
     return dataTypesCompatible(pin.type, pending.type)
   })
+}
+
+function connectionFailureMessage(
+  graph: GraphDef,
+  state: GSState,
+  activeLogicBlock: LogicBlockRef | null | undefined,
+  pending: PendingConnection,
+  target: Element | null,
+): string {
+  const handle = target?.closest('.react-flow__handle')
+  if (!handle) return 'Release on empty canvas to search compatible nodes'
+
+  const port = parsePortId(handle.getAttribute('data-port-id'))
+  const nodeEl = handle.closest('.react-flow__node')
+  const nodeId = nodeEl?.getAttribute('data-id') ?? ''
+  const nodeType = nodeId ? findNodeTypeForInstance(graph, state.types, nodeId) : undefined
+  const targetPin = port
+    ? nodeType?.pins.find(item =>
+      item.kind === port.kind &&
+      item.direction === port.direction &&
+      item.name === port.pin)
+    : undefined
+
+  if (!port) return 'This socket cannot accept a graph connection'
+  if (nodeId === pending.nodeId && port.pin === pending.port.pin) return 'Cannot connect a pin to itself'
+  if (port.direction === pending.port.direction) return 'Drag from an output pin to an input pin'
+  if (port.kind !== pending.port.kind) return 'Exec pins connect to exec pins; data pins connect to matching data pins'
+  if (port.kind === 'data' && targetPin && !dataTypesCompatible(targetPin.type, pending.type)) {
+    return `Data type mismatch: ${pending.type || 'value'} -> ${targetPin.type || 'value'}`
+  }
+  if (activeLogicBlock && hasIncomingConnection(graph, activeLogicBlock, nodeId, port.pin, port.kind)) {
+    return `${nodeId}.${port.pin} already has an incoming ${port.kind} connection`
+  }
+  return 'This connection is not valid in the active graph scope'
 }
 
 function edgePayloadForPendingConnection(
@@ -287,6 +339,10 @@ function edgeId(edge: EdgeEditPayload): string {
   ].join('|')
 }
 
+function edgeDomId(edge: EdgeEditPayload): string {
+  return `${edge.sourceNode}_${edge.kind}-out-${edge.sourcePin}-${edge.targetNode}_${edge.kind}-in-${edge.targetPin}`
+}
+
 function nodeTypeCategory(type: NodeTypeDef): string {
   const hasExec = type.pins.some(pin => pin.kind === 'exec')
   return type.tags.length > 0 ? type.tags[0] : hasExec ? 'Flow' : 'Pure'
@@ -342,6 +398,105 @@ function edgeStyle(kind: 'exec' | 'data', highlighted: boolean): GraphScriptEdge
     strokeWidth: highlighted ? 2.5 : 2,
     strokeDasharray: kind === 'data' ? '5 4' : undefined,
   }
+}
+
+function reconnectPoint(x: number, y: number, position: Position, distance: number): { x: number, y: number } {
+  switch (position) {
+    case Position.Left:
+      return { x: x - distance, y }
+    case Position.Right:
+      return { x: x + distance, y }
+    case Position.Top:
+      return { x, y: y - distance }
+    case Position.Bottom:
+      return { x, y: y + distance }
+    default:
+      return { x, y }
+  }
+}
+
+function BlueprintEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  data,
+}: EdgeProps<GraphScriptEdge>) {
+  const [edgePath] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  })
+  const sourceReconnect = reconnectPoint(sourceX, sourceY, sourcePosition, 24)
+  const targetReconnect = reconnectPoint(targetX, targetY, targetPosition, 24)
+
+  return (
+    <g
+      data-line-id={data ? edgeDomId(data) : id}
+      data-edge-id={id}
+      data-testid="sdk.workflow.canvas.line"
+    >
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={style}
+        interactionWidth={22}
+      />
+      {data && (
+        <>
+          <circle
+            cx={sourceReconnect.x}
+            cy={sourceReconnect.y}
+            r={9}
+            fill="transparent"
+            stroke="transparent"
+            strokeWidth={2}
+            pointerEvents="all"
+            data-edge-reconnect-handle="source"
+            onPointerDown={(event) => {
+              event.stopPropagation()
+              window.dispatchEvent(new CustomEvent('graphscript:edge-reconnect-start', {
+                detail: { edge: data, endpoint: 'source' },
+              }))
+            }}
+          />
+          <circle
+            cx={targetReconnect.x}
+            cy={targetReconnect.y}
+            r={9}
+            fill="transparent"
+            stroke="transparent"
+            strokeWidth={2}
+            pointerEvents="all"
+            data-edge-reconnect-handle="target"
+            onPointerDown={(event) => {
+              event.stopPropagation()
+              window.dispatchEvent(new CustomEvent('graphscript:edge-reconnect-start', {
+                detail: { edge: data, endpoint: 'target' },
+              }))
+            }}
+          />
+        </>
+      )}
+    </g>
+  )
+}
+
+const nodeTypes = {
+  blueprint: BlueprintNode,
+}
+
+const edgeTypes = {
+  blueprint: BlueprintEdge,
 }
 
 function payloadFromConnection(connection: Connection, block: LogicBlockRef | null | undefined): EdgeEditPayload | null {
@@ -428,14 +583,14 @@ function toReactFlowEdges(
     const highlight = diagnostics?.edges[edgeKey(payload.kind, payload.blockKind, payload.blockName, payload.sourceNode, payload.sourcePin, payload.targetNode, payload.targetPin)]
     edges.push({
       id: edgeId(payload),
-      type: 'smoothstep',
+      type: 'blueprint',
       source: payload.sourceNode,
       target: payload.targetNode,
       sourceHandle: `exec-out-${payload.sourcePin}`,
       targetHandle: `exec-in-${payload.targetPin}`,
       data: payload,
       animated: highlight?.severity === 'warning',
-      reconnectable: true,
+      reconnectable: false,
       markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--color-exec)' },
       style: edgeStyle('exec', Boolean(highlight)),
     })
@@ -461,14 +616,14 @@ function toReactFlowEdges(
     const highlight = diagnostics?.edges[edgeKey(payload.kind, payload.blockKind, payload.blockName, payload.sourceNode, payload.sourcePin, payload.targetNode, payload.targetPin)]
     edges.push({
       id: edgeId(payload),
-      type: 'smoothstep',
+      type: 'blueprint',
       source: payload.sourceNode,
       target: payload.targetNode,
       sourceHandle: `data-out-${payload.sourcePin}`,
       targetHandle: `data-in-${payload.targetPin}`,
       data: payload,
       animated: highlight?.severity === 'warning',
-      reconnectable: true,
+      reconnectable: false,
       markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--color-data-object)' },
       style: edgeStyle('data', Boolean(highlight)),
     })
@@ -505,6 +660,8 @@ function FlowCanvasInner({
   const [connectionPreview, setConnectionPreview] = useState<PendingConnection | null>(null)
   const pointerDragRef = useRef<PointerDragState | null>(null)
   const pendingConnectionRef = useRef<PendingConnection | null>(null)
+  const selectionSnapshotRef = useRef<SelectionSnapshot | null>(null)
+  const manualReconnectRef = useRef<ManualReconnectState | null>(null)
 
   const initialNodes = useMemo(() => {
     if (!state || !graph) return []
@@ -518,6 +675,39 @@ function FlowCanvasInner({
 
   const [nodes, setNodes] = useState<BlueprintFlowNode[]>(initialNodes)
   const [edges, setEdges] = useState<GraphScriptEdge[]>(initialEdges)
+  const [connectionFeedback, setConnectionFeedback] = useState<ConnectionFeedback | null>(null)
+  const nodesRef = useRef<BlueprintFlowNode[]>(nodes)
+  const feedbackTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    nodesRef.current = nodes
+  }, [nodes])
+
+  useEffect(() => {
+    function onBlueprintNodePointerDown(event: Event) {
+      const detail = (event as CustomEvent<{ nodeId?: string, additive?: boolean }>).detail
+      if (!detail?.nodeId) return
+      selectionSnapshotRef.current = {
+        nodeId: detail.nodeId,
+        additive: Boolean(detail.additive),
+        selectedIds: new Set(nodesRef.current.filter(item => item.selected).map(item => item.id)),
+      }
+    }
+
+    window.addEventListener('graphscript:node-pointer-down', onBlueprintNodePointerDown)
+    return () => window.removeEventListener('graphscript:node-pointer-down', onBlueprintNodePointerDown)
+  }, [])
+
+  useEffect(() => {
+    function onManualReconnectStart(event: Event) {
+      const detail = (event as CustomEvent<ManualReconnectState>).detail
+      if (!detail?.edge || (detail.endpoint !== 'source' && detail.endpoint !== 'target')) return
+      manualReconnectRef.current = detail
+    }
+
+    window.addEventListener('graphscript:edge-reconnect-start', onManualReconnectStart)
+    return () => window.removeEventListener('graphscript:edge-reconnect-start', onManualReconnectStart)
+  }, [])
 
   useEffect(() => {
     setNodes(current => preserveNodeSelection(initialNodes, current))
@@ -539,6 +729,32 @@ function FlowCanvasInner({
 
   const contextNodeGroups = useMemo(() => groupContextNodeTypes(contextNodeTypes), [contextNodeTypes])
 
+  const showConnectionFeedback = useCallback((clientX: number, clientY: number, message: string, tone: ConnectionFeedback['tone'] = 'warning') => {
+    if (!wrapperRef.current) return
+    const rect = wrapperRef.current.getBoundingClientRect()
+    if (feedbackTimerRef.current !== null) {
+      window.clearTimeout(feedbackTimerRef.current)
+    }
+    setConnectionFeedback({
+      localX: Math.max(12, Math.min(clientX - rect.left, Math.max(12, rect.width - 320))),
+      localY: Math.max(12, Math.min(clientY - rect.top, Math.max(12, rect.height - 72))),
+      message,
+      tone,
+    })
+    feedbackTimerRef.current = window.setTimeout(() => {
+      setConnectionFeedback(null)
+      feedbackTimerRef.current = null
+    }, 1800)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current !== null) {
+        window.clearTimeout(feedbackTimerRef.current)
+      }
+    }
+  }, [])
+
   const onNodesChange = useCallback((changes: NodeChange<BlueprintFlowNode>[]) => {
     setNodes(current => applyNodeChanges(changes, current))
   }, [])
@@ -556,9 +772,12 @@ function FlowCanvasInner({
 
   const onConnect = useCallback<OnConnect>((connection) => {
     const payload = payloadFromConnection(connection, activeLogicBlock)
-    if (!payload || !isValidConnection(connection)) return
+    if (!payload || !isValidConnection(connection)) {
+      showConnectionFeedback(24, 24, `Cannot connect ${connection.source ?? 'source'} to ${connection.target ?? 'target'}`, 'error')
+      return
+    }
     void onEdgeCreate?.(payload)
-  }, [activeLogicBlock, isValidConnection, onEdgeCreate])
+  }, [activeLogicBlock, isValidConnection, onEdgeCreate, showConnectionFeedback])
 
   const onConnectStart = useCallback<OnConnectStart>((_event, params) => {
     if (!graph || !state || !params.nodeId) return
@@ -584,12 +803,20 @@ function FlowCanvasInner({
     pendingConnectionRef.current = null
     setConnectionPreview(null)
 
-    if (!pending || !graph || !wrapperRef.current) return
+    if (!pending || !graph || !state || !wrapperRef.current) return
     if (connectionState.isValid) return
     const target = event.target instanceof Element ? event.target : null
-    if (target?.closest('.react-flow__handle')) return
     const client = eventClientPosition(event)
     if (!client) return
+    if (target?.closest('.react-flow__handle')) {
+      showConnectionFeedback(
+        client.x,
+        client.y,
+        connectionFailureMessage(graph, state, activeLogicBlock, pending, target),
+        'error',
+      )
+      return
+    }
 
     const rect = wrapperRef.current.getBoundingClientRect()
     if (client.x < rect.left || client.x > rect.right || client.y < rect.top || client.y > rect.bottom) return
@@ -606,11 +833,12 @@ function FlowCanvasInner({
       query: '',
       pendingConnection: pending,
     })
-  }, [graph, reactFlow])
+  }, [activeLogicBlock, graph, reactFlow, showConnectionFeedback, state])
 
-  const onReconnect = useCallback<OnReconnect<GraphScriptEdge>>((oldEdge, newConnection) => {
-    const previous = oldEdge.data
+  const applyReconnect = useCallback((previous: EdgeEditPayload | undefined, newConnection: Connection, client?: { x: number, y: number }) => {
     if (!previous) {
+      const point = client ?? { x: 24, y: 24 }
+      showConnectionFeedback(point.x, point.y, 'Reconnect failed: the edge has no editable graph payload', 'error')
       void onRefresh?.()
       return
     }
@@ -622,11 +850,67 @@ function FlowCanvasInner({
       kind: previous.blockKind,
       name: previous.blockName,
     }, next.targetNode, next.targetPin, next.kind, previous)) {
+      const point = client ?? { x: 24, y: 24 }
+      showConnectionFeedback(point.x, point.y, 'Reconnect failed: incompatible pin or duplicate target input', 'error')
       void onRefresh?.()
       return
     }
     void onEdgeReconnect?.(previous, next)
-  }, [graph, onEdgeReconnect, onRefresh])
+  }, [graph, onEdgeReconnect, onRefresh, showConnectionFeedback])
+
+  const onReconnect = useCallback<OnReconnect<GraphScriptEdge>>((oldEdge, newConnection) => {
+    applyReconnect(oldEdge.data, newConnection)
+  }, [applyReconnect])
+
+  useEffect(() => {
+    function onManualReconnectEnd(event: PointerEvent) {
+      const reconnecting = manualReconnectRef.current
+      if (!reconnecting) return
+      manualReconnectRef.current = null
+
+      const target = document.elementFromPoint(event.clientX, event.clientY)
+      const handle = target?.closest('.react-flow__handle')
+      const handleId = handle?.getAttribute('data-port-id') ?? ''
+      const port = parsePortId(handleId)
+      const nodeEl = handle?.closest('.react-flow__node')
+      const nodeId = nodeEl?.getAttribute('data-id') ?? ''
+      if (!port || !nodeId) {
+        showConnectionFeedback(event.clientX, event.clientY, 'Release on a compatible pin to reconnect this edge', 'warning')
+        return
+      }
+      if (port.kind !== reconnecting.edge.kind) {
+        showConnectionFeedback(event.clientX, event.clientY, 'Reconnect within the same pin kind: exec to exec, data to data', 'error')
+        return
+      }
+      if (reconnecting.endpoint === 'source' && port.direction !== 'out') {
+        showConnectionFeedback(event.clientX, event.clientY, 'Reconnect the source endpoint to an output pin', 'error')
+        return
+      }
+      if (reconnecting.endpoint === 'target' && port.direction !== 'in') {
+        showConnectionFeedback(event.clientX, event.clientY, 'Reconnect the target endpoint to an input pin', 'error')
+        return
+      }
+
+      const edge = reconnecting.edge
+      const connection: Connection = reconnecting.endpoint === 'source'
+        ? {
+          source: nodeId,
+          sourceHandle: handleId,
+          target: edge.targetNode,
+          targetHandle: `${edge.kind}-in-${edge.targetPin}`,
+        }
+        : {
+          source: edge.sourceNode,
+          sourceHandle: `${edge.kind}-out-${edge.sourcePin}`,
+          target: nodeId,
+          targetHandle: handleId,
+        }
+      applyReconnect(edge, connection, { x: event.clientX, y: event.clientY })
+    }
+
+    window.addEventListener('pointerup', onManualReconnectEnd)
+    return () => window.removeEventListener('pointerup', onManualReconnectEnd)
+  }, [applyReconnect, showConnectionFeedback])
 
   const onEdgesDelete = useCallback((deleted: GraphScriptEdge[]) => {
     for (const edge of deleted) {
@@ -657,13 +941,16 @@ function FlowCanvasInner({
   const onNodeClick = useCallback<NodeMouseHandler<BlueprintFlowNode>>((event, node) => {
     const additive = event.shiftKey || event.ctrlKey || event.metaKey
     window.setTimeout(() => {
+      const snapshot = selectionSnapshotRef.current
+      const selectedIdsBefore = snapshot?.nodeId === node.id && snapshot.additive === additive
+        ? snapshot.selectedIds
+        : new Set(nodesRef.current.filter(item => item.selected).map(item => item.id))
+      const nodeSelected = additive ? !selectedIdsBefore.has(node.id) : true
+      onNodeSelect?.(nodeSelected ? node.id : null)
       setNodes(current => {
-        const clicked = current.find(candidate => candidate.id === node.id)
-        const nodeSelected = additive ? !Boolean(clicked?.selected) : true
-        onNodeSelect?.(nodeSelected ? node.id : null)
         return current.map(item => {
           if (item.id !== node.id) {
-            return additive ? item : { ...item, selected: false }
+            return additive ? { ...item, selected: selectedIdsBefore.has(item.id) } : { ...item, selected: false }
           }
           return { ...item, selected: nodeSelected }
         })
@@ -760,9 +1047,18 @@ function FlowCanvasInner({
     const newNodeId = await onNodeCreate(typeName, graphX, graphY)
     if (!pendingConnection || !compatiblePin || !newNodeId || !activeLogicBlock) return
     const payload = edgePayloadForPendingConnection(pendingConnection, String(newNodeId), compatiblePin, activeLogicBlock)
-    if (hasIncomingConnection(graph, activeLogicBlock, payload.targetNode, payload.targetPin, payload.kind)) return
+    if (hasIncomingConnection(graph, activeLogicBlock, payload.targetNode, payload.targetPin, payload.kind)) {
+      const rect = wrapperRef.current?.getBoundingClientRect()
+      showConnectionFeedback(
+        (rect?.left ?? 0) + contextMenu.localX,
+        (rect?.top ?? 0) + contextMenu.localY,
+        `${payload.targetNode}.${payload.targetPin} already has an incoming connection`,
+        'error',
+      )
+      return
+    }
     await onEdgeCreate?.(payload)
-  }, [activeLogicBlock, closeContextMenu, contextMenu, graph, onEdgeCreate, onNodeCreate, state?.types])
+  }, [activeLogicBlock, closeContextMenu, contextMenu, graph, onEdgeCreate, onNodeCreate, showConnectionFeedback, state?.types])
 
   useEffect(() => {
     if (!contextMenu) return
@@ -855,6 +1151,7 @@ function FlowCanvasInner({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
@@ -886,7 +1183,7 @@ function FlowCanvasInner({
         multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
         selectionKeyCode={null}
         autoPanOnSelection
-        edgesReconnectable
+        edgesReconnectable={false}
         elevateEdgesOnSelect
         elevateNodesOnSelect
         reconnectRadius={28}
@@ -896,8 +1193,8 @@ function FlowCanvasInner({
         nodeDragThreshold={1}
         connectionDragThreshold={2}
         defaultEdgeOptions={{
-          type: 'smoothstep',
-          reconnectable: true,
+          type: 'blueprint',
+          reconnectable: false,
         }}
         deleteKeyCode={['Backspace', 'Delete']}
         proOptions={{ hideAttribution: true }}
@@ -1003,6 +1300,23 @@ function FlowCanvasInner({
               Refresh
             </button>
           </div>
+        </div>
+      )}
+
+      {connectionFeedback && (
+        <div
+          className={`pointer-events-none absolute z-50 max-w-[320px] rounded-md border px-3 py-2 text-xs shadow-xl backdrop-blur ${
+            connectionFeedback.tone === 'error'
+              ? 'border-destructive/60 bg-destructive/15 text-destructive-foreground'
+              : 'border-warning/60 bg-warning/15 text-warning-foreground'
+          }`}
+          style={{
+            left: connectionFeedback.localX,
+            top: connectionFeedback.localY,
+          }}
+          data-connection-feedback={connectionFeedback.tone}
+        >
+          {connectionFeedback.message}
         </div>
       )}
     </div>
