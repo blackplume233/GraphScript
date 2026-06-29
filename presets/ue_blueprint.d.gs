@@ -394,6 +394,7 @@ declare Node DrawDebugLine {
     exec out exit;
     data in start : FVector;
     data in end : FVector;
+    field duration : float = 0.0;
     data in duration : float;
 }
 
@@ -402,6 +403,7 @@ declare Node DrawDebugSphere {
     exec out exit;
     data in center : FVector;
     data in radius : float;
+    field duration : float = 0.0;
     data in duration : float;
 }
 

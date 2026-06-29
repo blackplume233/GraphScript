@@ -21,6 +21,11 @@ Thumbs.db
 # Webapp build outputs
 webapp/node_modules/
 webapp/dist/
+webapp/tsconfig.tsbuildinfo
+webapp/test_screenshots/
 
 # CMake build
 build/
+
+# Local smoke-test scratch output
+output.gs

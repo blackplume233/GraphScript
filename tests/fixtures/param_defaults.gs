@@ -12,7 +12,7 @@ Graph ConfigurableNode {
 
     event OnRun {
         context.start(p.enter);
-        link p.message = name;
+        p.message = name;
     }
 }
 
@@ -23,6 +23,6 @@ Graph UseConfigurable {
 
     event OnStart {
         context.start(worker.OnRun);
-        link worker.name = label;
+        worker.name = label;
     }
 }

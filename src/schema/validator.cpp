@@ -27,6 +27,7 @@ std::vector<Diagnostic> validate_common(const EditGraph& graph) {
 // Schema-specific validation: required events, connection policy, allowed tags.
 std::vector<Diagnostic> validate_schema(const EditGraph& graph, const GraphSchema& schema) {
     std::vector<Diagnostic> diags;
+    (void)graph;
 
     // Check required events
     for (auto& req : schema.required_events) {

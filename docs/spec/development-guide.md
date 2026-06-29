@@ -259,7 +259,7 @@ Functions are self-contained. They can only use `context` and graph parameters. 
 
 **Symptom**: Stress test `StressTest_AllFixturesParseCompile` fails with "unknown reference" error.
 
-**Fix**: Before committing a fixture, verify all flow/link references resolve to `context`, a parameter, or a node instance within the graph. See [Scope Rules](./scope-rules.md).
+**Fix**: Before committing a fixture, verify all flow/data-assignment references resolve to `context`, a parameter, or a node instance within the graph. See [Scope Rules](./scope-rules.md).
 
 ### Mistake: Not Killing `gs serve` Before Rebuilding
 

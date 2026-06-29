@@ -1,7 +1,31 @@
 #include "graphscript/emit/emitter.h"
+#include <cctype>
 #include <sstream>
 
 namespace gs {
+
+static bool is_constructor_expression(const std::string& value) {
+    if (value.empty() || value.back() != ')') return false;
+    if (!std::isalpha(static_cast<unsigned char>(value.front())) && value.front() != '_') return false;
+
+    const auto open = value.find('(');
+    if (open == std::string::npos || open == 0) return false;
+    for (size_t i = 0; i < open; ++i) {
+        const unsigned char c = static_cast<unsigned char>(value[i]);
+        if (!std::isalnum(c) && value[i] != '_') return false;
+    }
+    return true;
+}
+
+static std::string quote_annotation_string(const std::string& value) {
+    std::string out = "\"";
+    for (char c : value) {
+        if (c == '\\' || c == '"') out += '\\';
+        out += c;
+    }
+    out += "\"";
+    return out;
+}
 
 // Emits entire module as DSL text: imports, lets, graphs.
 std::string Emitter::emit(const Module& module) const {
@@ -30,8 +54,9 @@ std::string Emitter::emit_annotations(const std::vector<Annotation>& annots, con
                               (arg.value.front() == '-' || std::isdigit(static_cast<unsigned char>(arg.value.front()))) &&
                               arg.value.find(' ') == std::string::npos;
             bool is_bool = (arg.value == "true" || arg.value == "false");
-            bool is_string = !arg.value.empty() && !is_numeric && !is_bool;
-            if (is_string) out += "\"" + arg.value + "\"";
+            bool is_expression = is_constructor_expression(arg.value);
+            bool is_string = !arg.value.empty() && !is_numeric && !is_bool && !is_expression;
+            if (is_string) out += quote_annotation_string(arg.value);
             else out += arg.value;
         }
         out += ")";
@@ -71,6 +96,7 @@ std::string Emitter::emit_graph(const Graph& graph) const {
 std::string Emitter::emit_imports(const std::vector<ImportDecl>& imports) const {
     std::string out;
     for (auto& imp : imports) {
+        out += emit_annotations(imp.annotations, "");
         out += "import \"" + imp.path + "\";\n";
     }
     if (!imports.empty()) out += "\n";
@@ -81,6 +107,7 @@ std::string Emitter::emit_imports(const std::vector<ImportDecl>& imports) const 
 std::string Emitter::emit_lets(const std::vector<LetDecl>& lets) const {
     std::string out;
     for (auto& l : lets) {
+        out += emit_annotations(l.annotations, "");
         out += "let " + l.name + " = " + l.type_name + "(\"" + l.constructor_arg + "\");\n";
     }
     if (!lets.empty()) out += "\n";
@@ -120,6 +147,7 @@ std::string Emitter::emit_node_instances(const std::vector<NodeInstance>& instan
 // Emits event block with flow and link statements.
 std::string Emitter::emit_event(const Event& ev) const {
     std::string out;
+    out += emit_annotations(ev.annotations, "    ");
     out += "    event " + ev.name + " {\n";
     out += emit_logic_stmts(ev.flow_connections, ev.data_links);
     out += "    }\n";
@@ -129,6 +157,7 @@ std::string Emitter::emit_event(const Event& ev) const {
 // Emits function block with flow and link statements.
 std::string Emitter::emit_function(const Function& fn) const {
     std::string out;
+    out += emit_annotations(fn.annotations, "    ");
     out += "    function " + fn.name + " {\n";
     out += emit_logic_stmts(fn.flow_connections, fn.data_links);
     out += "    }\n";
@@ -140,23 +169,27 @@ std::string Emitter::emit_generate(const GenerateBlock& gen) const {
     std::string out;
     out += "    generate {\n";
     for (auto& c : gen.comments) {
+        out += emit_annotations(c.annotations, "        ");
         out += "        Comment " + c.instance_name + " = \"" + c.text + "\";\n";
     }
     for (auto& m : gen.metadata) {
+        out += emit_annotations(m.annotations, "        ");
         out += "        " + m.scope + ":" + m.node + "." + m.property + "(" + m.value + ");\n";
     }
     out += "    }\n";
     return out;
 }
 
-// Emits flow statements and link statements; empty source_pin = param reference.
+// Emits flow statements and data assignments; empty source_pin = parameter reference.
 std::string Emitter::emit_logic_stmts(const std::vector<FlowConnection>& flows, const std::vector<DataLink>& links) const {
     std::string out;
     for (auto& fc : flows) {
+        out += emit_annotations(fc.annotations, "        ");
         out += "        " + fc.from.node_instance + "." + fc.from.pin_name + "(" + fc.to.node_instance + "." + fc.to.pin_name + ");\n";
     }
     for (auto& dl : links) {
-        out += "        link " + dl.target.node_instance + "." + dl.target.pin_name + " = ";
+        out += emit_annotations(dl.annotations, "        ");
+        out += "        " + dl.target.node_instance + "." + dl.target.pin_name + " = ";
         if (dl.source.pin_name.empty()) {
             out += dl.source.node_instance;
         } else {

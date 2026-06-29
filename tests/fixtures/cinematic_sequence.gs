@@ -23,12 +23,12 @@ Graph CutsceneIntro : CinematicGraph {
         music.finished(bow.play);
         bow.completed(sparkles.spawn);
         sparkles.done(subtitle.enter);
-        link music.sound = bgm;
-        link music.volume = defaultVol;
-        link bow.target = actor;
-        link bow.montage = bowAnim;
-        link bow.playRate = playSpeed;
-        link sparkles.particle = vfx;
-        link subtitle.message = introText;
+        music.sound = bgm;
+        music.volume = defaultVol;
+        bow.target = actor;
+        bow.montage = bowAnim;
+        bow.playRate = playSpeed;
+        sparkles.particle = vfx;
+        subtitle.message = introText;
     }
 }

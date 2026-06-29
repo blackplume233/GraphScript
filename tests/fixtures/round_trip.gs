@@ -16,12 +16,12 @@ Graph RoundTripTest {
     event OnStart {
         context.start(printer.enter);
         printer.exit(delayer.enter);
-        link printer.message = hp;
-        link delayer.duration = temp;
+        printer.message = hp;
+        delayer.duration = temp;
     }
 
     function Calculate {
         context.start(context.done);
-        link context.result = damage;
+        context.result = damage;
     }
 }

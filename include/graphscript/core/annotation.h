@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "graphscript/parse/token.h"
+
 namespace gs {
 
 /// 标注参数（C# Attribute 风格），支持位置参数和命名参数。
@@ -11,6 +13,12 @@ namespace gs {
 struct AnnotationArg {
     std::string name;   ///< 命名参数名称；位置参数时为空
     std::string value;  ///< 参数值的字面文本
+    SourceRange source_range;  ///< Source span of this annotation argument.
+    SourceRange name_range;    ///< Source span of the named argument key, if present.
+    SourceRange value_range;   ///< Source span of the annotation argument value.
+    SourceRange value_constructor_range;      ///< Source span of a constructor-style value, if present.
+    SourceRange value_constructor_type_range; ///< Source span of the constructor type token, if present.
+    SourceRange value_constructor_arg_range;  ///< Source span of the constructor argument expression, if present.
 };
 
 /// 标注（C# Attribute 风格），如 [Position(X = 100, Y = 200)]。
@@ -19,6 +27,8 @@ struct AnnotationArg {
 struct Annotation {
     std::string name;                 ///< 标注名称，如 "Position"、"Comment"
     std::vector<AnnotationArg> args;  ///< 参数列表（位置参数 + 命名参数）
+    SourceRange source_range;         ///< Source span of this annotation.
+    SourceRange name_range;           ///< Source span of the annotation name token.
 };
 
 } // namespace gs

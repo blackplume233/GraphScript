@@ -118,7 +118,7 @@ std::string dump_ast(const ModuleNode& mod) {
             os << indent(2) << "- " << ds->name << " {";
             for (size_t i = 0; i < ds->fields.size(); ++i) {
                 if (i > 0) os << ",";
-                os << " " << ds->fields[i].first << ": " << ds->fields[i].second;
+                os << " " << ds->fields[i]->name << ": " << ds->fields[i]->value;
             }
             os << " }\n";
         }

@@ -193,6 +193,25 @@ std::vector<const NodeDefinition*> EditGraph::available_node_types() const {
 std::vector<Diagnostic> EditGraph::validate() const {
     std::vector<Diagnostic> diags;
 
+    auto connection_kind = [](PinKind kind) {
+        return kind == PinKind::Exec ? "exec" : "data";
+    };
+
+    auto handle_ref = [](Handle h) {
+        return std::to_string(h.index) + ":" + std::to_string(h.generation);
+    };
+
+    auto connection_target = [&](const EditConnection& conn, bool from_side) {
+        DiagnosticTarget target;
+        target.graph = name_;
+        target.connection_kind = connection_kind(conn.kind);
+        const auto* node = from_side ? get_node(conn.from_node) : get_node(conn.to_node);
+        if (node) target.node_instance = node->instance_name;
+        target.pin_name = from_side ? conn.from_pin : conn.to_pin;
+        target.reference = handle_ref(from_side ? conn.from_node : conn.to_node);
+        return target;
+    };
+
     // Check required events
     if (schema_) {
         for (auto& req_event : schema_->required_events) {
@@ -214,17 +233,44 @@ std::vector<Diagnostic> EditGraph::validate() const {
             }
         });
         if (count > 1) {
-            diags.push_back({Severity::Warning, "Duplicate connection detected", ""});
+            auto target = connection_target(a, true);
+            diags.push_back({
+                Severity::Warning,
+                "Duplicate connection detected",
+                target.node_instance,
+                "GS_GRAPH_DUPLICATE_CONNECTION",
+                {},
+                "Remove one duplicate edge from this pin.",
+                target
+            });
         }
     });
 
     // Check that all connections reference valid nodes
     connections_.for_each([&](Handle, const EditConnection& conn) {
         if (!nodes_.contains(conn.from_node)) {
-            diags.push_back({Severity::Error, "Connection references non-existent source node", ""});
+            auto target = connection_target(conn, true);
+            diags.push_back({
+                Severity::Error,
+                "Connection references non-existent source node",
+                target.reference,
+                "GS_GRAPH_DANGLING_SOURCE_NODE",
+                {},
+                "Remove the dangling connection or reconnect it to an existing node.",
+                target
+            });
         }
         if (!nodes_.contains(conn.to_node)) {
-            diags.push_back({Severity::Error, "Connection references non-existent target node", ""});
+            auto target = connection_target(conn, false);
+            diags.push_back({
+                Severity::Error,
+                "Connection references non-existent target node",
+                target.reference,
+                "GS_GRAPH_DANGLING_TARGET_NODE",
+                {},
+                "Remove the dangling connection or reconnect it to an existing node.",
+                target
+            });
         }
     });
 

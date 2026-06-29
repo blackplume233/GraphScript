@@ -68,6 +68,9 @@ TEST(Compiler, CompileDeclareNodes) {
     ASSERT_NE(ps, nullptr);
     EXPECT_TRUE(ps->is_native);
     EXPECT_EQ(ps->pins.size(), 3u);
+    ASSERT_EQ(ps->fields.size(), 1u);
+    EXPECT_EQ(ps->fields[0].name, "message");
+    EXPECT_EQ(ps->fields[0].type_name, "FString");
     EXPECT_NE(ps->find_pin("enter"), nullptr);
     EXPECT_NE(ps->find_pin("exit"), nullptr);
     EXPECT_NE(ps->find_pin("message"), nullptr);
@@ -75,6 +78,8 @@ TEST(Compiler, CompileDeclareNodes) {
     auto* delay = env.nodes().find("Delay");
     ASSERT_NE(delay, nullptr);
     EXPECT_EQ(delay->pins.size(), 3u);
+    ASSERT_EQ(delay->fields.size(), 1u);
+    EXPECT_EQ(delay->fields[0].name, "duration");
 }
 
 TEST(Compiler, CompileDeclareSchemas) {
@@ -91,6 +96,10 @@ TEST(Compiler, CompileDeclareSchemas) {
     EXPECT_FALSE(schema->connection_policy.allow_exec_fan_in);
     EXPECT_TRUE(schema->connection_policy.strict_type_match);
     EXPECT_EQ(schema->allowed_node_tags.size(), 4u);
+    ASSERT_EQ(schema->fields.size(), 4u);
+    EXPECT_EQ(schema->fields[0].name, "max_exec_fan_out");
+    EXPECT_EQ(schema->fields[0].value, "unlimited");
+    EXPECT_EQ(schema->fields[0].source_range.start.line, 22u);
 }
 
 TEST(Compiler, CompileMinimalGraph) {
@@ -130,21 +139,39 @@ TEST(Compiler, GraphAsNodeDerivation) {
     ASSERT_NE(sub, nullptr);
     EXPECT_FALSE(sub->is_native);
     EXPECT_EQ(sub->source_graph, "SubRoutine");
+    EXPECT_EQ(sub->source_range.start.line, 3u);
+    EXPECT_EQ(sub->source_range.start.column, 1u);
+    EXPECT_EQ(sub->name_range.start.line, 3u);
+    EXPECT_EQ(sub->name_range.start.column, 7u);
 
     // Data pins from in/out params
     auto data_in = sub->data_inputs();
     ASSERT_EQ(data_in.size(), 1u);
     EXPECT_EQ(data_in[0]->name, "value");
     EXPECT_EQ(data_in[0]->type_name, "int");
+    EXPECT_EQ(data_in[0]->source_range.start.line, 4u);
+    EXPECT_EQ(data_in[0]->source_range.start.column, 5u);
+    EXPECT_EQ(data_in[0]->name_range.start.line, 4u);
+    EXPECT_EQ(data_in[0]->name_range.start.column, 8u);
+    EXPECT_EQ(data_in[0]->type_name_range.start.line, 4u);
+    EXPECT_EQ(data_in[0]->type_name_range.start.column, 16u);
 
     auto data_out = sub->data_outputs();
     ASSERT_EQ(data_out.size(), 1u);
     EXPECT_EQ(data_out[0]->name, "result");
+    EXPECT_EQ(data_out[0]->source_range.start.line, 5u);
+    EXPECT_EQ(data_out[0]->source_range.start.column, 5u);
+    EXPECT_EQ(data_out[0]->name_range.start.line, 5u);
+    EXPECT_EQ(data_out[0]->name_range.start.column, 9u);
 
     // Exec input from event
     auto exec_in = sub->exec_inputs();
     ASSERT_EQ(exec_in.size(), 1u);
     EXPECT_EQ(exec_in[0]->name, "Execute");
+    EXPECT_EQ(exec_in[0]->source_range.start.line, 9u);
+    EXPECT_EQ(exec_in[0]->source_range.start.column, 5u);
+    EXPECT_EQ(exec_in[0]->name_range.start.line, 9u);
+    EXPECT_EQ(exec_in[0]->name_range.start.column, 11u);
 
     // MainGraph should also be registered
     auto* main = env.nodes().find("MainGraph");
@@ -254,4 +281,68 @@ Graph Test {
     auto ei = node->exec_inputs();
     EXPECT_EQ(ei.size(), 1u);
     EXPECT_EQ(ei[0]->name, "Run");
+}
+
+TEST(Compiler, StructuredDiagnosticForUnknownEventReference) {
+    Environment env;
+    Compiler compiler(env);
+
+    auto ast = parse(R"(
+Graph Test {
+    event Run {
+        missing.enter(context.start);
+    }
+}
+)");
+    ASSERT_NE(ast, nullptr);
+    auto result = compiler.compile(*ast);
+    ASSERT_TRUE(result.is_err());
+    EXPECT_NE(result.error().find("unknown reference 'missing'"), std::string::npos);
+
+    const auto& diags = compiler.diagnostics();
+    ASSERT_EQ(diags.size(), 1u);
+    EXPECT_EQ(diags[0].severity, Severity::Error);
+    EXPECT_EQ(diags[0].code, "GS_SCOPE_UNKNOWN_REFERENCE");
+    EXPECT_EQ(diags[0].context, "missing");
+    EXPECT_EQ(diags[0].range.start.line, 4u);
+    EXPECT_EQ(diags[0].range.start.column, 9u);
+    EXPECT_EQ(diags[0].target.graph, "Test");
+    EXPECT_EQ(diags[0].target.block_kind, "event");
+    EXPECT_EQ(diags[0].target.block_name, "Run");
+    EXPECT_EQ(diags[0].target.reference, "missing");
+    EXPECT_EQ(diags[0].target.pin_name, "enter");
+    EXPECT_NE(diags[0].hint.find("graph parameter"), std::string::npos);
+}
+
+TEST(Compiler, StructuredDiagnosticForFunctionNodeReference) {
+    Environment env;
+    Compiler compiler(env);
+
+    auto ast = parse(R"(
+Graph Test {
+    PrintString printer{};
+    function Compute {
+        printer.exit(context.done);
+    }
+}
+)");
+    ASSERT_NE(ast, nullptr);
+    auto result = compiler.compile(*ast);
+    ASSERT_TRUE(result.is_err());
+    EXPECT_NE(result.error().find("cannot reference graph node 'printer'"), std::string::npos);
+
+    const auto& diags = compiler.diagnostics();
+    ASSERT_EQ(diags.size(), 1u);
+    EXPECT_EQ(diags[0].severity, Severity::Error);
+    EXPECT_EQ(diags[0].code, "GS_SCOPE_FORBIDDEN_REFERENCE");
+    EXPECT_EQ(diags[0].context, "printer");
+    EXPECT_EQ(diags[0].range.start.line, 5u);
+    EXPECT_EQ(diags[0].range.start.column, 9u);
+    EXPECT_EQ(diags[0].target.graph, "Test");
+    EXPECT_EQ(diags[0].target.block_kind, "function");
+    EXPECT_EQ(diags[0].target.block_name, "Compute");
+    EXPECT_EQ(diags[0].target.node_instance, "printer");
+    EXPECT_EQ(diags[0].target.pin_name, "exit");
+    EXPECT_EQ(diags[0].target.reference, "printer");
+    EXPECT_NE(diags[0].hint.find("event block"), std::string::npos);
 }

@@ -26,13 +26,13 @@ Graph PatrolAndEngage : HTNGraph {
         // We connect engage success to log instead
         moveEngage.success(logMessage.enter);
         movePatrol.success(finalCheck.enter);
-        link rangeCheck.target = patrolTarget;
-        link rangeCheck.threshold = patrolSpeed;
-        link movePatrol.target = patrolTarget;
-        link movePatrol.speed = patrolSpeed;
-        link moveEngage.target = engageTarget;
-        link moveEngage.speed = engageSpeed;
-        link finalCheck.target = engageTarget;
-        link finalCheck.threshold = engageSpeed;
+        rangeCheck.target = patrolTarget;
+        rangeCheck.threshold = patrolSpeed;
+        movePatrol.target = patrolTarget;
+        movePatrol.speed = patrolSpeed;
+        moveEngage.target = engageTarget;
+        moveEngage.speed = engageSpeed;
+        finalCheck.target = engageTarget;
+        finalCheck.threshold = engageSpeed;
     }
 }

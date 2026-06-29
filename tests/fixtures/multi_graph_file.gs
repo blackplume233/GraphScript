@@ -10,7 +10,7 @@ Graph Utility_ClampAndLog {
 
     event Execute {
         context.start(logger.enter);
-        link logger.message = raw_value;
+        logger.message = raw_value;
     }
 }
 
@@ -23,7 +23,7 @@ Graph Utility_FormatMessage {
 
     event Execute {
         context.start(formatter.enter);
-        link formatter.message = prefix;
+        formatter.message = prefix;
     }
 }
 
@@ -39,17 +39,17 @@ Graph MainController {
 
     event OnStart {
         context.start(clamp.Execute);
-        link clamp.raw_value = input_value;
+        clamp.raw_value = input_value;
     }
 
     event OnFormat {
         context.start(fmt.Execute);
-        link fmt.prefix = label;
-        link fmt.value = count;
+        fmt.prefix = label;
+        fmt.value = count;
     }
 
     function DoOutput {
         context.start(context.done);
-        link context.result = input_value;
+        context.result = input_value;
     }
 }

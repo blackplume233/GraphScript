@@ -11,8 +11,8 @@ Graph SimpleHTN : HTNGraph {
     event OnPlan {
         context.start(check.enter);
         check.inRange(move.enter);
-        link check.target = target;
-        link move.target = target;
-        link move.speed = speed_default;
+        check.target = target;
+        move.target = target;
+        move.speed = speed_default;
     }
 }

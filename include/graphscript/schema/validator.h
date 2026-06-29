@@ -1,22 +1,10 @@
 #pragma once
 
-#include <string>
 #include <vector>
 
+#include "graphscript/diagnostic/diagnostic.h"
+
 namespace gs {
-
-/// Severity level for validation diagnostics.
-enum class Severity : uint8_t {
-    Warning,
-    Error
-};
-
-/// A single validation issue (warning or error) with optional context.
-struct Diagnostic {
-    Severity    severity;
-    std::string message;
-    std::string context;
-};
 
 class EditGraph;
 struct GraphSchema;

@@ -14,6 +14,10 @@ class SchemaRegistry {
 public:
     /// Registers a schema by name. Overwrites if name already exists.
     void register_schema(GraphSchema schema);
+    /// Unregisters a schema by name.
+    /// @param name Schema name.
+    /// @return true if a schema was removed, false otherwise.
+    bool unregister_schema(std::string_view name);
     /// Returns the schema with the given name, or nullptr if not found.
     const GraphSchema* find(std::string_view name) const;
     /// Returns all registered schemas in unspecified order.

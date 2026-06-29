@@ -93,6 +93,80 @@ TEST(Emitter, EmitGenerate) {
     EXPECT_NE(output.find("[Position("), std::string::npos);
 }
 
+TEST(Emitter, EmitAnnotationConstructorValueRaw) {
+    Environment env;
+    compile_file(read_preset("ue_core.d.gs"), env);
+
+    auto mod = compile_file(R"(Graph ConstructorAnnotation {
+    [Position(Asset = SoftObjectPath("Meta"))]
+    PrintString p{};
+}
+)", env);
+
+    Emitter emitter;
+    auto output = emitter.emit(mod);
+
+    EXPECT_NE(output.find("Asset = SoftObjectPath(\"Meta\")"), std::string::npos);
+    EXPECT_EQ(output.find("Asset = \"SoftObjectPath"), std::string::npos);
+
+    Environment env2;
+    compile_file(read_preset("ue_core.d.gs"), env2);
+    auto reparsed = compile_file(output, env2);
+
+    ASSERT_EQ(reparsed.graphs.size(), 1u);
+    ASSERT_EQ(reparsed.graphs[0].node_instances.size(), 1u);
+    ASSERT_EQ(reparsed.graphs[0].node_instances[0].annotations.size(), 1u);
+    ASSERT_EQ(reparsed.graphs[0].node_instances[0].annotations[0].args.size(), 1u);
+    EXPECT_EQ(reparsed.graphs[0].node_instances[0].annotations[0].args[0].value, "SoftObjectPath(\"Meta\")");
+}
+
+TEST(Emitter, EmitConstructorStringArgumentsRoundTrip) {
+    Environment env;
+    compile_file(R"(
+declare type OldType : constructible;
+declare Node Holder {
+    data in value : OldType;
+}
+)", env);
+
+    auto mod = compile_file(R"(
+Graph ConstructorStrings {
+    in input : OldType = OldType("default OldType");
+    Holder fieldInit{value = OldType("field OldType")};
+    Holder rawInit{OldType("raw OldType")};
+    generate {
+        position:fieldInit.asset(OldType("metadata OldType"));
+    }
+}
+)", env);
+
+    Emitter emitter;
+    auto output = emitter.emit(mod);
+
+    EXPECT_NE(output.find("in input : OldType = OldType(\"default OldType\")"), std::string::npos);
+    EXPECT_NE(output.find("Holder fieldInit{value = OldType(\"field OldType\")}"), std::string::npos);
+    EXPECT_NE(output.find("Holder rawInit{OldType(\"raw OldType\")}"), std::string::npos);
+    EXPECT_NE(output.find("position:fieldInit.asset(OldType(\"metadata OldType\"))"), std::string::npos);
+
+    Environment env2;
+    compile_file(R"(
+declare type OldType : constructible;
+declare Node Holder {
+    data in value : OldType;
+}
+)", env2);
+    auto reparsed = compile_file(output, env2);
+
+    ASSERT_EQ(reparsed.graphs.size(), 1u);
+    ASSERT_EQ(reparsed.graphs[0].parameters.size(), 1u);
+    EXPECT_EQ(reparsed.graphs[0].parameters[0].default_value, "OldType(\"default OldType\")");
+    ASSERT_EQ(reparsed.graphs[0].node_instances.size(), 2u);
+    EXPECT_EQ(reparsed.graphs[0].node_instances[0].initializer, "value = OldType(\"field OldType\")");
+    ASSERT_EQ(reparsed.graphs[0].node_instances[0].initializer_fields.size(), 1u);
+    EXPECT_EQ(reparsed.graphs[0].node_instances[0].initializer_fields[0].value, "OldType(\"field OldType\")");
+    EXPECT_EQ(reparsed.graphs[0].node_instances[1].initializer, "OldType(\"raw OldType\")");
+}
+
 TEST(Emitter, EmitFunction) {
     Environment env;
     compile_file(read_preset("ue_core.d.gs"), env);
@@ -147,5 +221,5 @@ TEST(Emitter, EmitLinkBareParam) {
     Emitter emitter;
     auto output = emitter.emit(mod);
 
-    EXPECT_NE(output.find("link printer.message = message"), std::string::npos);
+    EXPECT_NE(output.find("printer.message = message"), std::string::npos);
 }

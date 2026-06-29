@@ -11,7 +11,7 @@ Graph Leaf {
 
     event Compute {
         context.start(debug.enter);
-        link debug.message = seed;
+        debug.message = seed;
     }
 }
 
@@ -24,8 +24,8 @@ Graph Middle {
 
     event Process {
         context.start(leaf_a.Compute);
-        link leaf_a.seed = input;
-        link leaf_b.seed = input;
+        leaf_a.seed = input;
+        leaf_b.seed = input;
     }
 }
 
@@ -37,6 +37,6 @@ Graph Root {
 
     event OnStart {
         context.start(mid.Process);
-        link mid.input = start_value;
+        mid.input = start_value;
     }
 }

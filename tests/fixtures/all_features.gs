@@ -27,23 +27,23 @@ Graph KitchenSink {
         context.start(logger1.enter);
         logger1.exit(timer.enter);
         timer.completed(logger2.enter);
-        link logger1.message = name;
-        link timer.duration = temp_buffer;
-        link logger2.message = health;
+        logger1.message = name;
+        timer.duration = temp_buffer;
+        logger2.message = health;
     }
 
     event OnDamage {
         context.start(logger2.enter);
-        link logger2.message = health;
+        logger2.message = health;
     }
 
     function CalculateScore {
         context.start(context.done);
-        link context.result = score;
+        context.result = score;
     }
 
     function LogLocation {
         context.start(context.done);
-        link context.result = name;
+        context.result = name;
     }
 }

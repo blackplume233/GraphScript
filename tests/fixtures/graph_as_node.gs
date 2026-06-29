@@ -8,7 +8,7 @@ Graph SubRoutine {
 
     event Execute {
         context.start(printer.enter);
-        link printer.message = value;
+        printer.message = value;
     }
 }
 
@@ -20,6 +20,6 @@ Graph MainGraph {
 
     event OnStart {
         context.start(sub.Execute);
-        link sub.value = inputVal;
+        sub.value = inputVal;
     }
 }

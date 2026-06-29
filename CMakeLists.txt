@@ -43,12 +43,16 @@ set(HTTPLIB_REQUIRE_ZLIB OFF CACHE BOOL "" FORCE)
 if(GS_BUILD_CLI)
     FetchContent_MakeAvailable(httplib)
 
-    add_executable(gs cli/main.cpp cli/editor.cpp cli/server.cpp)
+    add_executable(gs cli/main.cpp cli/editor.cpp cli/server.cpp cli/source_diagnostics.cpp)
     target_include_directories(gs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cli)
     target_link_libraries(gs PRIVATE graphscript_core httplib::httplib)
+    if(MSVC)
+        target_compile_options(gs PRIVATE /utf-8)
+    endif()
 
     target_compile_definitions(gs PRIVATE
         GS_WEB_DIR="${CMAKE_CURRENT_SOURCE_DIR}/webapp/dist"
+        GS_PRESETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/presets"
     )
 endif()
 
@@ -67,7 +71,12 @@ if(GS_BUILD_TESTS)
     file(GLOB_RECURSE GS_TEST_SOURCES tests/*.cpp)
 
     add_executable(gs_tests ${GS_TEST_SOURCES})
+    target_sources(gs_tests PRIVATE cli/editor.cpp cli/source_diagnostics.cpp)
+    target_include_directories(gs_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/cli)
     target_link_libraries(gs_tests PRIVATE graphscript_core GTest::gtest_main)
+    if(MSVC)
+        target_compile_options(gs_tests PRIVATE /utf-8)
+    endif()
 
     target_compile_definitions(gs_tests PRIVATE
         GS_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"

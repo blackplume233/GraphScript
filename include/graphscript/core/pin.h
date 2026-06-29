@@ -1,6 +1,10 @@
 #pragma once
 
 #include <string>
+#include <vector>
+
+#include "graphscript/core/annotation.h"
+#include "graphscript/parse/token.h"
 
 namespace gs {
 
@@ -22,6 +26,11 @@ struct PinDefinition {
     PinKind      kind      = PinKind::Data;       ///< Pin 种类（Exec/Data）
     PinDirection direction = PinDirection::Input; ///< Pin 方向（Input/Output）
     std::string  type_name; ///< 数据类型名称，仅对 Data 类 Pin 有意义
+    std::vector<Annotation> annotations; ///< C# 风格标注
+    SourceRange  source_range; ///< Pin declaration source span when loaded from a declaration file.
+    SourceRange  type_name_range; ///< Data type reference source span when loaded from a declaration file.
+    SourceRange  name_range; ///< Pin name token source span when loaded from a declaration file.
+    std::string  source_file; ///< Source file containing this declaration when loaded from disk.
 };
 
 /// Pin 地址，用于在图中唯一标识一个节点实例上的 Pin。

@@ -8,6 +8,7 @@
 #include "graphscript/core/graph.h"
 #include "graphscript/parse/ast.h"
 #include "graphscript/registry/environment.h"
+#include "graphscript/diagnostic/diagnostic.h"
 
 namespace gs {
 
@@ -15,13 +16,23 @@ namespace gs {
 struct ImportDecl {
     std::string path;
     bool        is_native = false;
+    bool        loaded = false;
+    std::vector<Annotation> annotations;  ///< C# 风格标注
+    SourceRange source_range;  ///< Source span of this import declaration.
+    SourceRange path_range;    ///< Source span of the import path string literal.
 };
 
 /// Top-level let binding (name, type, constructor arg).
 struct LetDecl {
     std::string name;
+    SourceRange name_range;             ///< Source span of the let binding name.
     std::string type_name;
+    SourceRange type_name_range;         ///< Source span of the constructible type reference.
     std::string constructor_arg;
+    SourceRange source_range;            ///< Source span of this top-level let declaration.
+    SourceRange constructor_range;       ///< Source span of the constructor call expression.
+    SourceRange constructor_arg_range;   ///< Source span of the constructor argument expression.
+    std::vector<Annotation> annotations; ///< C# 风格标注
 };
 
 /// Compiled module: file path, imports, lets, and graphs.
@@ -39,14 +50,23 @@ public:
 
     /// Compiles module. Returns error string on failure.
     Result<Module, std::string> compile(const ModuleNode& ast, const std::string& file_path = "");
+    /// Returns structured diagnostics collected during the last compile attempt.
+    const std::vector<Diagnostic>& diagnostics() const { return diagnostics_; }
 
 private:
-    void process_declare_types(const ModuleNode& ast);
-    void process_declare_nodes(const ModuleNode& ast);
-    void process_declare_schemas(const ModuleNode& ast);
+    void process_declare_types(const ModuleNode& ast, const std::string& file_path);
+    void process_declare_nodes(const ModuleNode& ast, const std::string& file_path);
+    void process_declare_schemas(const ModuleNode& ast, const std::string& file_path);
 
     Graph compile_graph(const GraphNode& gn);
     NodeDefinition derive_node_from_graph(const Graph& graph);
+    Result<void, std::string> validate_graph_scope(const Graph& graph, const GraphNode& graph_ast);
+    void record_error(const std::string& message,
+                      const std::string& context,
+                      const std::string& code,
+                      SourceRange range,
+                      const std::string& hint,
+                      const DiagnosticTarget& target = {});
 
     GraphParameter compile_param(const ParamDeclNode& pn);
     NodeInstance   compile_node_instance(const NodeInstanceNode& ni);
@@ -62,6 +82,7 @@ private:
     );
 
     Environment& env_;
+    std::vector<Diagnostic> diagnostics_;
 };
 
 } // namespace gs

@@ -7,6 +7,6 @@ Graph HelloWorld {
 
     event OnStart {
         context.start(printer.enter);
-        link printer.message = message;
+        printer.message = message;
     }
 }

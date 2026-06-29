@@ -13,12 +13,14 @@ declare type bool;
 declare Node PrintString {
     exec in enter;
     exec out exit;
+    field message : FString = "";
     data in message : FString;
 }
 
 declare Node Delay {
     exec in enter;
     exec out completed;
+    field duration : float = 0.2;
     data in duration : float;
 }
 

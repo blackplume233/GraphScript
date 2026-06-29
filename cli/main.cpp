@@ -72,6 +72,29 @@ static void load_imports(const std::vector<std::string>& import_files, gs::Envir
     }
 }
 
+static std::vector<std::string> default_preset_imports() {
+    std::vector<std::string> imports;
+#ifdef GS_PRESETS_DIR
+    const std::string dir = GS_PRESETS_DIR;
+    const std::vector<std::string> candidates = {
+        dir + "/ue_core.d.gs",
+        dir + "/ue_blueprint.d.gs",
+        dir + "/task_nodes.d.gs",
+        dir + "/levelscript_nodes.d.gs",
+        dir + "/htn_nodes.d.gs",
+    };
+    for (const auto& path : candidates) {
+        if (!read_file(path).empty()) imports.push_back(path);
+    }
+#endif
+    return imports;
+}
+
+static std::vector<std::string> serve_imports(const CLIOptions& opts) {
+    if (!opts.import_files.empty()) return opts.import_files;
+    return default_preset_imports();
+}
+
 static int cmd_parse(const CLIOptions& opts) {
     auto source = read_file(opts.input_file);
     if (source.empty()) { std::cerr << "Error: Cannot read '" << opts.input_file << "'\n"; return 1; }
@@ -315,7 +338,7 @@ int main(int argc, char* argv[]) {
     // Web editor server
     if (opts.command == "serve") {
         gs::Environment env;
-        load_imports(opts.import_files, env);
+        load_imports(serve_imports(opts), env);
         gs::EditSession session(env);
         if (!opts.input_file.empty()) {
             auto r = session.load_file(opts.input_file);

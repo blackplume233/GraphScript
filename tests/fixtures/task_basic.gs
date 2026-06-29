@@ -12,7 +12,7 @@ Graph SimpleTask : TaskGraph {
     event OnBegin {
         start.begin(dialogue.enter);
         dialogue.exit(finish.finish);
-        link dialogue.text = questName;
-        link finish.result = completed;
+        dialogue.text = questName;
+        finish.result = completed;
     }
 }

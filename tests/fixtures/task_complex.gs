@@ -24,17 +24,17 @@ Graph MultiStageQuest : TaskGraph {
     event OnBegin {
         beginning.begin(intro.enter);
         intro.exit(midpoint.enter);
-        link intro.text = questTitle;
-        link intro.speaker = questTitle;
+        intro.text = questTitle;
+        intro.speaker = questTitle;
     }
 
     function AdvanceStage {
         context.start(context.done);
-        link context.result = questTitle;
+        context.result = questTitle;
     }
 
     function CompleteQuest {
         context.start(context.done);
-        link context.result = questComplete;
+        context.result = questComplete;
     }
 }

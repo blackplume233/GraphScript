@@ -6,6 +6,7 @@
 #include <sstream>
 #include <random>
 #include <algorithm>
+#include <chrono>
 
 #include "graphscript/parse/lexer.h"
 #include "graphscript/parse/parser.h"
@@ -98,6 +99,14 @@ static const int kExecNodeCount = 2;
 /// Generates a unique instance name from a prefix and index.
 static std::string name_of(const std::string& prefix, int i) {
     return prefix + std::to_string(i);
+}
+
+template <typename Fn>
+static long long elapsed_ms(Fn&& fn) {
+    auto start = std::chrono::steady_clock::now();
+    fn();
+    auto end = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -835,4 +844,115 @@ TEST(QAStress, S8_300Nodes_ParsePerformance) {
     auto rg_dump = debug::dump_runtime_graph(rg);
     EXPECT_GT(eg_dump.size(), 5000u);
     EXPECT_GT(rg_dump.size(), 5000u);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STRESS 9: 1000-node save/load/emit/validate minimum scalability gate
+// ═══════════════════════════════════════════════════════════════════
+
+TEST(QAStress, S9_1000Nodes_RoundTripAndBakePerformanceBudget) {
+    constexpr int kNodeCount = 1000;
+    constexpr int kEventCount = 20;
+    constexpr int kNodesPerEvent = kNodeCount / kEventCount;
+
+    std::ostringstream gs;
+    gs << "import \"ue_core.d.gs\";\n";
+    gs << "[Comment(\"title\", \"Thousand node stress\")]\n";
+    gs << "Graph Thousand {\n";
+    gs << "    in msg : FString;\n";
+    gs << "    in dur : float;\n";
+
+    for (int i = 0; i < kNodeCount; ++i) {
+        const char* type = (i % 2 == 0) ? "PrintString" : "Delay";
+        if (i % 50 == 0)
+            gs << "    [Position(X = " << (i * 12) << ", Y = " << (i / 50) * 180 << ")]\n";
+        gs << "    " << type << " n" << i << "{};\n";
+    }
+
+    for (int ev = 0; ev < kEventCount; ++ev) {
+        gs << "    event E" << ev << " {\n";
+        int base = ev * kNodesPerEvent;
+        gs << "        context.start(n" << base << ".enter);\n";
+        for (int i = 0; i < kNodesPerEvent - 1; ++i) {
+            int index = base + i;
+            std::string pin = (index % 2 == 0) ? "exit" : "completed";
+            gs << "        n" << index << "." << pin << "(n" << (index + 1) << ".enter);\n";
+        }
+        for (int i = base; i < base + kNodesPerEvent; i += 10) {
+            if (i % 2 == 0) gs << "        link n" << i << ".message = msg;\n";
+            else            gs << "        link n" << i << ".duration = dur;\n";
+        }
+        gs << "    }\n";
+    }
+    gs << "}\n";
+
+    std::string src = gs.str();
+    EXPECT_GT(src.size(), 35000u);
+
+    Environment env;
+    load_core(env);
+
+    Module mod;
+    long long compile_ms = elapsed_ms([&] {
+        mod = do_compile(src, env);
+    });
+    ASSERT_EQ(mod.graphs.size(), 1u);
+    ASSERT_EQ(mod.graphs[0].node_instances.size(), static_cast<size_t>(kNodeCount));
+    ASSERT_EQ(mod.graphs[0].events.size(), static_cast<size_t>(kEventCount));
+    EXPECT_LT(compile_ms, 5000) << "1000-node parse+compile should stay within an interactive sanity budget";
+
+    int annot_count = 0;
+    for (auto& ni : mod.graphs[0].node_instances)
+        if (!ni.annotations.empty()) annot_count++;
+    EXPECT_EQ(annot_count, 20);
+    ASSERT_EQ(mod.graphs[0].annotations.size(), 1u);
+    EXPECT_EQ(mod.graphs[0].annotations[0].name, "Comment");
+    ASSERT_EQ(mod.graphs[0].annotations[0].args.size(), 2u);
+    EXPECT_EQ(mod.graphs[0].annotations[0].args[0].value, "title");
+    EXPECT_EQ(mod.graphs[0].annotations[0].args[1].value, "Thousand node stress");
+
+    Emitter emitter;
+    std::string emitted;
+    long long emit_ms = elapsed_ms([&] {
+        emitted = emitter.emit(mod);
+    });
+    EXPECT_GT(emitted.size(), 35000u);
+    auto import_pos = emitted.find("import \"ue_core.d.gs\";");
+    auto annotation_pos = emitted.find("[Comment(\"title\", \"Thousand node stress\")]");
+    auto graph_pos = emitted.find("Graph Thousand");
+    ASSERT_NE(import_pos, std::string::npos);
+    ASSERT_NE(annotation_pos, std::string::npos);
+    ASSERT_NE(graph_pos, std::string::npos);
+    EXPECT_LT(import_pos, annotation_pos);
+    EXPECT_LT(annotation_pos, graph_pos);
+    EXPECT_LT(emit_ms, 3000) << "1000-node emit should stay within an interactive sanity budget";
+
+    Environment env2;
+    load_core(env2);
+    Module reparsed;
+    long long roundtrip_ms = elapsed_ms([&] {
+        Lexer lexer(emitted);
+        auto tokens = lexer.tokenize();
+        Parser parser(std::move(tokens));
+        auto parsed = parser.parse();
+        ASSERT_TRUE(parsed.is_ok()) << parsed.error();
+        auto ast = std::move(parsed).value();
+        Compiler compiler(env2);
+        auto result = compiler.compile(*ast);
+        ASSERT_TRUE(result.is_ok()) << result.error();
+        reparsed = std::move(result).value();
+    });
+    ASSERT_MODULES_EQ(mod, reparsed);
+    EXPECT_LT(roundtrip_ms, 5000) << "1000-node emitted source should reparse/recompile quickly enough for CI";
+
+    EditGraph eg("unused", nullptr, nullptr);
+    RuntimeGraph rg;
+    long long bake_ms = elapsed_ms([&] {
+        eg = EditGraph::build(mod.graphs[0], env);
+        rg = RuntimeGraph::bake(eg);
+    });
+    EXPECT_EQ(eg.node_count(), static_cast<size_t>(kNodeCount));
+    EXPECT_EQ(rg.node_count(), static_cast<size_t>(kNodeCount));
+    EXPECT_GT(rg.flow_edge_count(), 900u);
+    EXPECT_LT(bake_ms, 3000) << "1000-node edit/runtime graph bake should stay within an interactive sanity budget";
 }

@@ -33,6 +33,7 @@ Graph GraphName : OptionalSchemaBase {
 ### import
 
 ```gs
+[Id("core-import")]
 import "ue_core.d.gs";
 import "htn_nodes.d.gs";
 ```
@@ -42,6 +43,7 @@ Loads another file's declarations into the environment. The Compiler processes i
 ### let
 
 ```gs
+[PersistentId("spawn-let")]
 let spawn_point = FVector("0,0,100");
 let actor_path = SoftObjectPath("/Game/Maps/Level");
 ```
@@ -109,9 +111,9 @@ event OnStart {
     context.start(logger.enter);
     logger.exit(timer.enter);
 
-    // Data links
-    link logger.message = name;
-    link timer.duration = temp_buffer;
+    // Data assignments (links)
+    logger.message = name;
+    timer.duration = temp_buffer;
 }
 ```
 
@@ -124,7 +126,7 @@ Functions are self-contained logic blocks — **cannot reference graph-level nod
 ```gs
 function CalculateScore {
     context.start(context.done);
-    link context.result = score;      // 'score' must be a parameter
+    context.result = score;      // 'score' must be a parameter
 }
 ```
 
@@ -134,9 +136,18 @@ function CalculateScore {
 
 Annotations attach metadata (position, comments, UI hints) to elements using C#-style `[Name(args)]` prefix syntax. They are placed on the line **immediately before** the decorated element.
 
-**Supported targets:** Graph definitions, node instances, parameters.
+**Supported targets:** Import declarations, top-level lets, Graph definitions, node instances, parameters, event blocks, function blocks, flow statements, data assignment statements.
+
+In declaration files (`.d.gs`), annotations are also supported on declared types, declared nodes, declared pins, declared schemas, and schema fields.
 
 ```gs
+// Top-level annotations
+[Id("core-import")]
+import "ue_core.d.gs";
+
+[PersistentId("spawn-let")]
+let spawn_point = FVector("0,0,100");
+
 // Graph-level annotation
 [Comment("title", "My graph description")]
 Graph MyGraph {
@@ -151,6 +162,20 @@ Graph MyGraph {
     // Multiple annotations on one element
     [Position(X = 300, Y = 200), Color("blue")]
     Delay timer{};
+
+    // Logic block annotations
+    [Id("event-start")]
+    event OnStart {
+        // Connection annotations
+        [Id("flow-start")]
+        logger.exit(timer.enter);
+
+        [PersistentId("link-message")]
+        logger.message = health;
+    }
+
+    [PersistentId("function-compute")]
+    function CalculateScore { ... }
 }
 ```
 
@@ -198,18 +223,24 @@ Special node `context` has pins: `start`, `done`, and other context-defined pins
 
 ---
 
-## Link Statements
+## Data Assignment Statements
 
 Wire data between pins:
 
 ```gs
-link logger.message = name;           // bare param (no dot = parameter reference)
-link logger.message = health;         // parameter reference
-link timer.duration = temp_buffer;    // var parameter
-link sub.value = context.result;      // context pin
+logger.message = name;           // bare param (no dot = parameter reference)
+logger.message = health;         // parameter reference
+timer.duration = temp_buffer;    // var parameter
+sub.value = context.result;      // context pin
 ```
 
-Format: `link <target_node>.<target_pin> = <source>;`
+Format: `<target_node>.<target_pin> = <source>;`
+
+Legacy style with `link` prefix is still accepted for backward compatibility:
+
+```gs
+link logger.message = name;
+```
 
 Source can be:
 - `<param_name>` — bare parameter reference (source_pin empty)
@@ -222,6 +253,7 @@ Source can be:
 ### declare type
 
 ```gs
+[Id("decl-int")]
 declare type int;                    // non-constructible
 declare type FString constructible;  // can be used in let/initializer
 declare type AActor;
@@ -230,9 +262,12 @@ declare type AActor;
 ### declare Node
 
 ```gs
+[PersistentId("node-print")]
 declare Node PrintString {
+    [Id("pin-enter")]
     exec in enter;
     exec out exit;
+    [PersistentId("pin-message")]
     data in message : FString;
 }
 
@@ -252,7 +287,9 @@ Pin declarations:
 ### declare Schema
 
 ```gs
+[Id("schema-htn")]
 declare Schema HTNGraph {
+    [PersistentId("field-fanout")]
     max_exec_fan_out = unlimited;
     allow_exec_fan_in = false;
 }

@@ -40,6 +40,15 @@ TEST(SchemaRegistry, FindNonexistent) {
     EXPECT_EQ(reg.find("Nope"), nullptr);
 }
 
+TEST(SchemaRegistry, UnregisterSchemaRemovesRegisteredSchema) {
+    SchemaRegistry reg;
+    reg.register_schema(make_htn_schema());
+
+    EXPECT_TRUE(reg.unregister_schema("HTNGraph"));
+    EXPECT_EQ(reg.find("HTNGraph"), nullptr);
+    EXPECT_FALSE(reg.unregister_schema("HTNGraph"));
+}
+
 TEST(SchemaRegistry, MultipleSchemas) {
     SchemaRegistry reg;
     reg.register_schema(make_htn_schema());

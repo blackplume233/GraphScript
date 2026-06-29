@@ -63,14 +63,28 @@
 }
 
 html {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+#root {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 code, pre, .font-mono {
@@ -136,7 +150,71 @@ code, pre, .font-mono {
   border-color: oklch(0.4 0.08 240);
 }
 
-/* ─── FlowGram overrides ─── */
-.gedit-playground {
-  background-color: var(--color-canvas-bg) !important;
+/* ─── React Flow edge editing ─── */
+.react-flow__edgeupdater {
+  cursor: grab;
+  fill: oklch(0.65 0.18 240 / 0.18);
+  pointer-events: all;
+  stroke: var(--color-primary);
+  stroke-width: 1.5px;
+}
+
+.react-flow__edgeupdater:hover,
+.react-flow__edgeupdater:active {
+  cursor: grabbing;
+  fill: oklch(0.65 0.18 240 / 0.34);
+  stroke-width: 2px;
+}
+
+.react-flow__pane {
+  cursor: crosshair;
+}
+
+.react-flow__pane.dragging,
+.react-flow__pane.selection {
+  cursor: crosshair;
+}
+
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node.dragging {
+  cursor: grabbing;
+}
+
+.react-flow__selection {
+  background: oklch(0.65 0.18 240 / 0.13);
+  border: 1px solid oklch(0.72 0.16 240 / 0.95);
+  box-shadow:
+    0 0 0 1px oklch(0.2 0.03 250 / 0.7) inset,
+    0 0 18px oklch(0.65 0.18 240 / 0.22);
+}
+
+.react-flow__nodesselection-rect {
+  border: 1px solid oklch(0.72 0.16 240 / 0.95);
+  background: oklch(0.65 0.18 240 / 0.06);
+  box-shadow: 0 0 16px oklch(0.65 0.18 240 / 0.16);
+}
+
+.gs-diagnostic-line path,
+.gs-diagnostic-line svg path {
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 5px oklch(0.72 0.15 80 / 0.45));
+}
+
+.gs-diagnostic-line-warning path,
+.gs-diagnostic-line-warning svg path {
+  stroke: var(--color-warning) !important;
+}
+
+.gs-diagnostic-line-error path,
+.gs-diagnostic-line-error svg path {
+  stroke: var(--color-destructive) !important;
+  filter: drop-shadow(0 0 6px oklch(0.58 0.22 25 / 0.5));
+}
+
+.gs-diagnostic-line-focused path,
+.gs-diagnostic-line-focused svg path {
+  stroke-width: 4px !important;
 }

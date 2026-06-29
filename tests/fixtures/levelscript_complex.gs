@@ -30,19 +30,19 @@ Graph ArenaEncounter : LevelScriptGraph {
         mainTrigger.onEnter(spawner1.enter);
         spawner1.exit(spawner2.enter);
         spawner2.exit(waveAnnounce.enter);
-        link mainTrigger.volume = triggerVolume;
-        link spawner1.actorClass = bossClass;
-        link spawner1.location = spawn_loc_a;
-        link spawner2.actorClass = bossClass;
-        link spawner2.location = spawn_loc_b;
-        link waveAnnounce.message = waveCount;
+        mainTrigger.volume = triggerVolume;
+        spawner1.actorClass = bossClass;
+        spawner1.location = spawn_loc_a;
+        spawner2.actorClass = bossClass;
+        spawner2.location = spawn_loc_b;
+        waveAnnounce.message = waveCount;
     }
 
     event OnWaveComplete {
         context.start(spawner3.enter);
         spawner3.exit(bossAnnounce.enter);
-        link spawner3.actorClass = bossClass;
-        link spawner3.location = spawn_loc_c;
-        link bossAnnounce.message = bossClass;
+        spawner3.actorClass = bossClass;
+        spawner3.location = spawn_loc_c;
+        bossAnnounce.message = bossClass;
     }
 }

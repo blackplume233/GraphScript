@@ -8,6 +8,11 @@ void SchemaRegistry::register_schema(GraphSchema schema) {
     schemas_.emplace(std::move(name), std::move(schema));
 }
 
+// Unregisters a schema by name.
+bool SchemaRegistry::unregister_schema(std::string_view name) {
+    return schemas_.erase(std::string(name)) > 0;
+}
+
 // Looks up schema by name; returns nullptr if not found.
 const GraphSchema* SchemaRegistry::find(std::string_view name) const {
     auto it = schemas_.find(std::string(name));

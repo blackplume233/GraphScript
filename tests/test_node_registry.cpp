@@ -86,6 +86,27 @@ TEST(NodeRegistry, RegisterGraphNode) {
     EXPECT_EQ(found->source_graph, "MySubGraph");
 }
 
+TEST(NodeRegistry, UnregisterNodeOnlyRemovesNativeDefinitions) {
+    NodeRegistry reg;
+    reg.register_node(make_print_string());
+
+    NodeDefinition graph_def;
+    graph_def.type_name = "MySubGraph";
+    graph_def.is_native = true;
+    graph_def.source_graph = "MySubGraph";
+    reg.register_graph_node(std::move(graph_def));
+
+    EXPECT_TRUE(reg.unregister_node("PrintString"));
+    EXPECT_EQ(reg.find("PrintString"), nullptr);
+
+    EXPECT_FALSE(reg.unregister_node("MySubGraph"));
+    auto* graph_node = reg.find("MySubGraph");
+    ASSERT_NE(graph_node, nullptr);
+    EXPECT_FALSE(graph_node->is_native);
+
+    EXPECT_FALSE(reg.unregister_node("Missing"));
+}
+
 TEST(NodeRegistry, AllNodes) {
     NodeRegistry reg;
     reg.register_node(make_print_string());

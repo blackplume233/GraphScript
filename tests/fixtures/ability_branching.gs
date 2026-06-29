@@ -22,8 +22,8 @@ Graph FireballAbility : AbilityGraph {
         tagCheck.matched(fireball.spawn);
         tagCheck.notMatched(dmgLog.enter);
         castAnim.completed(dmgLog.enter);
-        link tagCheck.target = caster;
-        link castAnim.target = caster;
-        link dmgLog.message = damage;
+        tagCheck.target = caster;
+        castAnim.target = caster;
+        dmgLog.message = damage;
     }
 }

@@ -45,6 +45,24 @@ TEST(TypeRegistry, FindNonexistentReturnsNull) {
     EXPECT_EQ(reg.find(999), nullptr);
 }
 
+TEST(TypeRegistry, UnregisterTypeRemovesNameAndPreservesOtherHandles) {
+    TypeRegistry reg;
+    TypeHandle old_handle = reg.register_type({"OldType", false});
+    TypeHandle other_handle = reg.register_type({"OtherType", true});
+
+    EXPECT_TRUE(reg.unregister_type("OldType"));
+    EXPECT_EQ(reg.find("OldType"), nullptr);
+    EXPECT_EQ(reg.handle_of("OldType"), InvalidType);
+    EXPECT_EQ(reg.find(old_handle), nullptr);
+    ASSERT_NE(reg.find(other_handle), nullptr);
+    EXPECT_EQ(reg.find(other_handle)->name, "OtherType");
+    EXPECT_FALSE(reg.unregister_type("OldType"));
+
+    auto all = reg.all();
+    ASSERT_EQ(all.size(), 1u);
+    EXPECT_EQ(all[0]->name, "OtherType");
+}
+
 TEST(TypeRegistry, AllReturnsRegisteredTypes) {
     TypeRegistry reg;
     reg.register_type({"A", false});

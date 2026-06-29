@@ -101,6 +101,17 @@ The top-level compilation result. Contains everything in one `.gs` file.
 | `top_level_lets` | `vector<LetDecl>` | `let` declarations |
 | `graphs` | `vector<Graph>` | Compiled graphs |
 
+### ImportDecl / LetDecl (compile/compiler.h)
+
+Top-level declarations retain source traceability and prefix metadata.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `annotations` | `vector<Annotation>` | Prefix metadata annotations |
+| `source_range` | `SourceRange` | Source span of the declaration |
+| `name_range` | `SourceRange` | `let` binding name span |
+| `type_name_range` | `SourceRange` | `let` constructible type reference span |
+
 ### Graph (core/graph.h)
 
 A single graph definition, the primary unit of editing.
@@ -120,6 +131,7 @@ A single graph definition, the primary unit of editing.
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | `string` | Block name |
+| `annotations` | `vector<Annotation>` | Prefix metadata annotations |
 | `flow_connections` | `vector<FlowConnection>` | Exec flow edges |
 | `data_links` | `vector<DataLink>` | Data wiring |
 
@@ -129,17 +141,21 @@ A single graph definition, the primary unit of editing.
 struct FlowConnection {
     PinAddress from;  // {node_instance, pin_name}
     PinAddress to;
+    vector<Annotation> annotations;
 };
 
 struct DataLink {
     PinAddress target;  // node.pin being written to
     DataSource source;  // node.pin or bare param name
+    vector<Annotation> annotations;
 };
 ```
 
 ### NodeDefinition (core/node.h)
 
 Defines a node type's pins. Can be `is_native` (from `.d.gs`) or derived from a Graph.
+
+Declaration-file node and pin definitions retain prefix metadata annotations for JSON traceability. `TypeInfo`, `NodeDefinition`, `PinDefinition`, `GraphSchema`, and `GraphSchemaField` can carry `vector<Annotation>` alongside source/name ranges.
 
 ### EditGraph (edit/edit_graph.h)
 
@@ -168,7 +184,7 @@ Baked, immutable, cache-friendly graph for runtime consumption.
 Stateful editing context wrapping a `Module`. Provides:
 - Graph CRUD (new, delete, switch active)
 - Node/param/event/function manipulation
-- Flow/link operations with **scope validation**
+- Flow/data-assignment operations with **scope validation**
 - Snapshot-based undo/redo
 - Command logging
 - JSON state export for web UI
@@ -212,6 +228,8 @@ declare Schema HTNGraph {
     allow_exec_fan_in = false;
 }
 ```
+
+Schema declarations and individual schema fields can carry prefix annotations, which are preserved in registry metadata and exported through JSON state.
 
 | Schema Property | Type | Effect |
 |-----------------|------|--------|

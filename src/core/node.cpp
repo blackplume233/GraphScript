@@ -60,7 +60,32 @@ void NodeRegistry::register_node(NodeDefinition def) {
 void NodeRegistry::register_graph_node(NodeDefinition def) {
     def.is_native = false;
     auto name = def.type_name;
+    auto it = nodes_.find(name);
+    if (it != nodes_.end()) {
+        if (!it->second.is_native) {
+            it->second = std::move(def);
+        }
+        return;
+    }
     nodes_.emplace(std::move(name), std::move(def));
+}
+
+// Unregisters a graph-derived node definition without touching native nodes.
+void NodeRegistry::unregister_graph_node(std::string_view type_name) {
+    auto it = nodes_.find(std::string(type_name));
+    if (it != nodes_.end() && !it->second.is_native) {
+        nodes_.erase(it);
+    }
+}
+
+// Unregisters a native node definition without touching graph-derived nodes.
+bool NodeRegistry::unregister_node(std::string_view type_name) {
+    auto it = nodes_.find(std::string(type_name));
+    if (it != nodes_.end() && it->second.is_native) {
+        nodes_.erase(it);
+        return true;
+    }
+    return false;
 }
 
 // Looks up node definition by type name; returns nullptr if not found.

@@ -14,9 +14,9 @@ Graph LevelSetup : LevelScriptGraph {
     event OnLevelStart {
         trigger.onEnter(spawner.enter);
         spawner.exit(printer.enter);
-        link trigger.volume = triggerActor;
-        link spawner.actorClass = enemyClass;
-        link spawner.location = spawn_point;
-        link printer.message = spawnMessage;
+        trigger.volume = triggerActor;
+        spawner.actorClass = enemyClass;
+        spawner.location = spawn_point;
+        printer.message = spawnMessage;
     }
 }

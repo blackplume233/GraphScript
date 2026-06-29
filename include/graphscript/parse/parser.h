@@ -6,6 +6,7 @@
 #include "graphscript/parse/token.h"
 #include "graphscript/parse/ast.h"
 #include "graphscript/core/result.h"
+#include "graphscript/diagnostic/diagnostic.h"
 
 namespace gs {
 
@@ -15,6 +16,8 @@ public:
     explicit Parser(std::vector<Token> tokens);
     /// Parses full module. Returns error string on parse failure.
     Result<std::unique_ptr<ModuleNode>, std::string> parse();
+    /// Returns structured diagnostics collected during the last parse attempt.
+    const std::vector<Diagnostic>& diagnostics() const { return diagnostics_; }
 
 private:
     const Token& current() const;
@@ -23,6 +26,11 @@ private:
     bool         match(TokenType type);
     bool         expect(TokenType type, const std::string& msg);
     bool         at_end() const;
+    bool         starts_with_assignment_stmt() const;
+    void         record_expected_token_error(TokenType type, const std::string& msg);
+    void         record_error(const std::string& msg,
+                              const std::string& code = "GS_PARSE_UNEXPECTED_TOKEN",
+                              const std::string& hint = "");
 
     std::unique_ptr<ImportNode>        parse_import();
     std::unique_ptr<LetDeclNode>       parse_let();
@@ -44,6 +52,7 @@ private:
     std::vector<Token> tokens_;
     size_t             pos_ = 0;
     std::vector<std::string> errors_;
+    std::vector<Diagnostic> diagnostics_;
 };
 
 } // namespace gs

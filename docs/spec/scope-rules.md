@@ -1,12 +1,12 @@
 # GraphScript Scope Rules
 
-> Block-level scope isolation for flow and link references.
+> Block-level scope isolation for flow and data-assignment references.
 
 ---
 
 ## Principle
 
-Every reference in a flow or link statement must resolve to an entity that exists within the current block's scope. References that point outside the scope boundary are **compilation errors**.
+Every reference in a flow or data-assignment statement must resolve to an entity that exists within the current block's scope. References that point outside the scope boundary are **compilation errors**.
 
 ---
 
@@ -33,10 +33,10 @@ Graph MyGraph {
 
     function Calculate {
         context.start(context.done);        // ✓ context
-        link context.result = score;         // ✓ parameter
+        context.result = score;              // ✓ parameter
 
         // context.start(logger.enter);      // ✗ COMPILE ERROR: node instance
-        // link logger.message = health;     // ✗ COMPILE ERROR: node instance
+        // logger.message = health;          // ✗ COMPILE ERROR: node instance
     }
 }
 ```
@@ -63,10 +63,10 @@ Graph MyGraph {
 
     event OnStart {
         context.start(logger.enter);         // ✓ node instance
-        link logger.message = health;        // ✓ parameter
+        logger.message = health;             // ✓ parameter
 
-        // link logger.message = global_val; // ✗ COMPILE ERROR: module-level let
-        // link logger.message = ghost;      // ✗ COMPILE ERROR: undefined name
+        // logger.message = global_val;      // ✗ COMPILE ERROR: module-level let
+        // logger.message = ghost;           // ✗ COMPILE ERROR: undefined name
     }
 }
 ```
@@ -81,7 +81,7 @@ The scope rules are enforced at **three levels**:
 
 File: `src/compile/compiler.cpp` — inside `Compiler::compile()`
 
-After compiling each graph, the compiler builds allowed-name sets and validates every flow/link reference:
+After compiling each graph, the compiler builds allowed-name sets and validates every flow/data-assignment reference:
 
 ```
 param_names = {"context"} ∪ {p.name for p in graph.parameters}
@@ -139,13 +139,13 @@ If a graph needs a value, declare it as a parameter with a default:
 // ✗ Don't: use module-level let in graph
 let spawn_point = FVector("0,0,0");
 Graph G {
-    event OnStart { link spawner.location = spawn_point; }  // COMPILE ERROR
+    event OnStart { spawner.location = spawn_point; }  // COMPILE ERROR
 }
 
 // ✓ Do: declare as graph parameter
 Graph G {
     in spawn_point : FVector;
-    event OnStart { link spawner.location = spawn_point; }  // OK
+    event OnStart { spawner.location = spawn_point; }  // OK
 }
 ```
 
