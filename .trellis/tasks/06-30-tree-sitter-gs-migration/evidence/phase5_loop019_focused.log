@@ -1,0 +1,52 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = Lexer.*:Parser.*:Compiler.*
+[==========] Running 18 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 6 tests from Compiler
+[ RUN      ] Compiler.AssetImportPopulatesEnvironmentTypesAndNodes
+[       OK ] Compiler.AssetImportPopulatesEnvironmentTypesAndNodes (0 ms)
+[ RUN      ] Compiler.AssetImportPopulatesSchemas
+[       OK ] Compiler.AssetImportPopulatesSchemas (0 ms)
+[ RUN      ] Compiler.AssetFlowGraphProjectionCapturesSchemaParamsNodesAndEdges
+[       OK ] Compiler.AssetFlowGraphProjectionCapturesSchemaParamsNodesAndEdges (0 ms)
+[ RUN      ] Compiler.AssetEditSessionDerivesGraphAsNode
+[       OK ] Compiler.AssetEditSessionDerivesGraphAsNode (0 ms)
+[ RUN      ] Compiler.AssetEditSessionReportsUnknownEventReference
+[       OK ] Compiler.AssetEditSessionReportsUnknownEventReference (0 ms)
+[ RUN      ] Compiler.AssetEditSessionReportsFunctionNodeReference
+[       OK ] Compiler.AssetEditSessionReportsFunctionNodeReference (0 ms)
+[----------] 6 tests from Compiler (2 ms total)
+
+[----------] 5 tests from Lexer
+[ RUN      ] Lexer.EmptyAndWhitespaceOnlyInput
+[       OK ] Lexer.EmptyAndWhitespaceOnlyInput (0 ms)
+[ RUN      ] Lexer.ImportsStringsAndEscapes
+[       OK ] Lexer.ImportsStringsAndEscapes (0 ms)
+[ RUN      ] Lexer.NumericBoolNullAssetRefAndCallExpressions
+[       OK ] Lexer.NumericBoolNullAssetRefAndCallExpressions (0 ms)
+[ RUN      ] Lexer.SymbolsAttributesArraysAndInlineObjects
+[       OK ] Lexer.SymbolsAttributesArraysAndInlineObjects (0 ms)
+[ RUN      ] Lexer.ReportsSyntaxErrorsWithRanges
+[       OK ] Lexer.ReportsSyntaxErrorsWithRanges (0 ms)
+[----------] 5 tests from Lexer (0 ms total)
+
+[----------] 7 tests from Parser
+[ RUN      ] Parser.AssetDeclareTypeObjectSchemaAndCommand
+[       OK ] Parser.AssetDeclareTypeObjectSchemaAndCommand (0 ms)
+[ RUN      ] Parser.AssetPresetsParse
+[       OK ] Parser.AssetPresetsParse (0 ms)
+[ RUN      ] Parser.AssetImportsConstAndGraphBlocks
+[       OK ] Parser.AssetImportsConstAndGraphBlocks (0 ms)
+[ RUN      ] Parser.AssetProjectsFlowGraphWithBlocksAndEdges
+[       OK ] Parser.AssetProjectsFlowGraphWithBlocksAndEdges (0 ms)
+[ RUN      ] Parser.AssetGenerateBlockSourceRanges
+[       OK ] Parser.AssetGenerateBlockSourceRanges (0 ms)
+[ RUN      ] Parser.AssetReportsSyntaxDiagnostics
+[       OK ] Parser.AssetReportsSyntaxDiagnostics (0 ms)
+[ RUN      ] Parser.AssetLinterReportsMissingGraphName
+[       OK ] Parser.AssetLinterReportsMissingGraphName (0 ms)
+[----------] 7 tests from Parser (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 18 tests from 3 test suites ran. (3 ms total)
+[  PASSED  ] 18 tests.

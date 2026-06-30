@@ -4,9 +4,9 @@ updated_at: 2026-06-30
 artifact_language: zh-CN
 execution_mode: native-codex-goal
 native_goal_id: codex_019f188c-0800-7041-9d48-9a868ddcb496
-current_loop: loops/loop-019.md
-next_sub_goal: Loop 019：继续 Phase 5，迁移 tests/test_parser.cpp、tests/test_compiler.cpp、tests/test_lexer.cpp 中旧手写 parser/compiler/lexer 覆盖到 asset parser/linter/projector，优先减少可独立迁移的旧单元测试
-last_verified_loop: loops/loop-018.md
+current_loop: loops/loop-020.md
+next_sub_goal: Loop 020：继续 Phase 5，迁移 test_blueprint_scenarios.cpp、test_integration_deep.cpp、test_qa_loop.cpp、test_qa_stress.cpp 中旧 parse/compiler/emitter round-trip 依赖，优先拆出与 RuntimeGraph 强耦合较低的 asset fixture 回归
+last_verified_loop: loops/loop-019.md
 references: references.md
 ---
 

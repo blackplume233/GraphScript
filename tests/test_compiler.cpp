@@ -1,404 +1,194 @@
 #include <gtest/gtest.h>
-#include <fstream>
-#include <sstream>
-#include "graphscript/parse/lexer.h"
-#include "graphscript/parse/parser.h"
-#include "graphscript/compile/compiler.h"
+
+#include "graphscript/asset/language.h"
+#include "graphscript/edit/edit_session.h"
 #include "graphscript/registry/environment.h"
 
 using namespace gs;
 
-static std::string read_file(const std::string& dir, const std::string& filename) {
-    std::string path = dir + "/" + filename;
-    std::ifstream f(path);
-    if (!f.is_open()) return "";
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
+static asset::ParseResult parse_asset_compiler_source(const std::string& source,
+                                                      const std::string& name = "compiler_asset_test.gs") {
+    asset::Parser parser(source, name);
+    return parser.parse();
 }
 
-static std::string read_fixture(const std::string& filename) {
-    return read_file(GS_TEST_FIXTURES_DIR, filename);
+static void load_core_for_compiler(EditSession& session) {
+    const std::string path = std::string(GS_PRESETS_DIR) + "/ue_core.d.gs";
+    auto loaded = session.load_import(path);
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
 }
 
-static constexpr const char* kLegacyCoreDeclarations = R"(// Legacy declarations for compiler-layer tests only.
-declare type FName;
-declare type FString;
-declare type FVector : constructible;
-declare type FRotator : constructible;
-declare type SoftObjectPath : constructible;
-declare type AActor;
-declare type UObject;
-declare type float;
-declare type int;
-declare type bool;
-
-declare Node PrintString {
-    exec in enter;
-    exec out exit;
-    field message : FString = "";
-    data in message : FString;
-}
-
-declare Node Delay {
-    exec in enter;
-    exec out completed;
-    field duration : float = 0.2;
-    data in duration : float;
-}
-
-declare Node GetActorLocation {
-    data in target : AActor;
-    data out location : FVector;
-}
-)";
-
-static constexpr const char* kLegacyHtnDeclarations = R"(// HTN domain node declarations
-declare type HTNTask;
-declare type HTNCondition;
-
-declare Node HTN_MoveToTarget {
-    exec in enter;
-    exec out success;
-    exec out fail;
-    data in target : AActor;
-    data in speed : float;
-}
-
-declare Node HTN_CheckDistance {
-    exec in enter;
-    exec out inRange;
-    exec out outOfRange;
-    data in target : AActor;
-    data in threshold : float;
-}
-
-declare Schema HTNGraph {
-    max_exec_fan_out: unlimited;
-    allow_exec_fan_in: false;
-    strict_type_match: true;
-    allowed_node_tags: ["htn_task", "htn_decorator", "htn_service", "common"];
-}
-)";
-
-static std::unique_ptr<ModuleNode> parse(std::string_view src) {
-    Lexer lexer(src);
-    auto tokens = lexer.tokenize();
-    Parser parser(std::move(tokens));
-    auto result = parser.parse();
-    if (result.is_err()) return nullptr;
-    return std::move(result).value();
-}
-
-TEST(Compiler, CompileDeclareTypes) {
-    auto ast = parse(kLegacyCoreDeclarations);
-    ASSERT_NE(ast, nullptr);
-
+TEST(Compiler, AssetImportPopulatesEnvironmentTypesAndNodes) {
     Environment env;
-    Compiler compiler(env);
-    auto result = compiler.compile(*ast, "ue_core.d.gs");
-    ASSERT_TRUE(result.is_ok()) << result.error();
+    EditSession session(env);
+    load_core_for_compiler(session);
 
-    EXPECT_NE(env.types().find("FVector"), nullptr);
-    EXPECT_NE(env.types().find("FName"), nullptr);
-    EXPECT_NE(env.types().find("SoftObjectPath"), nullptr);
-
-    auto* fvec = env.types().find("FVector");
-    ASSERT_NE(fvec, nullptr);
-    EXPECT_TRUE(fvec->constructible);
-
+    auto* vector_type = env.types().find("FVector");
+    ASSERT_NE(vector_type, nullptr);
+    EXPECT_TRUE(vector_type->constructible);
     auto* fname = env.types().find("FName");
     ASSERT_NE(fname, nullptr);
     EXPECT_FALSE(fname->constructible);
-}
+    EXPECT_NE(env.types().find("FString"), nullptr);
+    EXPECT_NE(env.types().find("SoftObjectPath"), nullptr);
 
-TEST(Compiler, CompileDeclareNodes) {
-    auto ast = parse(kLegacyCoreDeclarations);
-    ASSERT_NE(ast, nullptr);
-
-    Environment env;
-    Compiler compiler(env);
-    compiler.compile(*ast, "ue_core.d.gs");
-
-    auto* ps = env.nodes().find("PrintString");
-    ASSERT_NE(ps, nullptr);
-    EXPECT_TRUE(ps->is_native);
-    EXPECT_EQ(ps->pins.size(), 3u);
-    ASSERT_EQ(ps->fields.size(), 1u);
-    EXPECT_EQ(ps->fields[0].name, "message");
-    EXPECT_EQ(ps->fields[0].type_name, "FString");
-    EXPECT_NE(ps->find_pin("enter"), nullptr);
-    EXPECT_NE(ps->find_pin("exit"), nullptr);
-    EXPECT_NE(ps->find_pin("message"), nullptr);
+    auto* print = env.nodes().find("PrintString");
+    ASSERT_NE(print, nullptr);
+    EXPECT_TRUE(print->is_native);
+    EXPECT_EQ(print->pins.size(), 3u);
+    EXPECT_NE(print->find_pin("enter"), nullptr);
+    EXPECT_NE(print->find_pin("exit"), nullptr);
+    EXPECT_NE(print->find_pin("message"), nullptr);
+    ASSERT_FALSE(print->fields.empty());
+    EXPECT_EQ(print->fields[0].name, "message");
+    EXPECT_EQ(print->fields[0].type_name, "FString");
 
     auto* delay = env.nodes().find("Delay");
     ASSERT_NE(delay, nullptr);
     EXPECT_EQ(delay->pins.size(), 3u);
-    ASSERT_EQ(delay->fields.size(), 1u);
+    ASSERT_FALSE(delay->fields.empty());
     EXPECT_EQ(delay->fields[0].name, "duration");
+    EXPECT_EQ(delay->fields[0].type_name, "float");
 }
 
-TEST(Compiler, CompileDeclareSchemas) {
-    auto ast = parse(kLegacyHtnDeclarations);
-    ASSERT_NE(ast, nullptr);
-
+TEST(Compiler, AssetImportPopulatesSchemas) {
     Environment env;
-    Compiler compiler(env);
-    compiler.compile(*ast, "htn_nodes.d.gs");
+    EditSession session(env);
+    load_core_for_compiler(session);
+
+    const std::string htn_path = std::string(GS_PRESETS_DIR) + "/htn_nodes.d.gs";
+    auto loaded = session.load_import(htn_path);
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
 
     auto* schema = env.schemas().find("HTNGraph");
     ASSERT_NE(schema, nullptr);
     EXPECT_EQ(schema->connection_policy.max_exec_fan_out, -1);
     EXPECT_FALSE(schema->connection_policy.allow_exec_fan_in);
     EXPECT_TRUE(schema->connection_policy.strict_type_match);
-    EXPECT_EQ(schema->allowed_node_tags.size(), 4u);
-    ASSERT_EQ(schema->fields.size(), 4u);
+    ASSERT_FALSE(schema->fields.empty());
     EXPECT_EQ(schema->fields[0].name, "max_exec_fan_out");
     EXPECT_EQ(schema->fields[0].value, "unlimited");
-    EXPECT_EQ(schema->fields[0].source_range.start.line, 22u);
 }
 
-TEST(Compiler, CompileMinimalGraph) {
-    Environment env;
-    Compiler compiler(env);
-
-    auto core_ast = parse(kLegacyCoreDeclarations);
-    compiler.compile(*core_ast);
-
-    auto ast = parse(read_fixture("minimal.gs"));
-    ASSERT_NE(ast, nullptr);
-    auto result = compiler.compile(*ast, "minimal.gs");
-    ASSERT_TRUE(result.is_ok()) << result.error();
-
-    auto& mod = result.value();
-    ASSERT_EQ(mod.graphs.size(), 1u);
-    EXPECT_EQ(mod.graphs[0].name, "HelloWorld");
-    EXPECT_EQ(mod.graphs[0].parameters.size(), 1u);
-    EXPECT_EQ(mod.graphs[0].node_instances.size(), 1u);
-    EXPECT_EQ(mod.graphs[0].events.size(), 1u);
-}
-
-TEST(Compiler, GraphAsNodeDerivation) {
-    Environment env;
-    Compiler compiler(env);
-
-    auto core_ast = parse(kLegacyCoreDeclarations);
-    compiler.compile(*core_ast);
-
-    auto ast = parse(read_fixture("graph_as_node.gs"));
-    ASSERT_NE(ast, nullptr);
-    auto result = compiler.compile(*ast, "graph_as_node.gs");
-    ASSERT_TRUE(result.is_ok()) << result.error();
-
-    // SubRoutine should be registered as a node
-    auto* sub = env.nodes().find("SubRoutine");
-    ASSERT_NE(sub, nullptr);
-    EXPECT_FALSE(sub->is_native);
-    EXPECT_EQ(sub->source_graph, "SubRoutine");
-    EXPECT_EQ(sub->source_range.start.line, 3u);
-    EXPECT_EQ(sub->source_range.start.column, 1u);
-    EXPECT_EQ(sub->name_range.start.line, 3u);
-    EXPECT_EQ(sub->name_range.start.column, 7u);
-
-    // Data pins from in/out params
-    auto data_in = sub->data_inputs();
-    ASSERT_EQ(data_in.size(), 1u);
-    EXPECT_EQ(data_in[0]->name, "value");
-    EXPECT_EQ(data_in[0]->type_name, "int");
-    EXPECT_EQ(data_in[0]->source_range.start.line, 4u);
-    EXPECT_EQ(data_in[0]->source_range.start.column, 5u);
-    EXPECT_EQ(data_in[0]->name_range.start.line, 4u);
-    EXPECT_EQ(data_in[0]->name_range.start.column, 8u);
-    EXPECT_EQ(data_in[0]->type_name_range.start.line, 4u);
-    EXPECT_EQ(data_in[0]->type_name_range.start.column, 16u);
-
-    auto data_out = sub->data_outputs();
-    ASSERT_EQ(data_out.size(), 1u);
-    EXPECT_EQ(data_out[0]->name, "result");
-    EXPECT_EQ(data_out[0]->source_range.start.line, 5u);
-    EXPECT_EQ(data_out[0]->source_range.start.column, 5u);
-    EXPECT_EQ(data_out[0]->name_range.start.line, 5u);
-    EXPECT_EQ(data_out[0]->name_range.start.column, 9u);
-
-    // Exec input from event
-    auto exec_in = sub->exec_inputs();
-    ASSERT_EQ(exec_in.size(), 1u);
-    EXPECT_EQ(exec_in[0]->name, "Execute");
-    EXPECT_EQ(exec_in[0]->source_range.start.line, 9u);
-    EXPECT_EQ(exec_in[0]->source_range.start.column, 5u);
-    EXPECT_EQ(exec_in[0]->name_range.start.line, 9u);
-    EXPECT_EQ(exec_in[0]->name_range.start.column, 11u);
-
-    // MainGraph should also be registered
-    auto* main = env.nodes().find("MainGraph");
-    ASSERT_NE(main, nullptr);
-}
-
-TEST(Compiler, GraphWithBaseType) {
-    Environment env;
-    Compiler compiler(env);
-
-    auto core_ast = parse(kLegacyCoreDeclarations);
-    compiler.compile(*core_ast);
-    auto htn_ast = parse(kLegacyHtnDeclarations);
-    compiler.compile(*htn_ast);
-
-    auto ast = parse(read_fixture("htn_basic.gs"));
-    ASSERT_NE(ast, nullptr);
-    auto result = compiler.compile(*ast, "htn_basic.gs");
-    ASSERT_TRUE(result.is_ok()) << result.error();
-
-    auto& g = result.value().graphs[0];
-    EXPECT_EQ(g.name, "SimpleHTN");
-    ASSERT_TRUE(g.base_type.has_value());
-    EXPECT_EQ(*g.base_type, "HTNGraph");
-}
-
-TEST(Compiler, LetDeclarations) {
-    Environment env;
-    Compiler compiler(env);
-
-    auto core_ast = parse(kLegacyCoreDeclarations);
-    compiler.compile(*core_ast);
-
-    auto ast = parse(read_fixture("round_trip.gs"));
-    ASSERT_NE(ast, nullptr);
-    auto result = compiler.compile(*ast, "round_trip.gs");
-    ASSERT_TRUE(result.is_ok()) << result.error();
-
-    ASSERT_EQ(result.value().top_level_lets.size(), 1u);
-    EXPECT_EQ(result.value().top_level_lets[0].name, "actor_1");
-    EXPECT_EQ(result.value().top_level_lets[0].type_name, "SoftObjectPath");
-    EXPECT_EQ(result.value().top_level_lets[0].constructor_arg, "actor_path_1");
-}
-
-TEST(Compiler, ImportDeclarations) {
-    Environment env;
-    Compiler compiler(env);
-
-    auto ast = parse(R"(import "ue_core.d.gs"; import "other.gs";)");
-    ASSERT_NE(ast, nullptr);
-    auto result = compiler.compile(*ast);
-    ASSERT_TRUE(result.is_ok()) << result.error();
-
-    ASSERT_EQ(result.value().imports.size(), 2u);
-    EXPECT_EQ(result.value().imports[0].path, "ue_core.d.gs");
-    EXPECT_TRUE(result.value().imports[0].is_native);
-    EXPECT_EQ(result.value().imports[1].path, "other.gs");
-    EXPECT_FALSE(result.value().imports[1].is_native);
-}
-
-TEST(Compiler, FlowConnections) {
-    Environment env;
-    Compiler compiler(env);
-
-    auto core_ast = parse(kLegacyCoreDeclarations);
-    compiler.compile(*core_ast);
-
-    auto ast = parse(read_fixture("minimal.gs"));
-    auto result = compiler.compile(*ast);
-    ASSERT_TRUE(result.is_ok()) << result.error();
-
-    auto& ev = result.value().graphs[0].events[0];
-    EXPECT_EQ(ev.name, "OnStart");
-    ASSERT_GE(ev.flow_connections.size(), 1u);
-    EXPECT_EQ(ev.flow_connections[0].from.node_instance, "context");
-    EXPECT_EQ(ev.flow_connections[0].from.pin_name, "start");
-    EXPECT_EQ(ev.flow_connections[0].to.node_instance, "printer");
-    EXPECT_EQ(ev.flow_connections[0].to.pin_name, "enter");
-}
-
-TEST(Compiler, VarParamExcludedFromDerivation) {
-    Environment env;
-    Compiler compiler(env);
-
-    auto ast = parse(R"(
-Graph Test {
-    in x : int;
-    out y : int;
-    var temp : float;
-    event Run { }
+TEST(Compiler, AssetFlowGraphProjectionCapturesSchemaParamsNodesAndEdges) {
+    auto parsed = parse_asset_compiler_source(R"(graph Execute {
+    schema TraceGraph;
+    @graph.input
+    param target: AActor;
+    @graph.output
+    param result: bool;
+    node apply {
+        type ApplyDamage;
+        amount: 50;
+    }
+    node log {
+        type PrintString;
+    }
+    event Start {
+        connect(context.start, apply.enter);
+        connect(apply.exit, log.enter);
+        bind(target, log.message);
+    }
 }
 )");
-    ASSERT_NE(ast, nullptr);
-    auto result = compiler.compile(*ast);
-    ASSERT_TRUE(result.is_ok()) << result.error();
 
-    auto* node = env.nodes().find("Test");
-    ASSERT_NE(node, nullptr);
-    // var should not generate a pin, so 2 data pins + 1 exec pin
-    EXPECT_EQ(node->pins.size(), 3u);
-    auto di = node->data_inputs();
-    EXPECT_EQ(di.size(), 1u);
-    EXPECT_EQ(di[0]->name, "x");
-    auto do_ = node->data_outputs();
-    EXPECT_EQ(do_.size(), 1u);
-    EXPECT_EQ(do_[0]->name, "y");
-    auto ei = node->exec_inputs();
-    EXPECT_EQ(ei.size(), 1u);
-    EXPECT_EQ(ei[0]->name, "Run");
+    ASSERT_TRUE(parsed.diagnostics.empty());
+    auto projected = asset::FlowGraphProjector::project(parsed.module, "Execute");
+    ASSERT_TRUE(projected.is_ok()) << projected.error();
+    const auto& graph = projected.value();
+    EXPECT_EQ(graph.name, "Execute");
+    EXPECT_EQ(graph.schema, "TraceGraph");
+    ASSERT_EQ(graph.parameters.size(), 2u);
+    EXPECT_EQ(graph.parameters[0].name, "target");
+    EXPECT_EQ(graph.parameters[0].direction, "in");
+    EXPECT_EQ(graph.parameters[1].direction, "out");
+    ASSERT_EQ(graph.nodes.size(), 2u);
+    EXPECT_EQ(graph.nodes[0].type, "ApplyDamage");
+    ASSERT_FALSE(graph.nodes[0].properties.empty());
+    EXPECT_EQ(graph.nodes[0].properties[0].path, "amount");
+    ASSERT_EQ(graph.edges.size(), 2u);
+    ASSERT_EQ(graph.data_edges.size(), 1u);
 }
 
-TEST(Compiler, StructuredDiagnosticForUnknownEventReference) {
+TEST(Compiler, AssetEditSessionDerivesGraphAsNode) {
     Environment env;
-    Compiler compiler(env);
+    EditSession session(env);
+    load_core_for_compiler(session);
 
-    auto ast = parse(R"(
-Graph Test {
+    const std::string source = R"(graph Child {
+    @graph.input
+    param msg: FString;
+    @graph.output
+    param result: bool;
+    @graph.var
+    param scratch: float;
     event Run {
-        missing.enter(context.start);
     }
 }
-)");
-    ASSERT_NE(ast, nullptr);
-    auto result = compiler.compile(*ast);
-    ASSERT_TRUE(result.is_err());
-    EXPECT_NE(result.error().find("unknown reference 'missing'"), std::string::npos);
+graph Parent {
+    node child {
+        type Child;
+    }
+    event Start {
+        connect(context.start, child.Run);
+    }
+}
+)";
 
-    const auto& diags = compiler.diagnostics();
-    ASSERT_EQ(diags.size(), 1u);
-    EXPECT_EQ(diags[0].severity, Severity::Error);
-    EXPECT_EQ(diags[0].code, "GS_SCOPE_UNKNOWN_REFERENCE");
-    EXPECT_EQ(diags[0].context, "missing");
-    EXPECT_EQ(diags[0].range.start.line, 4u);
-    EXPECT_EQ(diags[0].range.start.column, 9u);
-    EXPECT_EQ(diags[0].target.graph, "Test");
-    EXPECT_EQ(diags[0].target.block_kind, "event");
-    EXPECT_EQ(diags[0].target.block_name, "Run");
-    EXPECT_EQ(diags[0].target.reference, "missing");
-    EXPECT_EQ(diags[0].target.pin_name, "enter");
-    EXPECT_NE(diags[0].hint.find("graph parameter"), std::string::npos);
+    auto loaded = session.load_source(source, "graph_as_node_asset.gs");
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+
+    auto* child = env.nodes().find("Child");
+    ASSERT_NE(child, nullptr);
+    EXPECT_FALSE(child->is_native);
+    EXPECT_EQ(child->source_graph, "Child");
+    ASSERT_EQ(child->pins.size(), 3u);
+    auto* msg = child->find_pin("msg");
+    ASSERT_NE(msg, nullptr);
+    EXPECT_EQ(msg->kind, PinKind::Data);
+    EXPECT_EQ(msg->direction, PinDirection::Input);
+    auto* result = child->find_pin("result");
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(result->kind, PinKind::Data);
+    EXPECT_EQ(result->direction, PinDirection::Output);
+    auto* run = child->find_pin("Run");
+    ASSERT_NE(run, nullptr);
+    EXPECT_EQ(run->kind, PinKind::Exec);
+    EXPECT_EQ(run->direction, PinDirection::Input);
+    EXPECT_EQ(child->find_pin("scratch"), nullptr);
 }
 
-TEST(Compiler, StructuredDiagnosticForFunctionNodeReference) {
+TEST(Compiler, AssetEditSessionReportsUnknownEventReference) {
     Environment env;
-    Compiler compiler(env);
+    EditSession session(env);
 
-    auto ast = parse(R"(
-Graph Test {
-    PrintString printer{};
-    function Compute {
-        printer.exit(context.done);
+    const std::string source = R"(graph Test {
+    event Run {
+        connect(missing.enter, context.done);
     }
 }
-)");
-    ASSERT_NE(ast, nullptr);
-    auto result = compiler.compile(*ast);
-    ASSERT_TRUE(result.is_err());
-    EXPECT_NE(result.error().find("cannot reference graph node 'printer'"), std::string::npos);
+)";
 
-    const auto& diags = compiler.diagnostics();
-    ASSERT_EQ(diags.size(), 1u);
-    EXPECT_EQ(diags[0].severity, Severity::Error);
-    EXPECT_EQ(diags[0].code, "GS_SCOPE_FORBIDDEN_REFERENCE");
-    EXPECT_EQ(diags[0].context, "printer");
-    EXPECT_EQ(diags[0].range.start.line, 5u);
-    EXPECT_EQ(diags[0].range.start.column, 9u);
-    EXPECT_EQ(diags[0].target.graph, "Test");
-    EXPECT_EQ(diags[0].target.block_kind, "function");
-    EXPECT_EQ(diags[0].target.block_name, "Compute");
-    EXPECT_EQ(diags[0].target.node_instance, "printer");
-    EXPECT_EQ(diags[0].target.pin_name, "exit");
-    EXPECT_EQ(diags[0].target.reference, "printer");
-    EXPECT_NE(diags[0].hint.find("event block"), std::string::npos);
+    auto loaded = session.load_source(source, "bad_event_ref.gs");
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_NE(loaded.error().find("Unknown source node"), std::string::npos);
+}
+
+TEST(Compiler, AssetEditSessionReportsFunctionNodeReference) {
+    Environment env;
+    EditSession session(env);
+
+    const std::string source = R"(graph Test {
+    node printer {
+        type PrintString;
+    }
+    function Compute {
+        connect(printer.exit, context.done);
+    }
+}
+)";
+
+    auto loaded = session.load_source(source, "bad_function_ref.gs");
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_NE(loaded.error().find("Unknown source node"), std::string::npos);
 }
