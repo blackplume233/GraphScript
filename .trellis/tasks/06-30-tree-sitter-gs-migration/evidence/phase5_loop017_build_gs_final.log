@@ -1,0 +1,7 @@
+适用于 .NET Framework MSBuild 版本 18.7.8+1ac568fee
+
+  tree_sitter_graphscript_asset.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\tree_sitter_graphscript_asset.lib
+  tree_sitter_runtime.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\tree_sitter_runtime.lib
+  graphscript_core.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\graphscript_core.lib
+    正在创建库 G:/Workspace/PluginDevelop/Plugins/GraphScript/build-codex/Release/gs.lib 和对象 G:/Workspace/PluginDevelop/Plugins/GraphScript/build-codex/Release/gs.exp
+  gs.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\gs.exe

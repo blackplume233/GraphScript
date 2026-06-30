@@ -79,6 +79,20 @@ Use `Result<void, std::string>::ok()` with no argument.
 If new syntax parses but does not emit, round-trip behavior is broken. Add or
 update emitter support in the same task.
 
+### Asset Emitter Produces Syntax The Grammar Cannot Parse
+
+`EditSession::emit()` and `emit_active()` must output tree-sitter asset syntax
+that `EditSession::load_source()` can parse and project again. Do not serialize
+metadata forms that the current asset grammar cannot represent. For example,
+top-level `import` declarations currently do not accept prefix attributes, so
+import annotations may remain in session state/JSON but must not be emitted as
+`@Attr import "x.d.gs";` source until the grammar and parser support it.
+
+When converting asset `const name = new Type { ... }` into the legacy `Module`
+adapter, preserve body properties in `LetDecl::initializer_fields`; otherwise a
+later edit that clears the source cache can silently save an empty const body.
+Add regression tests that perform `emit -> load_source` after the edit.
+
 ### Running Server During Rebuild
 
 On Windows, a running `gs serve` can lock `gs.exe` and cause `LNK1104`. Stop the

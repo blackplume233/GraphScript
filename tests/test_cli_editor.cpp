@@ -102,15 +102,15 @@ TEST(CLIEditor, AnnotatesTopLevelImportAndLet) {
     EXPECT_TRUE(editor.last_command_succeeded());
 
     auto text = session.emit();
-    EXPECT_NE(text.find("[Id(\"import-cli\")]"), std::string::npos);
-    EXPECT_NE(text.find("[PersistentId(\"let-cli\")]"), std::string::npos);
+    EXPECT_EQ(text.find("@Id(\"import-cli\")"), std::string::npos);
+    EXPECT_NE(text.find("@PersistentId(\"let-cli\")"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("unannotate import custom.d.gs Id"));
     EXPECT_TRUE(editor.last_command_succeeded());
     EXPECT_TRUE(editor.execute("unannotate let cached PersistentId"));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_EQ(session.emit().find("[Id(\"import-cli\")]"), std::string::npos);
-    EXPECT_EQ(session.emit().find("[PersistentId(\"let-cli\")]"), std::string::npos);
+    EXPECT_EQ(session.emit().find("@Id(\"import-cli\")"), std::string::npos);
+    EXPECT_EQ(session.emit().find("@PersistentId(\"let-cli\")"), std::string::npos);
 }
 
 TEST(CLIEditor, RenameGraphCommandIsReplayable) {
@@ -186,6 +186,13 @@ TEST(CLIEditor, SetInitializerFieldCommandIsReplayable) {
     ASSERT_EQ(node.initializer_fields.size(), 2u);
     EXPECT_EQ(node.initializer_fields[0].name, "message");
     EXPECT_EQ(node.initializer_fields[1].name, "asset");
+    const std::string emitted = session.emit();
+    EXPECT_NE(emitted.find("asset: AssetRef(\"/Game/OtherAsset\");"), std::string::npos);
+    Environment reparse_env;
+    EditSession reparsed(reparse_env);
+    load_core_for_cli(reparsed);
+    auto reloaded = reparsed.load_source(emitted, "init_cli_roundtrip.gs");
+    EXPECT_TRUE(reloaded.is_ok()) << reloaded.error();
     EXPECT_TRUE(editor.execute("set_init_ctor_arg logger message no"));
     EXPECT_FALSE(editor.last_command_succeeded());
     EXPECT_TRUE(editor.execute("set_init_ctor_type logger message AssetRef"));
@@ -270,7 +277,7 @@ TEST(CLIEditor, SetParamDefaultCommandIsReplayable) {
     ASSERT_NE(session.active_graph(), nullptr);
     ASSERT_EQ(session.active_graph()->parameters.size(), 1u);
     EXPECT_EQ(session.active_graph()->parameters[0].default_value, "2.5");
-    EXPECT_NE(session.emit_active().find("in speed : float = 2.5;"), std::string::npos);
+    EXPECT_NE(session.emit_active().find("param speed: float = 2.5;"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("set_param_default_ctor_arg speed 3.5"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -278,7 +285,7 @@ TEST(CLIEditor, SetParamDefaultCommandIsReplayable) {
     EXPECT_TRUE(editor.execute("set_param_default_ctor speed SoftFloat 3.5"));
     EXPECT_TRUE(editor.last_command_succeeded());
     EXPECT_EQ(session.active_graph()->parameters[0].default_value, "SoftFloat(3.5)");
-    EXPECT_NE(session.emit_active().find("in speed : float = SoftFloat(3.5);"), std::string::npos);
+    EXPECT_NE(session.emit_active().find("param speed: float = SoftFloat(3.5);"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("set_param_default_ctor_arg speed 4.5"));
     EXPECT_TRUE(editor.last_command_succeeded());
@@ -287,7 +294,7 @@ TEST(CLIEditor, SetParamDefaultCommandIsReplayable) {
     EXPECT_TRUE(editor.execute("set_param_default_ctor_type speed PreciseFloat"));
     EXPECT_TRUE(editor.last_command_succeeded());
     EXPECT_EQ(session.active_graph()->parameters[0].default_value, "PreciseFloat(4.5)");
-    EXPECT_NE(session.emit_active().find("in speed : float = PreciseFloat(4.5);"), std::string::npos);
+    EXPECT_NE(session.emit_active().find("param speed: float = PreciseFloat(4.5);"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("set_param_default speed"));
     EXPECT_TRUE(editor.last_command_succeeded());
@@ -317,7 +324,7 @@ TEST(CLIEditor, SetParamTypeCommandIsReplayable) {
     ASSERT_NE(session.active_graph(), nullptr);
     ASSERT_EQ(session.active_graph()->parameters.size(), 1u);
     EXPECT_EQ(session.active_graph()->parameters[0].type_name, "double");
-    EXPECT_NE(session.emit_active().find("in speed : double;"), std::string::npos);
+    EXPECT_NE(session.emit_active().find("param speed: double;"), std::string::npos);
 
     ASSERT_NE(session.env().nodes().find("ParamTypeCli"), nullptr);
     ASSERT_NE(session.env().nodes().find("ParamTypeCli")->find_pin("speed"), nullptr);
@@ -421,8 +428,8 @@ TEST(CLIEditor, RenameGraphDerivedPinCommandsAreReplayable) {
     EXPECT_NE(session.env().nodes().find("Child")->find_pin("Execute"), nullptr);
 
     const std::string emitted = session.emit();
-    EXPECT_NE(emitted.find("context.start(child.Execute);"), std::string::npos);
-    EXPECT_NE(emitted.find("child.text = incoming;"), std::string::npos);
+    EXPECT_NE(emitted.find("connect(context.start, child.Execute);"), std::string::npos);
+    EXPECT_NE(emitted.find("bind(incoming, child.text);"), std::string::npos);
     EXPECT_EQ(emitted.find("child.Run"), std::string::npos);
     EXPECT_EQ(emitted.find("child.msg"), std::string::npos);
 }
@@ -542,26 +549,26 @@ TEST(CLIEditor, AnnotationCommandsAreReplayable) {
     EXPECT_TRUE(editor.last_command_succeeded());
 
     auto text = session.emit();
-    EXPECT_NE(text.find("[Comment(\"title\", \"Graph note\")]"), std::string::npos);
-    EXPECT_NE(text.find("[Tooltip(\"Player name\")]"), std::string::npos);
-    EXPECT_NE(text.find("[Position(X = 100, Y = 200)]"), std::string::npos);
-    EXPECT_NE(text.find("[Id(\"event-cli\")]"), std::string::npos);
-    EXPECT_NE(text.find("[PersistentId(\"function-cli\")]"), std::string::npos);
-    EXPECT_NE(text.find("[Id(\"flow-cli\")]"), std::string::npos);
-    EXPECT_NE(text.find("[PersistentId(\"link-cli\")]"), std::string::npos);
+    EXPECT_NE(text.find("@Comment(\"title\", \"Graph note\")"), std::string::npos);
+    EXPECT_NE(text.find("@Tooltip(\"Player name\")"), std::string::npos);
+    EXPECT_NE(text.find("@Position(X = 100, Y = 200)"), std::string::npos);
+    EXPECT_NE(text.find("@Id(\"event-cli\")"), std::string::npos);
+    EXPECT_NE(text.find("@PersistentId(\"function-cli\")"), std::string::npos);
+    EXPECT_NE(text.find("@Id(\"flow-cli\")"), std::string::npos);
+    EXPECT_NE(text.find("@PersistentId(\"link-cli\")"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("unannotate node logger Position"));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_EQ(session.emit().find("[Position("), std::string::npos);
+    EXPECT_EQ(session.emit().find("@Position("), std::string::npos);
     EXPECT_TRUE(editor.execute("unannotate event OnStart Id"));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_EQ(session.emit().find("[Id(\"event-cli\")]"), std::string::npos);
+    EXPECT_EQ(session.emit().find("@Id(\"event-cli\")"), std::string::npos);
     EXPECT_TRUE(editor.execute("unannotate flow event OnStart logger.exit wait.enter Id"));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_EQ(session.emit().find("[Id(\"flow-cli\")]"), std::string::npos);
+    EXPECT_EQ(session.emit().find("@Id(\"flow-cli\")"), std::string::npos);
     EXPECT_TRUE(editor.execute("unannotate link event OnStart logger.message name PersistentId"));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_EQ(session.emit().find("[PersistentId(\"link-cli\")]"), std::string::npos);
+    EXPECT_EQ(session.emit().find("@PersistentId(\"link-cli\")"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("unannotate param name Missing"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -592,8 +599,8 @@ TEST(CLIEditor, GenerateAnnotationCommandsAreReplayable) {
     EXPECT_TRUE(editor.last_command_succeeded());
 
     auto text = session.emit();
-    EXPECT_NE(text.find("[Id(\"gen-comment-cli\")]"), std::string::npos);
-    EXPECT_NE(text.find("[PersistentId(\"gen-meta-cli\")]"), std::string::npos);
+    EXPECT_NE(text.find("@Id(\"gen-comment-cli\")"), std::string::npos);
+    EXPECT_NE(text.find("@PersistentId(\"gen-meta-cli\")"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("comment logger \"legacy note\""));
     EXPECT_TRUE(editor.last_command_succeeded());
@@ -603,7 +610,7 @@ TEST(CLIEditor, GenerateAnnotationCommandsAreReplayable) {
     EXPECT_TRUE(editor.last_command_succeeded());
 
     text = session.emit();
-    EXPECT_NE(text.find("[Id(\"gen-comment-cli-2\")]"), std::string::npos);
+    EXPECT_NE(text.find("@Id(\"gen-comment-cli-2\")"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("move_comment logger \"legacy note\" #2 up"));
     EXPECT_TRUE(editor.last_command_succeeded());
@@ -650,7 +657,7 @@ TEST(CLIEditor, GenerateAnnotationCommandsAreReplayable) {
 
     EXPECT_TRUE(editor.execute("unannotate generate-meta position:logger.x 100 PersistentId"));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_EQ(session.emit().find("[PersistentId(\"gen-meta-cli\")]"), std::string::npos);
+    EXPECT_EQ(session.emit().find("@PersistentId(\"gen-meta-cli\")"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("remove_comment logger \"legacy note\""));
     EXPECT_FALSE(editor.last_command_succeeded());

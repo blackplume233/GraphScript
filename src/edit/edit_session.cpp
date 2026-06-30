@@ -1,6 +1,5 @@
 #include "graphscript/edit/edit_session.h"
 #include "graphscript/asset/language.h"
-#include "graphscript/emit/emitter.h"
 #include "graphscript/schema/schema_registry.h"
 #include <filesystem>
 #include <fstream>
@@ -2719,17 +2718,266 @@ std::vector<std::string> EditSession::redo_history() const {
 
 // ─── Query / Output ────────────────────────────────────────────────
 
+static bool asset_emit_is_number_literal(const std::string& value) {
+    if (value.empty()) return false;
+    size_t i = value[0] == '-' ? 1u : 0u;
+    if (i >= value.size()) return false;
+    bool has_digit = false;
+    bool has_dot = false;
+    for (; i < value.size(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(value[i]);
+        if (std::isdigit(c)) {
+            has_digit = true;
+        } else if (value[i] == '.' && !has_dot) {
+            has_dot = true;
+        } else {
+            return false;
+        }
+    }
+    return has_digit;
+}
+
+static bool asset_emit_is_qualified_name(const std::string& value) {
+    if (value.empty()) return false;
+    size_t start = 0;
+    while (start < value.size()) {
+        const size_t dot = value.find('.', start);
+        const std::string part = value.substr(start, dot == std::string::npos ? std::string::npos : dot - start);
+        if (!is_identifier_text(part)) return false;
+        if (dot == std::string::npos) return true;
+        start = dot + 1;
+        if (start >= value.size()) return false;
+    }
+    return true;
+}
+
+static std::string asset_emit_quote_string(const std::string& value) {
+    std::string out = "\"";
+    for (char c : value) {
+        if (c == '\\' || c == '"') out += '\\';
+        out += c;
+    }
+    out += "\"";
+    return out;
+}
+
+static std::string asset_emit_literal(const std::string& value);
+
+static std::string asset_emit_constructor_expression(const ConstructorCallText& call) {
+    return call.type_name + "(" + asset_emit_literal(call.argument) + ")";
+}
+
+static std::string asset_emit_literal(const std::string& value) {
+    const std::string trimmed = trim_copy(value);
+    if (trimmed.empty()) return "\"\"";
+    if (trimmed.front() == '"' || trimmed.front() == '[' || trimmed.front() == '{') return trimmed;
+    if (trimmed == "true" || trimmed == "false" || trimmed.rfind("ref ", 0) == 0) return trimmed;
+    if (asset_emit_is_number_literal(trimmed)) return trimmed;
+    if (const auto constructor = parse_constructor_call_text(trimmed)) return asset_emit_constructor_expression(*constructor);
+    if (asset_emit_is_qualified_name(trimmed)) return trimmed;
+    return asset_emit_quote_string(trimmed);
+}
+
+static std::string asset_emit_annotation_arg_literal(const AnnotationArg& arg) {
+    const std::string trimmed = trim_copy(arg.value);
+    if (arg.name.empty() && asset_emit_is_qualified_name(trimmed)) {
+        return asset_emit_quote_string(trimmed);
+    }
+    return asset_emit_literal(arg.value);
+}
+
+static std::string asset_emit_attributes(const std::vector<Annotation>& annotations, const std::string& indent) {
+    std::string out;
+    for (const auto& annotation : annotations) {
+        out += indent + "@" + annotation.name;
+        if (!annotation.args.empty()) {
+            out += "(";
+            for (size_t i = 0; i < annotation.args.size(); ++i) {
+                if (i > 0) out += ", ";
+                const auto& arg = annotation.args[i];
+                if (!arg.name.empty()) out += arg.name + " = ";
+                out += asset_emit_annotation_arg_literal(arg);
+            }
+            out += ")";
+        }
+        out += "\n";
+    }
+    return out;
+}
+
+static std::string asset_emit_imports(const std::vector<ImportDecl>& imports) {
+    std::string out;
+    for (const auto& import : imports) {
+        out += "import " + asset_emit_quote_string(import.path) + ";\n";
+    }
+    if (!out.empty()) out += "\n";
+    return out;
+}
+
+static std::string asset_emit_top_level_lets(const std::vector<LetDecl>& lets) {
+    std::string out;
+    for (const auto& let : lets) {
+        out += asset_emit_attributes(let.annotations, "");
+        out += "const " + let.name + " = new " + let.type_name + " {\n";
+        if (!let.initializer_fields.empty()) {
+            for (const auto& field : let.initializer_fields) {
+                out += "    " + field.name + ": " + asset_emit_literal(field.value) + ";\n";
+            }
+        } else if (!let.constructor_arg.empty()) {
+            out += "    value: " + asset_emit_literal(let.constructor_arg) + ";\n";
+        }
+        out += "}\n";
+    }
+    if (!out.empty()) out += "\n";
+    return out;
+}
+
+static std::string asset_emit_param_direction_attribute(ParamDirection direction) {
+    switch (direction) {
+        case ParamDirection::In: return "@graph.input";
+        case ParamDirection::Out: return "@graph.output";
+        case ParamDirection::Var: return "@graph.var";
+    }
+    return "@graph.var";
+}
+
+static std::string asset_emit_params(const std::vector<GraphParameter>& params, const std::string& indent) {
+    std::string out;
+    for (const auto& param : params) {
+        out += asset_emit_attributes(param.annotations, indent);
+        out += indent + asset_emit_param_direction_attribute(param.direction) + "\n";
+        out += indent + "param " + param.name + ": " + param.type_name;
+        if (!param.default_value.empty()) out += " = " + asset_emit_literal(param.default_value);
+        out += ";\n";
+    }
+    return out;
+}
+
+static std::vector<InitializerAssignmentText> asset_emit_initializer_fields(const NodeInstance& instance) {
+    std::vector<InitializerAssignmentText> fields;
+    for (const auto& field : instance.initializer_fields) {
+        fields.push_back({field.name, field.value});
+    }
+    if (!fields.empty() || instance.initializer.empty()) return fields;
+
+    auto parsed = parse_initializer_assignment_text(instance.initializer);
+    if (parsed.is_ok()) return parsed.value();
+    return {};
+}
+
+static std::string asset_emit_node_instances(const std::vector<NodeInstance>& instances, const std::string& indent) {
+    std::string out;
+    for (const auto& instance : instances) {
+        out += asset_emit_attributes(instance.annotations, indent);
+        out += indent + "node " + instance.instance_name + " {\n";
+        out += indent + "    type " + instance.type_name + ";\n";
+        const auto fields = asset_emit_initializer_fields(instance);
+        for (const auto& field : fields) {
+            out += indent + "    " + field.name + ": " + asset_emit_literal(field.value) + ";\n";
+        }
+        if (fields.empty() && !trim_copy(instance.initializer).empty()) {
+            out += indent + "    " + trim_copy(instance.initializer) + ";\n";
+        }
+        out += indent + "}\n";
+    }
+    return out;
+}
+
+static std::string asset_emit_pin_address(const PinAddress& address) {
+    return address.node_instance + "." + address.pin_name;
+}
+
+static std::string asset_emit_data_source(const DataSource& source) {
+    if (source.pin_name.empty()) return source.node_instance;
+    return source.node_instance + "." + source.pin_name;
+}
+
+static std::string asset_emit_logic_stmts(const std::vector<FlowConnection>& flows,
+                                          const std::vector<DataLink>& links,
+                                          const std::string& indent) {
+    std::string out;
+    for (const auto& flow : flows) {
+        out += asset_emit_attributes(flow.annotations, indent);
+        out += indent + "connect(" + asset_emit_pin_address(flow.from) + ", " + asset_emit_pin_address(flow.to) + ");\n";
+    }
+    for (const auto& link : links) {
+        out += asset_emit_attributes(link.annotations, indent);
+        out += indent + "bind(" + asset_emit_data_source(link.source) + ", " + asset_emit_pin_address(link.target) + ");\n";
+    }
+    return out;
+}
+
+static std::string asset_emit_logic_blocks(const std::vector<Event>& events,
+                                           const std::vector<Function>& functions,
+                                           const std::string& indent) {
+    std::string out;
+    for (const auto& event : events) {
+        out += asset_emit_attributes(event.annotations, indent);
+        out += indent + "event " + event.name + " {\n";
+        out += asset_emit_logic_stmts(event.flow_connections, event.data_links, indent + "    ");
+        out += indent + "}\n";
+    }
+    for (const auto& function : functions) {
+        out += asset_emit_attributes(function.annotations, indent);
+        out += indent + "function " + function.name + " {\n";
+        out += asset_emit_logic_stmts(function.flow_connections, function.data_links, indent + "    ");
+        out += indent + "}\n";
+    }
+    return out;
+}
+
+static std::string asset_emit_generate(const std::optional<GenerateBlock>& generate, const std::string& indent) {
+    if (!generate) return "";
+    std::string out = indent + "generate Layout {\n";
+    for (const auto& comment : generate->comments) {
+        out += asset_emit_attributes(comment.annotations, indent + "    ");
+        out += indent + "    comment(" + comment.instance_name + ", " + asset_emit_quote_string(comment.text) + ");\n";
+    }
+    for (const auto& metadata : generate->metadata) {
+        out += asset_emit_attributes(metadata.annotations, indent + "    ");
+        out += indent + "    metadata(" + metadata.scope + ", " + metadata.node + ", " + metadata.property + ", " +
+               asset_emit_literal(metadata.value) + ");\n";
+    }
+    out += indent + "}\n";
+    return out;
+}
+
+static std::string asset_emit_graph(const Graph& graph) {
+    std::string out;
+    out += asset_emit_attributes(graph.annotations, "");
+    out += "graph " + graph.name + " {\n";
+    if (graph.base_type && !graph.base_type->empty()) {
+        out += "    schema " + *graph.base_type + ";\n";
+    }
+    out += asset_emit_params(graph.parameters, "    ");
+    out += asset_emit_node_instances(graph.node_instances, "    ");
+    out += asset_emit_logic_blocks(graph.events, graph.functions, "    ");
+    out += asset_emit_generate(graph.generate, "    ");
+    out += "}\n";
+    return out;
+}
+
+static std::string asset_emit_module(const Module& module) {
+    std::string out;
+    out += asset_emit_imports(module.imports);
+    out += asset_emit_top_level_lets(module.top_level_lets);
+    for (const auto& graph : module.graphs) {
+        if (!out.empty() && out.back() != '\n') out += "\n";
+        out += asset_emit_graph(graph);
+        if (!out.empty() && out.back() != '\n') out += "\n";
+    }
+    return out;
+}
+
 std::string EditSession::emit() const {
     if (asset_source_) return *asset_source_;
-    Emitter emitter;
-    return emitter.emit(module_);
+    return asset_emit_module(module_);
 }
 
 std::string EditSession::emit_active() const {
     auto* g = active_graph();
     if (!g) return "";
-    Emitter emitter;
-    return emitter.emit_graph(*g);
+    return asset_emit_graph(*g);
 }
 
 std::optional<EditGraph> EditSession::build_edit_graph() const {
@@ -3271,7 +3519,10 @@ static Annotation asset_annotation(const asset::Attribute& attr) {
 static std::vector<Annotation> asset_annotations(const std::vector<asset::Attribute>& attributes) {
     std::vector<Annotation> result;
     for (const auto& attr : attributes) {
-        if (attr.name == "flow.pin" || attr.name == "flow.input" || attr.name == "flow.output") continue;
+        if (attr.name == "flow.pin" || attr.name == "flow.input" || attr.name == "flow.output" ||
+            attr.name == "graph.input" || attr.name == "graph.output" || attr.name == "graph.var") {
+            continue;
+        }
         result.push_back(asset_annotation(attr));
     }
     return result;
@@ -3518,6 +3769,8 @@ static DataLink asset_data_edge(const asset::FlowDataEdge& edge) {
     return link;
 }
 
+static InitializerField asset_initializer_field(const asset::Property& property);
+
 static Graph asset_graph_to_legacy_graph(const asset::FlowGraph& flow) {
     Graph graph;
     graph.name = flow.name;
@@ -3555,20 +3808,7 @@ static Graph asset_graph_to_legacy_graph(const asset::FlowGraph& flow) {
         instance.instance_name_range = asset_legacy_token_range(node.alias_span);
         instance.annotations = asset_annotations(node.attributes);
         for (const auto& property : node.properties) {
-            InitializerField field;
-            field.name = property.path;
-            field.value = property.value.text;
-            field.source_range = property.span.range;
-            field.name_range = asset_legacy_token_range(property.name_span);
-            field.value_range = asset_legacy_token_range(property.value_span);
-            if (property.value.kind == asset::ExprKind::Call) {
-                field.value_constructor_range = asset_legacy_token_range(property.value.span);
-                field.value_constructor_type_range = asset_legacy_token_range(property.value.callee_span);
-                if (!property.value.elements.empty()) {
-                    field.value_constructor_arg_range = asset_legacy_token_range(property.value.elements.front().span);
-                }
-            }
-            instance.initializer_fields.push_back(std::move(field));
+            instance.initializer_fields.push_back(asset_initializer_field(property));
         }
         graph.node_instances.push_back(std::move(instance));
     }
@@ -3639,6 +3879,23 @@ static void collect_asset_graph_names(const asset::ItemContainer& items, std::ve
     }
 }
 
+static InitializerField asset_initializer_field(const asset::Property& property) {
+    InitializerField field;
+    field.name = property.path;
+    field.value = property.value.text;
+    field.source_range = property.span.range;
+    field.name_range = asset_legacy_token_range(property.name_span);
+    field.value_range = asset_legacy_token_range(property.value_span);
+    if (property.value.kind == asset::ExprKind::Call) {
+        field.value_constructor_range = asset_legacy_token_range(property.value.span);
+        field.value_constructor_type_range = asset_legacy_token_range(property.value.callee_span);
+        if (!property.value.elements.empty()) {
+            field.value_constructor_arg_range = asset_legacy_token_range(property.value.elements.front().span);
+        }
+    }
+    return field;
+}
+
 static void collect_asset_top_level_lets(const asset::ItemContainer& items, std::vector<LetDecl>& lets) {
     for (const auto& object : items.consts) {
         LetDecl decl;
@@ -3650,6 +3907,9 @@ static void collect_asset_top_level_lets(const asset::ItemContainer& items, std:
         decl.constructor_range = object.span.range;
         decl.constructor_arg_range = object.span.range;
         decl.annotations = asset_annotations(object.attributes);
+        for (const auto& property : object.properties) {
+            decl.initializer_fields.push_back(asset_initializer_field(property));
+        }
         lets.push_back(std::move(decl));
     }
 }

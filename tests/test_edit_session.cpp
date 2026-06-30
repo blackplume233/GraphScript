@@ -6,10 +6,7 @@
 #include <fstream>
 #include <sstream>
 
-#include "graphscript/compile/compiler.h"
 #include "graphscript/edit/edit_session.h"
-#include "graphscript/parse/lexer.h"
-#include "graphscript/parse/parser.h"
 
 using namespace gs;
 
@@ -111,11 +108,12 @@ graph Parent {
     EXPECT_NE(json.find("\"type\":\"Leaf\""), std::string::npos);
 
     const std::string emitted = s.emit();
-    EXPECT_NE(emitted.find("[Id(\"graph-child-stable\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("Graph Leaf"), std::string::npos);
-    EXPECT_NE(emitted.find("Leaf child{};"), std::string::npos);
-    EXPECT_EQ(emitted.find("Graph Child"), std::string::npos);
-    EXPECT_EQ(emitted.find("Child child{};"), std::string::npos);
+    EXPECT_NE(emitted.find("@Id(\"graph-child-stable\")"), std::string::npos);
+    EXPECT_NE(emitted.find("graph Leaf"), std::string::npos);
+    EXPECT_NE(emitted.find("node child"), std::string::npos);
+    EXPECT_NE(emitted.find("type Leaf;"), std::string::npos);
+    EXPECT_EQ(emitted.find("graph Child"), std::string::npos);
+    EXPECT_EQ(emitted.find("type Child;"), std::string::npos);
 
     auto undo = s.undo();
     ASSERT_TRUE(undo.is_ok()) << undo.error();
@@ -200,11 +198,11 @@ graph Parent {
     EXPECT_NE(json.find("\"id\":\"flow:Parent/event/OnStart/context.start->child.Execute\""), std::string::npos);
 
     const std::string emitted = s.emit();
-    EXPECT_NE(emitted.find("in text : FString;"), std::string::npos);
+    EXPECT_NE(emitted.find("param text: FString;"), std::string::npos);
     EXPECT_NE(emitted.find("event Execute {"), std::string::npos);
-    EXPECT_NE(emitted.find("context.start(child.Execute);"), std::string::npos);
-    EXPECT_NE(emitted.find("child.text = incoming;"), std::string::npos);
-    EXPECT_EQ(emitted.find("child.msg = incoming;"), std::string::npos);
+    EXPECT_NE(emitted.find("connect(context.start, child.Execute);"), std::string::npos);
+    EXPECT_NE(emitted.find("bind(incoming, child.text);"), std::string::npos);
+    EXPECT_EQ(emitted.find("bind(incoming, child.msg);"), std::string::npos);
     EXPECT_EQ(emitted.find("child.Run"), std::string::npos);
 
     auto undo_event = s.undo();
@@ -327,7 +325,7 @@ TEST(EditSession, SetParamDefaultUpdatesAndClearsValue) {
     ASSERT_TRUE(set_default.is_ok()) << set_default.error();
     ASSERT_EQ(s.active_graph()->parameters.size(), 1u);
     EXPECT_EQ(s.active_graph()->parameters[0].default_value, "2.5");
-    EXPECT_NE(s.emit_active().find("in speed : float = 2.5;"), std::string::npos);
+    EXPECT_NE(s.emit_active().find("param speed: float = 2.5;"), std::string::npos);
 
     auto non_constructor_arg = s.set_param_default_constructor_argument("speed", "3.5");
     EXPECT_TRUE(non_constructor_arg.is_err());
@@ -335,7 +333,7 @@ TEST(EditSession, SetParamDefaultUpdatesAndClearsValue) {
     auto set_constructor = s.set_param_default_constructor("speed", "SoftFloat", "3.5");
     ASSERT_TRUE(set_constructor.is_ok()) << set_constructor.error();
     EXPECT_EQ(s.active_graph()->parameters[0].default_value, "SoftFloat(3.5)");
-    EXPECT_NE(s.emit_active().find("in speed : float = SoftFloat(3.5);"), std::string::npos);
+    EXPECT_NE(s.emit_active().find("param speed: float = SoftFloat(3.5);"), std::string::npos);
 
     auto set_constructor_arg = s.set_param_default_constructor_argument("speed", "4.5");
     ASSERT_TRUE(set_constructor_arg.is_ok()) << set_constructor_arg.error();
@@ -344,12 +342,12 @@ TEST(EditSession, SetParamDefaultUpdatesAndClearsValue) {
     auto set_constructor_type = s.set_param_default_constructor_type("speed", "PreciseFloat");
     ASSERT_TRUE(set_constructor_type.is_ok()) << set_constructor_type.error();
     EXPECT_EQ(s.active_graph()->parameters[0].default_value, "PreciseFloat(4.5)");
-    EXPECT_NE(s.emit_active().find("in speed : float = PreciseFloat(4.5);"), std::string::npos);
+    EXPECT_NE(s.emit_active().find("param speed: float = PreciseFloat(4.5);"), std::string::npos);
 
     auto clear_default = s.set_param_default("speed");
     ASSERT_TRUE(clear_default.is_ok()) << clear_default.error();
     EXPECT_TRUE(s.active_graph()->parameters[0].default_value.empty());
-    EXPECT_NE(s.emit_active().find("in speed : float;"), std::string::npos);
+    EXPECT_NE(s.emit_active().find("param speed: float;"), std::string::npos);
 
     auto invalid_type = s.set_param_default_constructor("speed", "123Bad", "1.0");
     EXPECT_TRUE(invalid_type.is_err());
@@ -370,7 +368,7 @@ TEST(EditSession, SetParamTypeUpdatesGraphAndDerivedNodePin) {
     ASSERT_TRUE(set_type.is_ok()) << set_type.error();
     ASSERT_EQ(s.active_graph()->parameters.size(), 1u);
     EXPECT_EQ(s.active_graph()->parameters[0].type_name, "double");
-    EXPECT_NE(s.emit_active().find("in speed : double = 1.0;"), std::string::npos);
+    EXPECT_NE(s.emit_active().find("param speed: double = 1.0;"), std::string::npos);
 
     const auto* graph_node = s.env().nodes().find("TypedParam");
     ASSERT_NE(graph_node, nullptr);
@@ -434,7 +432,8 @@ TEST(EditSession, SetNodeInitializerFieldUpdatesAndAppendsFields) {
     EXPECT_EQ(node.initializer_fields[0].value, "PreviewValue(\"updated\")");
     EXPECT_EQ(node.initializer_fields[1].name, "asset");
     EXPECT_EQ(node.initializer_fields[1].value, "AssetRef(\"/Game/Asset\")");
-    EXPECT_NE(s.emit().find("PrintString logger{message = PreviewValue(\"updated\"), asset = AssetRef(\"/Game/Asset\")};"), std::string::npos);
+    EXPECT_NE(s.emit().find("message: PreviewValue(\"updated\");"), std::string::npos);
+    EXPECT_NE(s.emit().find("asset: AssetRef(\"/Game/Asset\");"), std::string::npos);
     EXPECT_TRUE(s.set_node_initializer_constructor_field("logger", "asset", "123Bad", "payload").is_err());
     EXPECT_TRUE(s.set_node_initializer_constructor_argument("logger", "missing", "seed").is_err());
     EXPECT_TRUE(s.set_node_initializer_constructor_type("logger", "asset", "123Bad").is_err());
@@ -464,7 +463,7 @@ TEST(EditSession, SetNodeInitializerFieldUpdatesAndAppendsFields) {
     ASSERT_TRUE(set_raw.is_ok()) << set_raw.error();
     EXPECT_EQ(node.initializer, "Factory(seed)");
     EXPECT_TRUE(node.initializer_fields.empty());
-    EXPECT_NE(s.emit().find("PrintString logger{Factory(seed)};"), std::string::npos);
+    EXPECT_NE(s.emit().find("Factory(seed);"), std::string::npos);
 
     auto set_assignment_list = s.set_node_initializer("logger", "message = restored");
     ASSERT_TRUE(set_assignment_list.is_ok()) << set_assignment_list.error();
@@ -726,27 +725,19 @@ TEST(EditSession, EmitRoundTrip) {
 
     std::string emitted = s.emit();
     ASSERT_FALSE(emitted.empty());
-    EXPECT_NE(emitted.find("Graph Player"), std::string::npos);
-    EXPECT_NE(emitted.find("in health : int = 100"), std::string::npos);
-    EXPECT_NE(emitted.find("PrintString log"), std::string::npos);
+    EXPECT_NE(emitted.find("graph Player"), std::string::npos);
+    EXPECT_NE(emitted.find("@graph.input\n    param health: int = 100"), std::string::npos);
+    EXPECT_NE(emitted.find("node log"), std::string::npos);
     EXPECT_NE(emitted.find("event OnDamage"), std::string::npos);
-    EXPECT_NE(emitted.find("log.message = health"), std::string::npos);
-
-    // Re-parse the emitted text
-    Lexer lexer(emitted);
-    auto tokens = lexer.tokenize();
-    Parser parser(std::move(tokens));
-    auto result = parser.parse();
-    ASSERT_TRUE(result.is_ok()) << "Re-parse failed";
+    EXPECT_NE(emitted.find("bind(health, log.message)"), std::string::npos);
 
     Environment env2;
     EditSession s2(env2);
     load_core(s2);
-    Compiler compiler(env2);
-    auto mod2 = compiler.compile(*result.value());
-    ASSERT_TRUE(mod2.is_ok());
-    EXPECT_EQ(mod2.value().graphs.size(), 1u);
-    EXPECT_EQ(mod2.value().graphs[0].name, "Player");
+    auto loaded = s2.load_source(emitted, "player_roundtrip.gs");
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+    EXPECT_EQ(s2.module().graphs.size(), 1u);
+    EXPECT_EQ(s2.module().graphs[0].name, "Player");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -889,8 +880,8 @@ TEST(EditSession, GenerateAnnotationEditApiUpsertsRemovesAndEmits) {
         {"PersistentId", {{"", "meta-a"}}}).is_ok());
 
     std::string text = s.emit();
-    EXPECT_NE(text.find("[Id(\"comment-a\")]"), std::string::npos);
-    EXPECT_NE(text.find("[PersistentId(\"meta-a\")]"), std::string::npos);
+    EXPECT_NE(text.find("@Id(\"comment-a\")"), std::string::npos);
+    EXPECT_NE(text.find("@PersistentId(\"meta-a\")"), std::string::npos);
 
     std::string json = s.state_to_json();
     EXPECT_NE(json.find("\"persistent_id\":\"comment-a\""), std::string::npos);
@@ -899,14 +890,14 @@ TEST(EditSession, GenerateAnnotationEditApiUpsertsRemovesAndEmits) {
     ASSERT_TRUE(s.set_generate_comment_annotation("logger", "legacy note", 0,
         {"Id", {{"", "comment-b"}}}).is_ok());
     text = s.emit();
-    EXPECT_EQ(text.find("[Id(\"comment-a\")]"), std::string::npos);
-    EXPECT_NE(text.find("[Id(\"comment-b\")]"), std::string::npos);
+    EXPECT_EQ(text.find("@Id(\"comment-a\")"), std::string::npos);
+    EXPECT_NE(text.find("@Id(\"comment-b\")"), std::string::npos);
 
     ASSERT_TRUE(s.remove_generate_metadata_annotation("position", "logger", "x", "100", 0, "PersistentId").is_ok());
     text = s.emit();
-    EXPECT_EQ(text.find("[PersistentId(\"meta-a\")]"), std::string::npos);
+    EXPECT_EQ(text.find("@PersistentId(\"meta-a\")"), std::string::npos);
     ASSERT_TRUE(s.undo().is_ok());
-    EXPECT_NE(s.emit().find("[PersistentId(\"meta-a\")]"), std::string::npos);
+    EXPECT_NE(s.emit().find("@PersistentId(\"meta-a\")"), std::string::npos);
 
     ASSERT_TRUE(s.add_comment("logger", "legacy note").is_ok());
     EXPECT_TRUE(s.set_generate_comment_annotation("logger", "legacy note", 0,
@@ -1009,8 +1000,8 @@ TEST(EditSession, GenerateItemRenameApiSupportsOccurrenceAndUndo) {
     EXPECT_EQ(s.active_graph()->generate->comments[1].annotations[0].args[0].value, "comment-2");
 
     auto text = s.emit();
-    EXPECT_NE(text.find("[Id(\"comment-2\")]"), std::string::npos);
-    EXPECT_NE(text.find("Comment logger = \"renamed note\";"), std::string::npos);
+    EXPECT_NE(text.find("@Id(\"comment-2\")"), std::string::npos);
+    EXPECT_NE(text.find("comment(logger, \"renamed note\");"), std::string::npos);
 
     ASSERT_TRUE(s.undo().is_ok());
     EXPECT_EQ(s.active_graph()->generate->comments[1].text, "same note");
@@ -1022,8 +1013,8 @@ TEST(EditSession, GenerateItemRenameApiSupportsOccurrenceAndUndo) {
     EXPECT_EQ(s.active_graph()->generate->metadata[0].annotations[0].args[0].value, "meta-1");
 
     text = s.emit();
-    EXPECT_NE(text.find("[PersistentId(\"meta-1\")]"), std::string::npos);
-    EXPECT_NE(text.find("position:logger.x(150);"), std::string::npos);
+    EXPECT_NE(text.find("@PersistentId(\"meta-1\")"), std::string::npos);
+    EXPECT_NE(text.find("metadata(position, logger, x, 150);"), std::string::npos);
 
     ASSERT_TRUE(s.undo().is_ok());
     EXPECT_EQ(s.active_graph()->generate->metadata[0].value, "100");
@@ -1040,8 +1031,8 @@ TEST(EditSession, GenerateItemRenameApiSupportsOccurrenceAndUndo) {
     EXPECT_EQ(s.active_graph()->generate->metadata[0].annotations[0].args[0].value, "meta-1");
 
     text = s.emit();
-    EXPECT_NE(text.find("[PersistentId(\"meta-1\")]"), std::string::npos);
-    EXPECT_NE(text.find("layout:logger.y(100);"), std::string::npos);
+    EXPECT_NE(text.find("@PersistentId(\"meta-1\")"), std::string::npos);
+    EXPECT_NE(text.find("metadata(layout, logger, y, 100);"), std::string::npos);
 
     ASSERT_TRUE(s.undo().is_ok());
     EXPECT_EQ(s.active_graph()->generate->metadata[0].scope, "position");
@@ -1180,10 +1171,10 @@ TEST(EditSession, RenameNodeMigratesReferencesAndKeepsPersistentId) {
     EXPECT_NE(json.find("\"id\":\"link:RenameIds/event/OnStart/msg->writer.message\""), std::string::npos);
 
     const std::string emitted = s.emit();
-    EXPECT_NE(emitted.find("[Id(\"node-logger-stable\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("PrintString writer{};"), std::string::npos);
-    EXPECT_NE(emitted.find("writer.exit(wait.enter);"), std::string::npos);
-    EXPECT_NE(emitted.find("writer.message = msg;"), std::string::npos);
+    EXPECT_NE(emitted.find("@Id(\"node-logger-stable\")"), std::string::npos);
+    EXPECT_NE(emitted.find("node writer"), std::string::npos);
+    EXPECT_NE(emitted.find("connect(writer.exit, wait.enter);"), std::string::npos);
+    EXPECT_NE(emitted.find("bind(msg, writer.message);"), std::string::npos);
 
     auto undo = s.undo();
     ASSERT_TRUE(undo.is_ok()) << undo.error();
@@ -1229,10 +1220,10 @@ TEST(EditSession, RenameParamMigratesBareReferencesAndKeepsPersistentId) {
     EXPECT_NE(json.find("\"id\":\"link:RenameParamIds/event/OnStart/locator.location->logger.message\""), std::string::npos);
 
     const std::string emitted = s.emit();
-    EXPECT_NE(emitted.find("[Id(\"param-msg-stable\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("in text : FString;"), std::string::npos);
-    EXPECT_NE(emitted.find("logger.message = text;"), std::string::npos);
-    EXPECT_NE(emitted.find("logger.message = locator.location;"), std::string::npos);
+    EXPECT_NE(emitted.find("@Id(\"param-msg-stable\")"), std::string::npos);
+    EXPECT_NE(emitted.find("param text: FString;"), std::string::npos);
+    EXPECT_NE(emitted.find("bind(text, logger.message);"), std::string::npos);
+    EXPECT_NE(emitted.find("bind(locator.location, logger.message);"), std::string::npos);
 
     auto undo = s.undo();
     ASSERT_TRUE(undo.is_ok()) << undo.error();
@@ -1293,14 +1284,14 @@ TEST(EditSession, RenameLogicBlocksKeepPersistentIdsAndConnections) {
     EXPECT_NE(json.find("\"id\":\"link:RenameBlocks/function/Evaluate/msg->context.result\""), std::string::npos);
 
     const std::string emitted = s.emit();
-    EXPECT_NE(emitted.find("[Id(\"event-stable\")]"), std::string::npos);
+    EXPECT_NE(emitted.find("@Id(\"event-stable\")"), std::string::npos);
     EXPECT_NE(emitted.find("event Begin {"), std::string::npos);
-    EXPECT_NE(emitted.find("logger.exit(wait.enter);"), std::string::npos);
-    EXPECT_NE(emitted.find("logger.message = msg;"), std::string::npos);
-    EXPECT_NE(emitted.find("[PersistentId(\"function-stable\")]"), std::string::npos);
+    EXPECT_NE(emitted.find("connect(logger.exit, wait.enter);"), std::string::npos);
+    EXPECT_NE(emitted.find("bind(msg, logger.message);"), std::string::npos);
+    EXPECT_NE(emitted.find("@PersistentId(\"function-stable\")"), std::string::npos);
     EXPECT_NE(emitted.find("function Evaluate {"), std::string::npos);
-    EXPECT_NE(emitted.find("context.start(context.done);"), std::string::npos);
-    EXPECT_NE(emitted.find("context.result = msg;"), std::string::npos);
+    EXPECT_NE(emitted.find("connect(context.start, context.done);"), std::string::npos);
+    EXPECT_NE(emitted.find("bind(msg, context.result);"), std::string::npos);
 
     auto undo_function = s.undo();
     ASSERT_TRUE(undo_function.is_ok()) << undo_function.error();
@@ -1451,6 +1442,7 @@ TEST(EditSession, TopLevelAnnotationsRoundTripAndExportPersistentIds) {
     const std::string source = R"(import "ue_core.d.gs";
 @PersistentId("let-spawn")
 const spawn_point = new SoftObjectPath {
+    path: "/Game/Spawn";
 }
 graph TopLevelAnnotated {
 }
@@ -1475,6 +1467,7 @@ graph TopLevelAnnotated {
     EXPECT_NE(emitted.find("import \"ue_core.d.gs\";"), std::string::npos);
     EXPECT_NE(emitted.find("@PersistentId(\"let-spawn\")"), std::string::npos);
     EXPECT_NE(emitted.find("const spawn_point = new SoftObjectPath"), std::string::npos);
+    EXPECT_NE(emitted.find("path: \"/Game/Spawn\";"), std::string::npos);
 
     EditSession reparsed(env);
     load_core(reparsed);
@@ -1483,6 +1476,9 @@ graph TopLevelAnnotated {
     ASSERT_EQ(reparsed.module().imports.size(), 1u);
     ASSERT_EQ(reparsed.module().top_level_lets.size(), 1u);
     EXPECT_EQ(reparsed.module().top_level_lets[0].annotations[0].args[0].value, "let-spawn");
+    ASSERT_EQ(reparsed.module().top_level_lets[0].initializer_fields.size(), 1u);
+    EXPECT_EQ(reparsed.module().top_level_lets[0].initializer_fields[0].name, "path");
+    EXPECT_EQ(reparsed.module().top_level_lets[0].initializer_fields[0].value, "/Game/Spawn");
 }
 
 TEST(EditSession, CanEditTopLevelImportAndLetAnnotations) {
@@ -1503,8 +1499,8 @@ TEST(EditSession, CanEditTopLevelImportAndLetAnnotations) {
     EXPECT_EQ(s.module().top_level_lets[0].annotations[0].args[0].value, "let-cli");
 
     auto emitted = s.emit();
-    EXPECT_NE(emitted.find("[Id(\"import-cli\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("[PersistentId(\"let-cli\")]"), std::string::npos);
+    EXPECT_EQ(emitted.find("@Id(\"import-cli\")"), std::string::npos);
+    EXPECT_NE(emitted.find("@PersistentId(\"let-cli\")"), std::string::npos);
 
     auto remove_import = s.remove_import_annotation("custom.d.gs", "Id");
     ASSERT_TRUE(remove_import.is_ok()) << remove_import.error();
@@ -2349,26 +2345,26 @@ TEST(EditSession, AnnotationEditApiUpsertsRemovesAndEmits) {
     ASSERT_TRUE(s.set_node_annotation("logger", {"Position", {{"X", "100"}, {"Y", "200"}}}).is_ok());
 
     auto text = s.emit();
-    EXPECT_NE(text.find("[Comment(\"title\", \"Graph note\")]"), std::string::npos);
-    EXPECT_NE(text.find("[Tooltip(\"Player name\")]"), std::string::npos);
-    EXPECT_NE(text.find("[Position(X = 100, Y = 200)]"), std::string::npos);
+    EXPECT_NE(text.find("@Comment(\"title\", \"Graph note\")"), std::string::npos);
+    EXPECT_NE(text.find("@Tooltip(\"Player name\")"), std::string::npos);
+    EXPECT_NE(text.find("@Position(X = 100, Y = 200)"), std::string::npos);
 
     ASSERT_TRUE(s.set_node_annotation("logger", {"Position", {{"X", "300"}, {"Y", "400"}}}).is_ok());
     text = s.emit();
-    EXPECT_EQ(text.find("[Position(X = 100, Y = 200)]"), std::string::npos);
-    EXPECT_NE(text.find("[Position(X = 300, Y = 400)]"), std::string::npos);
+    EXPECT_EQ(text.find("@Position(X = 100, Y = 200)"), std::string::npos);
+    EXPECT_NE(text.find("@Position(X = 300, Y = 400)"), std::string::npos);
 
     ASSERT_TRUE(s.remove_node_annotation("logger", "Position").is_ok());
     ASSERT_TRUE(s.remove_param_annotation("name", "Tooltip").is_ok());
     ASSERT_TRUE(s.remove_graph_annotation("Comment").is_ok());
     text = s.emit();
-    EXPECT_EQ(text.find("[Position("), std::string::npos);
-    EXPECT_EQ(text.find("[Tooltip("), std::string::npos);
-    EXPECT_EQ(text.find("[Comment("), std::string::npos);
+    EXPECT_EQ(text.find("@Position("), std::string::npos);
+    EXPECT_EQ(text.find("@Tooltip("), std::string::npos);
+    EXPECT_EQ(text.find("@Comment("), std::string::npos);
 
     ASSERT_TRUE(s.undo().is_ok());
     text = s.emit();
-    EXPECT_NE(text.find("[Comment(\"title\", \"Graph note\")]"), std::string::npos);
+    EXPECT_NE(text.find("@Comment(\"title\", \"Graph note\")"), std::string::npos);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2470,7 +2466,7 @@ TEST(EditSession, LoadSourceReplacesModuleAtomically) {
     EXPECT_EQ(undone.value(), "apply asset source");
     ASSERT_EQ(s.module().graphs.size(), 1u);
     EXPECT_EQ(s.module().graphs[0].name, "Original");
-    EXPECT_NE(s.emit().find("PrintString logger"), std::string::npos);
+    EXPECT_NE(s.emit().find("node logger"), std::string::npos);
     EXPECT_TRUE(s.can_redo());
 
     auto redone = s.redo();
@@ -2567,10 +2563,10 @@ TEST(EditSession, FullWorkflowSimulation) {
     // Step 6: Emit and verify
     auto text = s.emit();
     EXPECT_NE(text.find("GameplayAbility"), std::string::npos);
-    EXPECT_NE(text.find("in damage : float = 50.0"), std::string::npos);
+    EXPECT_NE(text.find("param damage: float = 50.0"), std::string::npos);
     EXPECT_NE(text.find("event OnActivate"), std::string::npos);
     EXPECT_NE(text.find("function Reset"), std::string::npos);
-    EXPECT_NE(text.find("Comment desc"), std::string::npos);
+    EXPECT_NE(text.find("comment(desc, \"Gameplay ability with cooldown\");"), std::string::npos);
 
     // Step 7: Undo the function, verify it's gone
     s.undo(); // undo add_meta
@@ -2625,7 +2621,14 @@ TEST(EditSession, LoadAssetSourceProjectsGraphAndPreservesSourceEmit) {
 
     auto add_param = s.add_param(ParamDirection::In, "amount", "float");
     ASSERT_TRUE(add_param.is_ok()) << add_param.error();
-    EXPECT_EQ(s.emit().find("Graph Execute"), 0u);
+    const std::string mutated = s.emit();
+    EXPECT_EQ(mutated.find("graph Execute"), 0u);
+    size_t graph_input_count = 0;
+    for (size_t pos = mutated.find("@graph.input"); pos != std::string::npos;
+         pos = mutated.find("@graph.input", pos + 1)) {
+        ++graph_input_count;
+    }
+    EXPECT_EQ(graph_input_count, 2u);
 }
 
 TEST(EditSession, LoadAssetImportRejectsInvalidSchemaPolicyValue) {
@@ -3103,7 +3106,7 @@ TEST(EditSession, UndoRedoAssetSourceLoadRestoresSourceCache) {
     ASSERT_NE(s.active_graph(), nullptr);
     EXPECT_EQ(s.active_graph()->name, "Legacy");
     EXPECT_NE(s.emit(), source);
-    EXPECT_NE(s.emit().find("Graph Legacy"), std::string::npos);
+    EXPECT_NE(s.emit().find("graph Legacy"), std::string::npos);
 
     auto redone = s.redo();
     ASSERT_TRUE(redone.is_ok()) << redone.error();

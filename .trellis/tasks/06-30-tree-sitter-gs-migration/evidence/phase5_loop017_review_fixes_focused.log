@@ -1,0 +1,43 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = CLIEditor.CanEditTopLevelImportAndLetAnnotations:CLIEditor.SetInitializerFieldCommandIsReplayable:EditSession.TopLevelAnnotationsRoundTripAndExportPersistentIds:EditSession.CanEditTopLevelImportAndLetAnnotations:EditSession.LoadAssetSourceProjectsGraphAndPreservesSourceEmit:EditSession.EmitRoundTrip
+[==========] Running 5 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from CLIEditor
+[ RUN      ] CLIEditor.SetInitializerFieldCommandIsReplayable
+  Created graph 'InitCli'
+  Added PrintString logger
+  Set initializer field 'message' on node 'logger'
+  Set initializer field 'asset' on node 'logger'
+  Set initializer field 'asset' to constructor 'SoftObjectPath' on node 'logger'
+  Set initializer constructor argument for field 'asset' on node 'logger'
+  Set initializer constructor type for field 'asset' on node 'logger'
+  [ERROR] Initializer field 'message' is not a constructor call on node 'logger'
+  [ERROR] Initializer field 'message' is not a constructor call on node 'logger'
+  Renamed initializer field 'message' to 'text' on node 'logger'
+  [ERROR] Initializer field 'asset' already exists on node 'logger'
+  [ERROR] Initializer field 'missing' not found on node 'logger'
+  Removed initializer field 'text' from node 'logger'
+  Removed initializer field 'asset' from node 'logger'
+  [ERROR] Initializer field 'missing' not found on node 'logger'
+  Set initializer expression on node 'logger'
+  Set initializer expression on node 'logger'
+  Set initializer expression on node 'logger'
+  [ERROR] Node 'missing' not found
+  [ERROR] Node 'missing' not found
+[       OK ] CLIEditor.SetInitializerFieldCommandIsReplayable (1 ms)
+[----------] 1 test from CLIEditor (1 ms total)
+
+[----------] 4 tests from EditSession
+[ RUN      ] EditSession.EmitRoundTrip
+[       OK ] EditSession.EmitRoundTrip (0 ms)
+[ RUN      ] EditSession.TopLevelAnnotationsRoundTripAndExportPersistentIds
+[       OK ] EditSession.TopLevelAnnotationsRoundTripAndExportPersistentIds (1 ms)
+[ RUN      ] EditSession.CanEditTopLevelImportAndLetAnnotations
+[       OK ] EditSession.CanEditTopLevelImportAndLetAnnotations (0 ms)
+[ RUN      ] EditSession.LoadAssetSourceProjectsGraphAndPreservesSourceEmit
+[       OK ] EditSession.LoadAssetSourceProjectsGraphAndPreservesSourceEmit (0 ms)
+[----------] 4 tests from EditSession (3 ms total)
+
+[----------] Global test environment tear-down
+[==========] 5 tests from 2 test suites ran. (4 ms total)
+[  PASSED  ] 5 tests.

@@ -1,0 +1,5 @@
+cli\source_diagnostics.cpp:244:    asset::Parser parser(source, source_name);
+cli\editor.cpp:4:#include "graphscript/emit/emitter.h"
+cli\editor.cpp:1190:    asset::Parser parser(source, path);
+cli\editor.cpp:3118:    Emitter emitter;
+src\edit\edit_session.cpp:3433:    asset::Parser parser(source, source_name);

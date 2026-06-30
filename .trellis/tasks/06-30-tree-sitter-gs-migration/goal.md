@@ -4,9 +4,9 @@ updated_at: 2026-06-30
 artifact_language: zh-CN
 execution_mode: native-codex-goal
 native_goal_id: codex_019f188c-0800-7041-9d48-9a868ddcb496
-current_loop: loops/loop-017.md
-next_sub_goal: Loop 017：继续 Phase 5，迁移剩余 editor/source diagnostics/web 路径中的旧 emitter/parser/compiler 依赖，优先收敛 legacy emitter emit/round-trip 面
-last_verified_loop: loops/loop-016.md
+current_loop: loops/loop-018.md
+next_sub_goal: Loop 018：继续 Phase 5，迁移旧 parser/compiler/emitter 测试和 fixtures，优先处理 tests 中旧 round-trip 依赖，并收敛 cli/editor.cpp 的 Mermaid diagram 旧 emitter 用途
+last_verified_loop: loops/loop-017.md
 references: references.md
 ---
 
