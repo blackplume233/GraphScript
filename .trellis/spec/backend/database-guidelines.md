@@ -1,51 +1,30 @@
 # Database Guidelines
 
-> Database patterns and conventions for this project.
+GraphScript currently has no database, ORM, migration system, or persistent
+server-side datastore.
 
----
+## Applicability
 
-## Overview
+This file is intentionally marked not applicable for current backend work.
 
-<!--
-Document your project's database conventions here.
+Do not introduce database assumptions into GraphScript specs, tests, or
+implementation unless a future task explicitly adds a persistence layer.
 
-Questions to answer:
-- What ORM/query library do you use?
-- How are migrations managed?
-- What are the naming conventions for tables/columns?
-- How do you handle transactions?
--->
+## Current Persistence Model
 
-(To be filled by the team)
+- Graph source is represented as `.gs` text.
+- Host declarations are represented as `.d.gs` text.
+- Editor state lives in memory inside `EditSession`.
+- Durable examples and regression data live in `tests/fixtures/`.
+- CLI `load`/`save` operations read and write source files.
 
----
+## If Persistence Is Added Later
 
-## Query Patterns
+A future persistence feature must add a new spec section before implementation
+covering:
 
-<!-- How should queries be written? Batch operations? -->
-
-(To be filled by the team)
-
----
-
-## Migrations
-
-<!-- How to create and run migrations -->
-
-(To be filled by the team)
-
----
-
-## Naming Conventions
-
-<!-- Table names, column names, index names -->
-
-(To be filled by the team)
-
----
-
-## Common Mistakes
-
-<!-- Database-related mistakes your team has made -->
-
-(To be filled by the team)
+- Storage format and versioning.
+- Load/save command signatures.
+- Error behavior for missing, corrupt, or incompatible data.
+- Round-trip expectations between storage, Module, and emitted `.gs`.
+- Regression tests that prove old fixtures still compile and emit correctly.

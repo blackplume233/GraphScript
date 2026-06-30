@@ -85,6 +85,48 @@ After implementation:
 
 ---
 
+## GraphScript Cross-Layer Triggers
+
+GraphScript changes often look local but cross parser, compiler, emitter, CLI,
+frontend, and tests. Use this checklist before editing.
+
+### DSL Syntax Or AST Changes
+
+- [ ] Lexer token model updated if syntax needs new tokens
+- [ ] Parser creates the correct AST/source ranges
+- [ ] Compiler lowers AST into Module/core data
+- [ ] Emitter prints the new construct
+- [ ] Round-trip test reparses and recompiles emitted text
+- [ ] `.gs` or `.d.gs` fixture added when integration behavior matters
+- [ ] `docs/spec/dsl-reference.md` or related docs updated if user-facing
+
+### Scope, Flow, Or Data-Link Changes
+
+- [ ] Compiler validation and `EditSession` validation enforce the same rule
+- [ ] Event/function reference rules still match `docs/spec/scope-rules.md`
+- [ ] Error messages identify graph/block/reference context
+- [ ] Tests cover both accepted and rejected references
+- [ ] Frontend previews do not accept connections the backend rejects
+
+### CLI Command Changes
+
+- [ ] `cli/editor.h` declaration added or updated
+- [ ] Dispatch table and help output updated
+- [ ] Command validates arguments and returns actionable errors
+- [ ] Command mutates through `EditSession` and preserves undo/redo when needed
+- [ ] GUI command log can replay the operation
+- [ ] Backend/API smoke or replay test updated when exposed to the browser
+
+### Web State/API Changes
+
+- [ ] C++ JSON state/export changed intentionally
+- [ ] `webapp/src/api/types.ts` updated in the same task
+- [ ] React panels/canvas updated for new or changed fields
+- [ ] Legacy `web/index.html` checked if it consumes the same state
+- [ ] Visual/replay/source-range/diagnostic tests updated as appropriate
+
+---
+
 ## Cross-Platform Template Consistency
 
 In Trellis, command templates (e.g., `record-session.md`) exist in **multiple platforms** with identical or near-identical content. This is a cross-layer boundary.

@@ -55,7 +55,7 @@ These guides help you **ask the right questions before coding**.
 
 ```bash
 # Search for the value you're about to change
-grep -r "value_to_change" .
+rg "value_to_change"
 ```
 
 This single habit prevents most "forgot to update X" bugs.

@@ -1,51 +1,39 @@
 # Logging Guidelines
 
-> How logging is done in this project.
+GraphScript does not currently use a structured logging framework. Output is
+mostly CLI text, diagnostics, test failures, and HTTP command responses.
 
----
+## CLI Output
 
-## Overview
+- Use standard output for successful command results, summaries, emitted text,
+  diagrams, and status displays.
+- Use standard error or returned error strings for failures.
+- Keep CLI output deterministic where tests or replay workflows may depend on
+  it.
+- Include the command context when an error would otherwise be ambiguous.
 
-<!--
-Document your project's logging conventions here.
+## Diagnostics
 
-Questions to answer:
-- What logging library do you use?
-- What are the log levels and when to use each?
-- What should be logged?
-- What should NOT be logged (PII, secrets)?
--->
+Diagnostics should be machine-usable when they cross into the web UI:
 
-(To be filled by the team)
+- Include source ranges when available.
+- Preserve graph, declaration, node, pin, schema, or type identity when relevant.
+- Avoid collapsing multiple diagnostics into one vague message.
 
----
+## Server Output
 
-## Log Levels
+- The web server should expose command results through API responses rather than
+  hidden process-only logs.
+- Browser-visible errors should remain tied to the command or state operation
+  that caused them.
+- If `gs serve` is running during rebuilds, stop it before rebuilding to avoid
+  Windows linker errors such as `LNK1104: cannot open gs.exe`.
 
-<!-- When to use each level: debug, info, warn, error -->
+## What Not To Add
 
-(To be filled by the team)
-
----
-
-## Structured Logging
-
-<!-- Log format, required fields -->
-
-(To be filled by the team)
-
----
-
-## What to Log
-
-<!-- Important events to log -->
-
-(To be filled by the team)
-
----
-
-## What NOT to Log
-
-<!-- Sensitive data, PII, secrets -->
-
-(To be filled by the team)
+- Do not introduce logging dependencies just to satisfy generic backend
+  patterns.
+- Do not add noisy logs inside parser/compiler hot paths unless a task explicitly
+  requires trace output.
+- Do not let frontend-only logs become the only record of command failure; the
+  command/API response must carry the failure.

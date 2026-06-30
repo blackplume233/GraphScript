@@ -1,39 +1,52 @@
-# Frontend Development Guidelines
+# GraphScript Frontend Guidelines
 
-> Best practices for frontend development in this project.
+This layer covers GraphScript's browser editing surfaces:
 
----
+- `web/`: legacy/single-file LiteGraph.js editor served by `gs serve`.
+- `webapp/`: Vite, React, TypeScript, React Flow based editor.
+- C++ server state/API contracts consumed by both UIs.
 
-## Overview
+Frontend work must preserve the project axiom that every editing operation is
+CLI-first and replayable. The browser UI is a command surface over the C++
+`EditSession`; it must not create graph semantics that the core engine cannot
+parse, validate, emit, and replay.
 
-This directory contains guidelines for frontend development. Fill in each file with your project's specific conventions.
+## Required Reading
 
----
+Read these before frontend changes:
+
+1. `docs/spec/architecture.md` for `EditSession`, `state_to_json()`, and server
+   boundaries.
+2. `docs/spec/development-guide.md` for CLI-first and test expectations.
+3. `docs/spec/scope-rules.md` when rendering or editing flow/data links.
+4. Backend specs when changing `/api/*`, command execution, or JSON state.
 
 ## Guidelines Index
 
 | Guide | Description | Status |
-|-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
-| [Component Guidelines](./component-guidelines.md) | Component patterns, props, composition | To fill |
-| [Hook Guidelines](./hook-guidelines.md) | Custom hooks, data fetching patterns | To fill |
-| [State Management](./state-management.md) | Local state, global state, server state | To fill |
-| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
-| [Type Safety](./type-safety.md) | Type patterns, validation | To fill |
+| --- | --- | --- |
+| [Directory Structure](./directory-structure.md) | `web/`, `webapp/`, panels, canvas, API, tests | Filled |
+| [Component Guidelines](./component-guidelines.md) | React/React Flow and legacy LiteGraph UI patterns | Filled |
+| [Hook Guidelines](./hook-guidelines.md) | Hook usage boundaries for the React webapp | Filled |
+| [State Management](./state-management.md) | Backend state as source of truth and CLI replay | Filled |
+| [Quality Guidelines](./quality-guidelines.md) | Build, lint, visual replay, backend smoke tests | Filled |
+| [Type Safety](./type-safety.md) | TypeScript API contracts and JSON state typing | Filled |
 
----
+## Pre-Development Checklist
 
-## How to Fill These Guidelines
+- Determine whether the change targets `web/`, `webapp/`, or the C++ server API.
+- Find the CLI command behind the intended UI action.
+- If no CLI command exists, add or design the backend command before making a
+  GUI-only operation.
+- Check `webapp/src/api/types.ts` before changing JSON state assumptions.
+- For visual graph behavior, identify the replay or smoke test that proves the
+  UI can reconstruct state from backend output.
 
-For each guideline file:
+## Quality Check
 
-1. Document your project's **actual conventions** (not ideals)
-2. Include **code examples** from your codebase
-3. List **forbidden patterns** and why
-4. Add **common mistakes** your team has made
-
-The goal is to help AI assistants and new team members understand how YOUR project works.
-
----
-
-**Language**: All documentation should be written in **English**.
+- Run `npm run build` and `npm run lint` from `webapp/` for TypeScript UI work.
+- Run relevant Python visual/smoke tests in `webapp/` when changing canvas,
+  replay, diagnostics, source preview, or real backend integration.
+- Rebuild and run backend tests when frontend changes require C++ API/state
+  changes.
+- Verify browser actions remain reproducible through command log replay.

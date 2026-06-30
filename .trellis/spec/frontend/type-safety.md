@@ -1,51 +1,70 @@
 # Type Safety
 
-> Type safety patterns in this project.
+The React webapp is TypeScript-first and runs with `strict: true`. Backend JSON
+contracts should be represented in `webapp/src/api/types.ts` and used by API
+clients and UI components.
 
----
+## TypeScript Configuration
 
-## Overview
+Important current settings from `webapp/tsconfig.json`:
 
-<!--
-Document your project's type safety conventions here.
+- `target`: `ES2020`
+- `moduleResolution`: `bundler`
+- `jsx`: `react-jsx`
+- `strict`: `true`
+- `noFallthroughCasesInSwitch`: `true`
+- path alias: `@/*` -> `./src/*`
 
-Questions to answer:
-- What type system do you use?
-- How are types organized?
-- What validation library do you use?
-- How do you handle type inference?
--->
+Do not weaken strictness to get a feature through. Fix the contract or narrow
+the data correctly.
 
-(To be filled by the team)
+## API Contract Rules
 
----
+- Add new backend response/request fields to `webapp/src/api/types.ts`.
+- Update `webapp/src/api/client.ts` when adding or changing endpoints.
+- Keep optional fields optional only when the backend can truly omit them.
+- Prefer exact discriminated shapes for diagnostics/actions when the backend
+  supports them.
+- Do not use `any` for graph, node, edge, source range, diagnostic, or command
+  response payloads.
 
-## Type Organization
+## Backend Compatibility
 
-<!-- Where types are defined, shared types vs local types -->
+When C++ JSON state changes:
 
-(To be filled by the team)
+- Update TypeScript types in the same task.
+- Update every renderer/panel that consumes the changed field.
+- Add or update frontend smoke/replay tests.
+- Run backend tests if the state change reflects compiler/EditSession behavior.
 
----
+## Source Ranges And Identifiers
 
-## Validation
+Source ranges, stable IDs, graph names, node instance names, pin names, schema
+names, and declaration names are contract fields. Treat them as typed data, not
+display-only strings.
 
-<!-- Runtime validation patterns (Zod, Yup, io-ts, etc.) -->
+Tests should cover:
 
-(To be filled by the team)
+- stable IDs across state refresh,
+- source range preview/navigation,
+- diagnostic targets,
+- replay behavior after rename or reconnect operations.
 
----
+## Wrong Vs Correct
 
-## Common Patterns
+Wrong:
 
-<!-- Type utilities, generics, type guards -->
+```ts
+const node = response.graphs[0].nodes[0] as any
+renderPin(node.pins[0])
+```
 
-(To be filled by the team)
+Correct:
 
----
+```ts
+import type { GSState, NodeInst } from '@/api/types'
 
-## Forbidden Patterns
-
-<!-- any, type assertions, etc. -->
-
-(To be filled by the team)
+function firstNode(state: GSState): NodeInst | undefined {
+  return state.graphs[0]?.nodes[0]
+}
+```
