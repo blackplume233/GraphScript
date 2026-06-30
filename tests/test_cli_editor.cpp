@@ -383,17 +383,21 @@ TEST(CLIEditor, RenameGraphDerivedPinCommandsAreReplayable) {
     CLIEditor editor(session);
 
     const std::string source =
-        "Graph Child {\n"
-        "    in msg : FString;\n"
+        "graph Child {\n"
+        "    @graph.input\n"
+        "    param msg: FString;\n"
         "    event Run {\n"
         "    }\n"
         "}\n"
-        "Graph Parent {\n"
-        "    in incoming : FString;\n"
-        "    Child child{};\n"
+        "graph Parent {\n"
+        "    @graph.input\n"
+        "    param incoming: FString;\n"
+        "    node child {\n"
+        "        type Child;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        context.start(child.Run);\n"
-        "        child.msg = incoming;\n"
+        "        connect(context.start, child.Run);\n"
+        "        bind(incoming, child.msg);\n"
         "    }\n"
         "}\n";
 
@@ -705,14 +709,21 @@ TEST(CLIEditor, ApplySourceBase64CommandIsReplayable) {
     load_core_for_cli(session);
     CLIEditor editor(session);
 
-    const std::string source_b64 =
-        "R3JhcGggUmVwbGF5ZWQgewogICAgaW4gc3BlZWQgOiBmbG9hdDsKICAgIFByaW50U3RyaW5nIGxvZ2dlcnt9Owp9Cg==";
+    const std::string source =
+        "graph Replayed {\n"
+        "    @graph.input\n"
+        "    param speed: float;\n"
+        "    node logger {\n"
+        "        type PrintString;\n"
+        "    }\n"
+        "}\n";
+    const std::string source_b64 = b64_for_cli_test(source);
     EXPECT_TRUE(editor.execute("apply_source_b64 " + source_b64));
     EXPECT_TRUE(editor.last_command_succeeded());
     ASSERT_NE(session.active_graph(), nullptr);
     EXPECT_EQ(session.active_graph()->name, "Replayed");
-    EXPECT_NE(session.emit().find("in speed : float"), std::string::npos);
-    EXPECT_NE(session.emit().find("PrintString logger"), std::string::npos);
+    EXPECT_NE(session.emit().find("param speed: float"), std::string::npos);
+    EXPECT_NE(session.emit().find("node logger"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 not_base64!"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -724,23 +735,30 @@ TEST(CLIEditor, ApplySourcePatchCommandIsReplayable) {
     load_core_for_cli(session);
     CLIEditor editor(session);
 
-    const std::string source_b64 =
-        "R3JhcGggUGF0Y2hlZCB7CiAgICBpbiBzcGVlZCA6IGZsb2F0OwogICAgUHJpbnRTdHJpbmcgbG9nZ2Vye307Cn0K";
+    const std::string source =
+        "graph Patched {\n"
+        "    @graph.input\n"
+        "    param speed: float;\n"
+        "    node logger {\n"
+        "        type PrintString;\n"
+        "    }\n"
+        "}\n";
+    const std::string source_b64 = b64_for_cli_test(source);
     EXPECT_TRUE(editor.execute("apply_source_b64 " + source_b64));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("PrintString logger"), std::string::npos);
+    EXPECT_NE(session.emit().find("node logger"), std::string::npos);
 
-    EXPECT_TRUE(editor.execute("apply_source_patch 4 17 4 23 d3JpdGVy"));
+    EXPECT_TRUE(editor.execute("apply_source_patch 4 10 4 16 d3JpdGVy"));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("in speed : float"), std::string::npos);
-    EXPECT_NE(session.emit().find("PrintString writer"), std::string::npos);
+    EXPECT_NE(session.emit().find("param speed: float"), std::string::npos);
+    EXPECT_NE(session.emit().find("node writer"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 " + source_b64));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_TRUE(editor.execute("apply_source_patch 4 17 4 23 d3JpdGVy deadbeefdeadbeef"));
+    EXPECT_TRUE(editor.execute("apply_source_patch 4 10 4 16 d3JpdGVy deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("PrintString logger"), std::string::npos);
-    EXPECT_EQ(session.emit().find("PrintString writer"), std::string::npos);
+    EXPECT_NE(session.emit().find("node logger"), std::string::npos);
+    EXPECT_EQ(session.emit().find("node writer"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_patch 2 14 2 14 not_base64!"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -755,35 +773,42 @@ TEST(CLIEditor, ApplySourcePatchesBase64CommandIsAtomicAndReplayable) {
     load_core_for_cli(session);
     CLIEditor editor(session);
 
-    const std::string source_b64 =
-        "R3JhcGggUGF0Y2hlZCB7CiAgICBpbiBzcGVlZCA6IGZsb2F0OwogICAgUHJpbnRTdHJpbmcgbG9nZ2Vye307Cn0K";
+    const std::string source =
+        "graph Patched {\n"
+        "    @graph.input\n"
+        "    param speed: float;\n"
+        "    node logger {\n"
+        "        type PrintString;\n"
+        "    }\n"
+        "}\n";
+    const std::string source_b64 = b64_for_cli_test(source);
     EXPECT_TRUE(editor.execute("apply_source_b64 " + source_b64));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("in speed : float"), std::string::npos);
-    EXPECT_NE(session.emit().find("PrintString logger"), std::string::npos);
+    EXPECT_NE(session.emit().find("param speed: float"), std::string::npos);
+    EXPECT_NE(session.emit().find("node logger"), std::string::npos);
 
     const std::string patch_lines =
-        "2 8 2 13 " + b64_for_cli_test("velocity") + "\n" +
-        "4 17 4 23 " + b64_for_cli_test("writer") + "\n";
+        "3 11 3 16 " + b64_for_cli_test("velocity") + "\n" +
+        "4 10 4 16 " + b64_for_cli_test("writer") + "\n";
     EXPECT_TRUE(editor.execute("apply_source_patches_b64 " + b64_for_cli_test(patch_lines)));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("in velocity : float"), std::string::npos);
-    EXPECT_NE(session.emit().find("PrintString writer"), std::string::npos);
+    EXPECT_NE(session.emit().find("param velocity: float"), std::string::npos);
+    EXPECT_NE(session.emit().find("node writer"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 " + source_b64));
     EXPECT_TRUE(editor.last_command_succeeded());
     EXPECT_TRUE(editor.execute("apply_source_patches_b64 " + b64_for_cli_test(patch_lines) + " deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("in speed : float"), std::string::npos);
-    EXPECT_NE(session.emit().find("PrintString logger"), std::string::npos);
+    EXPECT_NE(session.emit().find("param speed: float"), std::string::npos);
+    EXPECT_NE(session.emit().find("node logger"), std::string::npos);
 
     const std::string overlapping =
-        "4 17 4 23 " + b64_for_cli_test("writer") + "\n" +
-        "4 20 4 23 " + b64_for_cli_test("bad") + "\n";
+        "4 10 4 16 " + b64_for_cli_test("writer") + "\n" +
+        "4 12 4 16 " + b64_for_cli_test("bad") + "\n";
     EXPECT_TRUE(editor.execute("apply_source_patches_b64 " + b64_for_cli_test(overlapping)));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("PrintString logger"), std::string::npos);
-    EXPECT_EQ(session.emit().find("PrintString writer"), std::string::npos);
+    EXPECT_NE(session.emit().find("node logger"), std::string::npos);
+    EXPECT_EQ(session.emit().find("node writer"), std::string::npos);
 }
 
 TEST(CLIEditor, ApplySourceIdentifierRenameUsesTokenPatches) {
@@ -793,12 +818,15 @@ TEST(CLIEditor, ApplySourceIdentifierRenameUsesTokenPatches) {
     CLIEditor editor(session);
 
     const std::string source =
-        "[Comment(\"speed\")]\n"
-        "Graph RenameSource {\n"
-        "    in speed : float;\n"
-        "    PrintString logger{};\n"
+        "@Comment(\"speed\")\n"
+        "graph RenameSource {\n"
+        "    @graph.input\n"
+        "    param speed: float;\n"
+        "    node logger {\n"
+        "        type PrintString;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        logger.message = speed;\n"
+        "        bind(speed, logger.message);\n"
         "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
@@ -807,18 +835,18 @@ TEST(CLIEditor, ApplySourceIdentifierRenameUsesTokenPatches) {
     EXPECT_TRUE(editor.execute("apply_source_identifier_rename speed velocity"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("in velocity : float"), std::string::npos);
-    EXPECT_NE(renamed.find("logger.message = velocity"), std::string::npos);
-    EXPECT_EQ(renamed.find("in speed : float"), std::string::npos);
-    EXPECT_EQ(renamed.find("logger.message = speed"), std::string::npos);
-    EXPECT_NE(renamed.find("[Comment(\"speed\")]"), std::string::npos);
+    EXPECT_NE(renamed.find("param velocity: float"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(velocity, logger.message)"), std::string::npos);
+    EXPECT_EQ(renamed.find("param speed: float"), std::string::npos);
+    EXPECT_EQ(renamed.find("bind(speed, logger.message)"), std::string::npos);
+    EXPECT_NE(renamed.find("@Comment(\"speed\")"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
     EXPECT_TRUE(editor.execute("apply_source_identifier_rename speed velocity deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("in speed : float"), std::string::npos);
-    EXPECT_EQ(session.emit().find("in velocity : float"), std::string::npos);
+    EXPECT_NE(session.emit().find("param speed: float"), std::string::npos);
+    EXPECT_EQ(session.emit().find("param velocity: float"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_identifier_rename missing velocity"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -834,29 +862,40 @@ TEST(CLIEditor, ApplySourceParamRenameUsesActiveGraphRanges) {
     CLIEditor editor(session);
 
     const std::string source =
-        "Graph RenameSource {\n"
-        "    in speed : float;\n"
-        "    PrintString logger{};\n"
+        "graph RenameSource {\n"
+        "    @graph.input\n"
+        "    param speed: float;\n"
+        "    node logger {\n"
+        "        type PrintString;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        logger.message = speed;\n"
+        "        bind(speed, logger.message);\n"
         "    }\n"
         "}\n"
         "\n"
-        "Graph Other {\n"
-        "    in speed : float;\n"
-        "    PrintString otherLogger{};\n"
+        "graph Other {\n"
+        "    @graph.input\n"
+        "    param speed: float;\n"
+        "    node otherLogger {\n"
+        "        type PrintString;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        otherLogger.message = speed;\n"
+        "        bind(speed, otherLogger.message);\n"
         "    }\n"
         "}\n"
         "\n"
-        "Graph Parent {\n"
-        "    in parentSpeed : float;\n"
-        "    RenameSource child{};\n"
-        "    PrintString parentLogger{};\n"
+        "graph Parent {\n"
+        "    @graph.input\n"
+        "    param parentSpeed: float;\n"
+        "    node child {\n"
+        "        type RenameSource;\n"
+        "    }\n"
+        "    node parentLogger {\n"
+        "        type PrintString;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        child.speed = parentSpeed;\n"
-        "        parentLogger.message = child.speed;\n"
+        "        bind(parentSpeed, child.speed);\n"
+        "        bind(child.speed, parentLogger.message);\n"
         "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
@@ -865,25 +904,25 @@ TEST(CLIEditor, ApplySourceParamRenameUsesActiveGraphRanges) {
     EXPECT_TRUE(editor.execute("apply_source_param_rename speed velocity"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("Graph RenameSource"), std::string::npos);
-    EXPECT_NE(renamed.find("in velocity : float"), std::string::npos);
-    EXPECT_NE(renamed.find("logger.message = velocity"), std::string::npos);
-    EXPECT_NE(renamed.find("Graph Other"), std::string::npos);
-    EXPECT_NE(renamed.find("in speed : float"), std::string::npos);
-    EXPECT_NE(renamed.find("otherLogger.message = speed"), std::string::npos);
-    EXPECT_EQ(renamed.find("otherLogger.message = velocity"), std::string::npos);
-    EXPECT_NE(renamed.find("Graph Parent"), std::string::npos);
-    EXPECT_NE(renamed.find("child.velocity = parentSpeed"), std::string::npos);
-    EXPECT_NE(renamed.find("parentLogger.message = child.velocity"), std::string::npos);
-    EXPECT_EQ(renamed.find("child.speed = parentSpeed"), std::string::npos);
-    EXPECT_EQ(renamed.find("parentLogger.message = child.speed"), std::string::npos);
+    EXPECT_NE(renamed.find("graph RenameSource"), std::string::npos);
+    EXPECT_NE(renamed.find("param velocity: float"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(velocity, logger.message)"), std::string::npos);
+    EXPECT_NE(renamed.find("graph Other"), std::string::npos);
+    EXPECT_NE(renamed.find("param speed: float"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(speed, otherLogger.message)"), std::string::npos);
+    EXPECT_EQ(renamed.find("bind(velocity, otherLogger.message)"), std::string::npos);
+    EXPECT_NE(renamed.find("graph Parent"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(parentSpeed, child.velocity)"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(child.velocity, parentLogger.message)"), std::string::npos);
+    EXPECT_EQ(renamed.find("bind(parentSpeed, child.speed)"), std::string::npos);
+    EXPECT_EQ(renamed.find("bind(child.speed, parentLogger.message)"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
     EXPECT_TRUE(editor.execute("apply_source_param_rename speed velocity deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("logger.message = speed"), std::string::npos);
-    EXPECT_EQ(session.emit().find("logger.message = velocity"), std::string::npos);
+    EXPECT_NE(session.emit().find("bind(speed, logger.message)"), std::string::npos);
+    EXPECT_EQ(session.emit().find("bind(velocity, logger.message)"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_param_rename missing velocity"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -899,22 +938,24 @@ TEST(CLIEditor, ApplySourceEventRenameUsesActiveGraphRanges) {
     CLIEditor editor(session);
 
     const std::string source =
-        "Graph Child {\n"
+        "graph Child {\n"
         "    event Run {\n"
         "    }\n"
         "}\n"
         "\n"
-        "Graph Other {\n"
+        "graph Other {\n"
         "    event Run {\n"
-        "        context.start(context.done);\n"
+        "        connect(context.start, context.done);\n"
         "    }\n"
         "}\n"
         "\n"
-        "Graph Parent {\n"
-        "    Child child{};\n"
+        "graph Parent {\n"
+        "    node child {\n"
+        "        type Child;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        context.start(child.Run);\n"
-        "        child.Run(context.done);\n"
+        "        connect(context.start, child.Run);\n"
+        "        connect(child.Run, context.done);\n"
         "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
@@ -923,14 +964,14 @@ TEST(CLIEditor, ApplySourceEventRenameUsesActiveGraphRanges) {
     EXPECT_TRUE(editor.execute("apply_source_event_rename Run Execute"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("Graph Child"), std::string::npos);
+    EXPECT_NE(renamed.find("graph Child"), std::string::npos);
     EXPECT_NE(renamed.find("event Execute"), std::string::npos);
-    EXPECT_NE(renamed.find("context.start(child.Execute)"), std::string::npos);
-    EXPECT_NE(renamed.find("child.Execute(context.done)"), std::string::npos);
-    EXPECT_NE(renamed.find("Graph Other"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(context.start, child.Execute)"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(child.Execute, context.done)"), std::string::npos);
+    EXPECT_NE(renamed.find("graph Other"), std::string::npos);
     EXPECT_NE(renamed.find("event Run"), std::string::npos);
-    EXPECT_EQ(renamed.find("context.start(child.Run)"), std::string::npos);
-    EXPECT_EQ(renamed.find("child.Run(context.done)"), std::string::npos);
+    EXPECT_EQ(renamed.find("connect(context.start, child.Run)"), std::string::npos);
+    EXPECT_EQ(renamed.find("connect(child.Run, context.done)"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
@@ -953,25 +994,28 @@ TEST(CLIEditor, ApplySourceFunctionRenameUsesActiveGraphRanges) {
     CLIEditor editor(session);
 
     const std::string source =
-        "Graph Worker {\n"
-        "    in msg : FString;\n"
+        "graph Worker {\n"
+        "    @graph.input\n"
+        "    param msg: FString;\n"
         "    function Compute {\n"
-        "        context.start(context.done);\n"
-        "        context.result = msg;\n"
+        "        connect(context.start, context.done);\n"
+        "        bind(msg, context.result);\n"
         "    }\n"
         "}\n"
         "\n"
-        "Graph Other {\n"
+        "graph Other {\n"
         "    function Compute {\n"
-        "        context.start(context.done);\n"
+        "        connect(context.start, context.done);\n"
         "    }\n"
         "}\n"
         "\n"
-        "Graph Parent {\n"
-        "    Worker worker{};\n"
+        "graph Parent {\n"
+        "    node worker {\n"
+        "        type Worker;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        context.start(worker.Compute);\n"
-        "        worker.Compute(context.done);\n"
+        "        connect(context.start, worker.Compute);\n"
+        "        connect(worker.Compute, context.done);\n"
         "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
@@ -980,15 +1024,15 @@ TEST(CLIEditor, ApplySourceFunctionRenameUsesActiveGraphRanges) {
     EXPECT_TRUE(editor.execute("apply_source_function_rename Compute Evaluate"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("Graph Worker"), std::string::npos);
+    EXPECT_NE(renamed.find("graph Worker"), std::string::npos);
     EXPECT_NE(renamed.find("function Evaluate"), std::string::npos);
-    EXPECT_NE(renamed.find("context.result = msg"), std::string::npos);
-    EXPECT_NE(renamed.find("context.start(worker.Evaluate)"), std::string::npos);
-    EXPECT_NE(renamed.find("worker.Evaluate(context.done)"), std::string::npos);
-    EXPECT_NE(renamed.find("Graph Other"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(msg, context.result)"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(context.start, worker.Evaluate)"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(worker.Evaluate, context.done)"), std::string::npos);
+    EXPECT_NE(renamed.find("graph Other"), std::string::npos);
     EXPECT_NE(renamed.find("function Compute"), std::string::npos);
-    EXPECT_EQ(renamed.find("context.start(worker.Compute)"), std::string::npos);
-    EXPECT_EQ(renamed.find("worker.Compute(context.done)"), std::string::npos);
+    EXPECT_EQ(renamed.find("connect(context.start, worker.Compute)"), std::string::npos);
+    EXPECT_EQ(renamed.find("connect(worker.Compute, context.done)"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
@@ -1011,25 +1055,29 @@ TEST(CLIEditor, ApplySourceNodeRenameUsesActiveGraphRanges) {
     CLIEditor editor(session);
 
     const std::string source =
-        "Graph RenameNodeSource {\n"
-        "    in msg : FString;\n"
-        "    PrintString logger{};\n"
-        "    Delay wait{};\n"
-        "    event OnStart {\n"
-        "        logger.exit(wait.enter);\n"
-        "        logger.message = msg;\n"
+        "graph RenameNodeSource {\n"
+        "    @graph.input\n"
+        "    param msg: FString;\n"
+        "    node logger {\n"
+        "        type PrintString;\n"
         "    }\n"
-        "    generate {\n"
-        "        Comment logger = \"generated note\";\n"
-        "        position:logger.x(100);\n"
+        "    node wait {\n"
+        "        type Delay;\n"
+        "    }\n"
+        "    event OnStart {\n"
+        "        connect(logger.exit, wait.enter);\n"
+        "        bind(msg, logger.message);\n"
         "    }\n"
         "}\n"
         "\n"
-        "Graph Other {\n"
-        "    in otherMsg : FString;\n"
-        "    PrintString logger{};\n"
+        "graph Other {\n"
+        "    @graph.input\n"
+        "    param otherMsg: FString;\n"
+        "    node otherLogger {\n"
+        "        type PrintString;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        logger.message = otherMsg;\n"
+        "        bind(otherMsg, otherLogger.message);\n"
         "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
@@ -1038,24 +1086,20 @@ TEST(CLIEditor, ApplySourceNodeRenameUsesActiveGraphRanges) {
     EXPECT_TRUE(editor.execute("apply_source_node_rename logger writer"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("Graph RenameNodeSource"), std::string::npos);
-    EXPECT_NE(renamed.find("PrintString writer{}"), std::string::npos);
-    EXPECT_NE(renamed.find("writer.exit(wait.enter)"), std::string::npos);
-    EXPECT_NE(renamed.find("writer.message = msg"), std::string::npos);
-    EXPECT_NE(renamed.find("Comment writer = \"generated note\""), std::string::npos);
-    EXPECT_NE(renamed.find("position:writer.x(100)"), std::string::npos);
-    EXPECT_NE(renamed.find("Graph Other"), std::string::npos);
-    EXPECT_NE(renamed.find("PrintString logger{}"), std::string::npos);
-    EXPECT_NE(renamed.find("logger.message = otherMsg"), std::string::npos);
-    EXPECT_EQ(renamed.find("Comment logger = \"generated note\""), std::string::npos);
-    EXPECT_EQ(renamed.find("position:logger.x(100)"), std::string::npos);
+    EXPECT_NE(renamed.find("graph RenameNodeSource"), std::string::npos);
+    EXPECT_NE(renamed.find("node writer"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(writer.exit, wait.enter)"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(msg, writer.message)"), std::string::npos);
+    EXPECT_NE(renamed.find("graph Other"), std::string::npos);
+    EXPECT_NE(renamed.find("node otherLogger"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(otherMsg, otherLogger.message)"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
     EXPECT_TRUE(editor.execute("apply_source_node_rename logger writer deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("PrintString logger{}"), std::string::npos);
-    EXPECT_EQ(session.emit().find("PrintString writer{}"), std::string::npos);
+    EXPECT_NE(session.emit().find("node logger"), std::string::npos);
+    EXPECT_EQ(session.emit().find("node writer"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_node_rename missing writer"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -1071,20 +1115,24 @@ TEST(CLIEditor, ApplySourceGraphRenameMigratesGraphNodeTypes) {
     CLIEditor editor(session);
 
     const std::string source =
-        "Graph Child {\n"
+        "graph Child {\n"
         "    event Run {\n"
         "    }\n"
         "}\n"
         "\n"
-        "Graph Parent {\n"
-        "    Child child{};\n"
+        "graph Parent {\n"
+        "    node child {\n"
+        "        type Child;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        context.start(child.Run);\n"
+        "        connect(context.start, child.Run);\n"
         "    }\n"
         "}\n"
         "\n"
-        "Graph Other {\n"
-        "    Child otherChild{};\n"
+        "graph Other {\n"
+        "    node otherChild {\n"
+        "        type Child;\n"
+        "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
@@ -1092,20 +1140,18 @@ TEST(CLIEditor, ApplySourceGraphRenameMigratesGraphNodeTypes) {
     EXPECT_TRUE(editor.execute("apply_source_graph_rename Child Leaf"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("Graph Leaf"), std::string::npos);
-    EXPECT_NE(renamed.find("Leaf child{}"), std::string::npos);
-    EXPECT_NE(renamed.find("Leaf otherChild{}"), std::string::npos);
-    EXPECT_NE(renamed.find("context.start(child.Run)"), std::string::npos);
-    EXPECT_EQ(renamed.find("Graph Child"), std::string::npos);
-    EXPECT_EQ(renamed.find("Child child{}"), std::string::npos);
-    EXPECT_EQ(renamed.find("Child otherChild{}"), std::string::npos);
+    EXPECT_NE(renamed.find("graph Leaf"), std::string::npos);
+    EXPECT_NE(renamed.find("type Leaf"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(context.start, child.Run)"), std::string::npos);
+    EXPECT_EQ(renamed.find("graph Child"), std::string::npos);
+    EXPECT_EQ(renamed.find("type Child"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
     EXPECT_TRUE(editor.execute("apply_source_graph_rename Child Leaf deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("Graph Child"), std::string::npos);
-    EXPECT_EQ(session.emit().find("Graph Leaf"), std::string::npos);
+    EXPECT_NE(session.emit().find("graph Child"), std::string::npos);
+    EXPECT_EQ(session.emit().find("graph Leaf"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_graph_rename Missing Leaf"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -1124,28 +1170,32 @@ TEST(CLIEditor, ApplyFilesGraphRenameMigratesDiskGraphDeclarationsAndNodeTypesAt
     auto conflict_file = dir / "conflict.gs";
     auto untouched_file = dir / "untouched.gs";
     write_cli_text(first_file,
-                   "[Comment(\"Child stays string\")]\n"
-                   "Graph Child {\n"
+                   "@Comment(\"Child stays string\")\n"
+                   "graph Child {\n"
                    "    event Run {\n"
                    "    }\n"
                    "}\n"
-                   "Graph Parent {\n"
-                   "    Child child{};\n"
+                   "graph Parent {\n"
+                   "    node child {\n"
+                   "        type Child;\n"
+                   "    }\n"
                    "    event OnStart {\n"
-                   "        context.start(child.Run);\n"
+                   "        connect(context.start, child.Run);\n"
                    "    }\n"
                    "}\n");
     write_cli_text(second_file,
-                   "Graph UsesExternal {\n"
-                   "    Child external{};\n"
+                   "graph UsesExternal {\n"
+                   "    node external {\n"
+                   "        type Child;\n"
+                   "    }\n"
                    "}\n");
     write_cli_text(conflict_file,
-                   "Graph Child {\n"
+                   "graph Child {\n"
                    "}\n"
-                   "Graph Leaf {\n"
+                   "graph Leaf {\n"
                    "}\n");
     write_cli_text(untouched_file,
-                   "Graph Plain {\n"
+                   "graph Plain {\n"
                    "}\n");
 
     Environment env;
@@ -1160,14 +1210,14 @@ TEST(CLIEditor, ApplyFilesGraphRenameMigratesDiskGraphDeclarationsAndNodeTypesAt
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("Graph Child"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("Child child{}"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("Graph Leaf"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("graph Child"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("type Child;"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("graph Leaf"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("Child external{}"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("type Child;"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_files_graph_rename Child Leaf " +
@@ -1177,8 +1227,8 @@ TEST(CLIEditor, ApplyFilesGraphRenameMigratesDiskGraphDeclarationsAndNodeTypesAt
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("Graph Child"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("Child child{}"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("graph Child"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("type Child;"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_files_graph_rename Child Leaf " +
@@ -1189,23 +1239,23 @@ TEST(CLIEditor, ApplyFilesGraphRenameMigratesDiskGraphDeclarationsAndNodeTypesAt
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("Graph Leaf"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("Leaf child{}"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("context.start(child.Run)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("graph Leaf"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("type Leaf;"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("connect(context.start, child.Run)"), std::string::npos);
         EXPECT_NE(first_contents.str().find("Child stays string"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("Graph Child"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("Child child{}"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("graph Child"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("type Child;"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("Leaf external{}"), std::string::npos);
-        EXPECT_EQ(second_contents.str().find("Child external{}"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("type Leaf;"), std::string::npos);
+        EXPECT_EQ(second_contents.str().find("type Child;"), std::string::npos);
 
         std::ifstream untouched_in(untouched_file, std::ios::binary);
         std::stringstream untouched_contents;
         untouched_contents << untouched_in.rdbuf();
-        EXPECT_NE(untouched_contents.str().find("Graph Plain"), std::string::npos);
+        EXPECT_NE(untouched_contents.str().find("graph Plain"), std::string::npos);
         EXPECT_EQ(untouched_contents.str().find("Leaf"), std::string::npos);
     }
 
@@ -1223,40 +1273,55 @@ TEST(CLIEditor, ApplyFilesGraphParamRenameMigratesDiskGraphInterfaceDataPinsAtom
     auto conflict_file = dir / "conflict.gs";
     auto untouched_file = dir / "untouched.gs";
     write_cli_text(first_file,
-                   "[Comment(\"speed stays string\")]\n"
-                   "Graph Child {\n"
-                   "    in speed : FString;\n"
-                   "    PrintString logger{};\n"
+                   "@Comment(\"speed stays string\")\n"
+                   "graph Child {\n"
+                   "    @graph.input\n"
+                   "    param speed: FString;\n"
+                   "    node logger {\n"
+                   "        type PrintString;\n"
+                   "    }\n"
                    "    event Run {\n"
-                   "        logger.message = speed;\n"
+                   "        bind(speed, logger.message);\n"
                    "    }\n"
                    "}\n"
-                   "Graph Parent {\n"
-                   "    in parentMsg : FString;\n"
-                   "    Child child{};\n"
-                   "    PrintString parentLogger{};\n"
+                   "graph Parent {\n"
+                   "    @graph.input\n"
+                   "    param parentMsg: FString;\n"
+                   "    node child {\n"
+                   "        type Child;\n"
+                   "    }\n"
+                   "    node parentLogger {\n"
+                   "        type PrintString;\n"
+                   "    }\n"
                    "    event OnStart {\n"
-                   "        child.speed = parentMsg;\n"
-                   "        parentLogger.message = child.speed;\n"
+                   "        bind(parentMsg, child.speed);\n"
+                   "        bind(child.speed, parentLogger.message);\n"
                    "    }\n"
                    "}\n");
     write_cli_text(second_file,
-                   "Graph UsesExternal {\n"
-                   "    in parentMsg : FString;\n"
-                   "    Child external{};\n"
-                   "    PrintString logger{};\n"
+                   "graph UsesExternal {\n"
+                   "    @graph.input\n"
+                   "    param parentMsg: FString;\n"
+                   "    node external {\n"
+                   "        type Child;\n"
+                   "    }\n"
+                   "    node logger {\n"
+                   "        type PrintString;\n"
+                   "    }\n"
                    "    event OnStart {\n"
-                   "        external.speed = parentMsg;\n"
-                   "        logger.message = external.speed;\n"
+                   "        bind(parentMsg, external.speed);\n"
+                   "        bind(external.speed, logger.message);\n"
                    "    }\n"
                    "}\n");
     write_cli_text(conflict_file,
-                   "Graph Child {\n"
-                   "    in speed : FString;\n"
-                   "    in velocity : FString;\n"
+                   "graph Child {\n"
+                   "    @graph.input\n"
+                   "    param speed: FString;\n"
+                   "    @graph.input\n"
+                   "    param velocity: FString;\n"
                    "}\n");
     write_cli_text(untouched_file,
-                   "Graph Plain {\n"
+                   "graph Plain {\n"
                    "}\n");
 
     Environment env;
@@ -1272,14 +1337,14 @@ TEST(CLIEditor, ApplyFilesGraphParamRenameMigratesDiskGraphInterfaceDataPinsAtom
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("in speed : FString"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("child.speed = parentMsg"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("in velocity : FString"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("param speed: FString"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("bind(parentMsg, child.speed)"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("param velocity: FString"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("external.speed = parentMsg"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("bind(parentMsg, external.speed)"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_files_graph_param_rename Child speed velocity " +
@@ -1289,8 +1354,8 @@ TEST(CLIEditor, ApplyFilesGraphParamRenameMigratesDiskGraphInterfaceDataPinsAtom
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("in speed : FString"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("child.speed = parentMsg"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("param speed: FString"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("bind(parentMsg, child.speed)"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_files_graph_param_rename Child speed velocity " +
@@ -1301,26 +1366,26 @@ TEST(CLIEditor, ApplyFilesGraphParamRenameMigratesDiskGraphInterfaceDataPinsAtom
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("in velocity : FString"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("logger.message = velocity"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("child.velocity = parentMsg"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("parentLogger.message = child.velocity"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("param velocity: FString"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("bind(velocity, logger.message)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("bind(parentMsg, child.velocity)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("bind(child.velocity, parentLogger.message)"), std::string::npos);
         EXPECT_NE(first_contents.str().find("speed stays string"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("in speed : FString"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("logger.message = speed"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("param speed: FString"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("bind(speed, logger.message)"), std::string::npos);
         EXPECT_EQ(first_contents.str().find("child.speed"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("external.velocity = parentMsg"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("logger.message = external.velocity"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("bind(parentMsg, external.velocity)"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("bind(external.velocity, logger.message)"), std::string::npos);
         EXPECT_EQ(second_contents.str().find("external.speed"), std::string::npos);
 
         std::ifstream untouched_in(untouched_file, std::ios::binary);
         std::stringstream untouched_contents;
         untouched_contents << untouched_in.rdbuf();
-        EXPECT_NE(untouched_contents.str().find("Graph Plain"), std::string::npos);
+        EXPECT_NE(untouched_contents.str().find("graph Plain"), std::string::npos);
         EXPECT_EQ(untouched_contents.str().find("velocity"), std::string::npos);
     }
 
@@ -1338,35 +1403,39 @@ TEST(CLIEditor, ApplyFilesGraphEventRenameMigratesDiskGraphInterfaceExecPinsAtom
     auto conflict_file = dir / "conflict.gs";
     auto untouched_file = dir / "untouched.gs";
     write_cli_text(first_file,
-                   "[Comment(\"Run stays string\")]\n"
-                   "Graph Child {\n"
+                   "@Comment(\"Run stays string\")\n"
+                   "graph Child {\n"
                    "    event Run {\n"
                    "    }\n"
                    "}\n"
-                   "Graph Parent {\n"
-                   "    Child child{};\n"
+                   "graph Parent {\n"
+                   "    node child {\n"
+                   "        type Child;\n"
+                   "    }\n"
                    "    event OnStart {\n"
-                   "        context.start(child.Run);\n"
-                   "        child.Run(context.done);\n"
+                   "        connect(context.start, child.Run);\n"
+                   "        connect(child.Run, context.done);\n"
                    "    }\n"
                    "}\n");
     write_cli_text(second_file,
-                   "Graph UsesExternal {\n"
-                   "    Child external{};\n"
+                   "graph UsesExternal {\n"
+                   "    node external {\n"
+                   "        type Child;\n"
+                   "    }\n"
                    "    event OnStart {\n"
-                   "        context.start(external.Run);\n"
-                   "        external.Run(context.done);\n"
+                   "        connect(context.start, external.Run);\n"
+                   "        connect(external.Run, context.done);\n"
                    "    }\n"
                    "}\n");
     write_cli_text(conflict_file,
-                   "Graph Child {\n"
+                   "graph Child {\n"
                    "    event Run {\n"
                    "    }\n"
                    "    event Execute {\n"
                    "    }\n"
                    "}\n");
     write_cli_text(untouched_file,
-                   "Graph Plain {\n"
+                   "graph Plain {\n"
                    "}\n");
 
     Environment env;
@@ -1411,8 +1480,8 @@ TEST(CLIEditor, ApplyFilesGraphEventRenameMigratesDiskGraphInterfaceExecPinsAtom
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
         EXPECT_NE(first_contents.str().find("event Execute"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("context.start(child.Execute)"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("child.Execute(context.done)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("connect(context.start, child.Execute)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("connect(child.Execute, context.done)"), std::string::npos);
         EXPECT_NE(first_contents.str().find("Run stays string"), std::string::npos);
         EXPECT_EQ(first_contents.str().find("event Run"), std::string::npos);
         EXPECT_EQ(first_contents.str().find("child.Run"), std::string::npos);
@@ -1420,14 +1489,14 @@ TEST(CLIEditor, ApplyFilesGraphEventRenameMigratesDiskGraphInterfaceExecPinsAtom
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("context.start(external.Execute)"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("external.Execute(context.done)"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("connect(context.start, external.Execute)"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("connect(external.Execute, context.done)"), std::string::npos);
         EXPECT_EQ(second_contents.str().find("external.Run"), std::string::npos);
 
         std::ifstream untouched_in(untouched_file, std::ios::binary);
         std::stringstream untouched_contents;
         untouched_contents << untouched_in.rdbuf();
-        EXPECT_NE(untouched_contents.str().find("Graph Plain"), std::string::npos);
+        EXPECT_NE(untouched_contents.str().find("graph Plain"), std::string::npos);
         EXPECT_EQ(untouched_contents.str().find("Execute"), std::string::npos);
     }
 
@@ -1445,38 +1514,43 @@ TEST(CLIEditor, ApplyFilesGraphFunctionRenameMigratesDiskGraphFunctionInterfaceE
     auto conflict_file = dir / "conflict.gs";
     auto untouched_file = dir / "untouched.gs";
     write_cli_text(first_file,
-                   "[Comment(\"Compute stays string\")]\n"
-                   "Graph Worker {\n"
-                   "    in msg : FString;\n"
+                   "@Comment(\"Compute stays string\")\n"
+                   "graph Worker {\n"
+                   "    @graph.input\n"
+                   "    param msg: FString;\n"
                    "    function Compute {\n"
-                   "        context.start(context.done);\n"
-                   "        context.result = msg;\n"
+                   "        connect(context.start, context.done);\n"
+                   "        bind(msg, context.result);\n"
                    "    }\n"
                    "}\n"
-                   "Graph Parent {\n"
-                   "    Worker worker{};\n"
+                   "graph Parent {\n"
+                   "    node worker {\n"
+                   "        type Worker;\n"
+                   "    }\n"
                    "    event OnStart {\n"
-                   "        context.start(worker.Compute);\n"
-                   "        worker.Compute(context.done);\n"
+                   "        connect(context.start, worker.Compute);\n"
+                   "        connect(worker.Compute, context.done);\n"
                    "    }\n"
                    "}\n");
     write_cli_text(second_file,
-                   "Graph UsesExternal {\n"
-                   "    Worker external{};\n"
+                   "graph UsesExternal {\n"
+                   "    node external {\n"
+                   "        type Worker;\n"
+                   "    }\n"
                    "    event OnStart {\n"
-                   "        context.start(external.Compute);\n"
-                   "        external.Compute(context.done);\n"
+                   "        connect(context.start, external.Compute);\n"
+                   "        connect(external.Compute, context.done);\n"
                    "    }\n"
                    "}\n");
     write_cli_text(conflict_file,
-                   "Graph Worker {\n"
+                   "graph Worker {\n"
                    "    function Compute {\n"
                    "    }\n"
                    "    function Evaluate {\n"
                    "    }\n"
                    "}\n");
     write_cli_text(untouched_file,
-                   "Graph Plain {\n"
+                   "graph Plain {\n"
                    "}\n");
 
     Environment env;
@@ -1523,9 +1597,9 @@ TEST(CLIEditor, ApplyFilesGraphFunctionRenameMigratesDiskGraphFunctionInterfaceE
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
         EXPECT_NE(first_contents.str().find("function Evaluate"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("context.result = msg"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("context.start(worker.Evaluate)"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("worker.Evaluate(context.done)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("bind(msg, context.result)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("connect(context.start, worker.Evaluate)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("connect(worker.Evaluate, context.done)"), std::string::npos);
         EXPECT_NE(first_contents.str().find("Compute stays string"), std::string::npos);
         EXPECT_EQ(first_contents.str().find("function Compute"), std::string::npos);
         EXPECT_EQ(first_contents.str().find("worker.Compute"), std::string::npos);
@@ -1533,15 +1607,15 @@ TEST(CLIEditor, ApplyFilesGraphFunctionRenameMigratesDiskGraphFunctionInterfaceE
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("Graph UsesExternal"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("context.start(external.Evaluate)"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("external.Evaluate(context.done)"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("graph UsesExternal"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("connect(context.start, external.Evaluate)"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("connect(external.Evaluate, context.done)"), std::string::npos);
         EXPECT_EQ(second_contents.str().find("external.Compute"), std::string::npos);
 
         std::ifstream untouched_in(untouched_file, std::ios::binary);
         std::stringstream untouched_contents;
         untouched_contents << untouched_in.rdbuf();
-        EXPECT_NE(untouched_contents.str().find("Graph Plain"), std::string::npos);
+        EXPECT_NE(untouched_contents.str().find("graph Plain"), std::string::npos);
         EXPECT_EQ(untouched_contents.str().find("Evaluate"), std::string::npos);
     }
 
@@ -1573,14 +1647,20 @@ TEST(CLIEditor, ApplySourceNodeTypeRenameMigratesDeclaredNodeReferences) {
     CLIEditor editor(session);
 
     const std::string source =
-        "[Comment(\"OldNode stays string\")]\n"
-        "Graph UsesDeclaredNodes {\n"
-        "    OldNode first{};\n"
-        "    OldNode second{};\n"
+        "@Comment(\"OldNode stays string\")\n"
+        "graph UsesDeclaredNodes {\n"
+        "    node first {\n"
+        "        type OldNode;\n"
+        "    }\n"
+        "    node second {\n"
+        "        type OldNode;\n"
+        "    }\n"
         "}\n"
         "\n"
-        "Graph AlreadyNew {\n"
-        "    NewNode existing{};\n"
+        "graph AlreadyNew {\n"
+        "    node existing {\n"
+        "        type NewNode;\n"
+        "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
@@ -1588,19 +1668,17 @@ TEST(CLIEditor, ApplySourceNodeTypeRenameMigratesDeclaredNodeReferences) {
     EXPECT_TRUE(editor.execute("apply_source_node_type_rename OldNode NewNode"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("NewNode first{}"), std::string::npos);
-    EXPECT_NE(renamed.find("NewNode second{}"), std::string::npos);
-    EXPECT_NE(renamed.find("NewNode existing{}"), std::string::npos);
+    EXPECT_NE(renamed.find("node first"), std::string::npos);
+    EXPECT_NE(renamed.find("node second"), std::string::npos);
+    EXPECT_NE(renamed.find("type NewNode;"), std::string::npos);
     EXPECT_NE(renamed.find("OldNode stays string"), std::string::npos);
-    EXPECT_EQ(renamed.find("OldNode first{}"), std::string::npos);
-    EXPECT_EQ(renamed.find("OldNode second{}"), std::string::npos);
+    EXPECT_EQ(renamed.find("type OldNode;"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
     EXPECT_TRUE(editor.execute("apply_source_node_type_rename OldNode NewNode deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("OldNode first{}"), std::string::npos);
-    EXPECT_EQ(session.emit().find("NewNode first{}"), std::string::npos);
+    EXPECT_NE(session.emit().find("type OldNode;"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_node_type_rename Missing NewNode"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -1630,16 +1708,22 @@ TEST(CLIEditor, ApplySourceTypeRenameMigratesActiveModuleTypeReferences) {
     CLIEditor editor(session);
 
     const std::string source =
-        "[Comment(\"OldType stays string\"), Bind(Type = OldType(\"graph annotation OldType\"))]\n"
-        "Graph UsesTypes {\n"
-        "    [Bind(Type = OldType(\"param annotation OldType\"))]\n"
-        "    in input : OldType = OldType(\"default OldType\");\n"
-        "    [Bind(Type = OldType(\"node annotation OldType\"))]\n"
-        "    Holder fieldInit{value = OldType(\"field OldType\")};\n"
-        "    Holder rawInit{OldType(\"raw OldType\")};\n"
-        "    generate {\n"
-        "        [Bind(Type = OldType(\"metadata annotation OldType\"))]\n"
-        "        position:fieldInit.asset(OldType(\"metadata OldType\"));\n"
+        "@Bind(Type = OldType(\"let annotation OldType\"))\n"
+        "const cached = new OldType {\n"
+        "}\n"
+        "@Comment(\"OldType stays string\")\n"
+        "@Bind(Type = OldType(\"graph annotation OldType\"))\n"
+        "graph UsesTypes {\n"
+        "    @Bind(Type = OldType(\"param annotation OldType\"))\n"
+        "    @graph.input\n"
+        "    param input: OldType = OldType(\"default OldType\");\n"
+        "    @Bind(Type = OldType(\"node annotation OldType\"))\n"
+        "    node fieldInit {\n"
+        "        type Holder;\n"
+        "        value: OldType(\"field OldType\");\n"
+        "    }\n"
+        "    @Bind(Type = OldType(\"event annotation OldType\"))\n"
+        "    event OnStart {\n"
         "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
@@ -1647,26 +1731,25 @@ TEST(CLIEditor, ApplySourceTypeRenameMigratesActiveModuleTypeReferences) {
 
     EXPECT_TRUE(editor.execute("apply_source_type_rename OldType NewType deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("in input : OldType = OldType(\"default OldType\")"), std::string::npos);
-    EXPECT_EQ(session.emit().find("in input : NewType = NewType(\"default OldType\")"), std::string::npos);
+    EXPECT_NE(session.emit().find("param input: OldType = OldType(\"default OldType\")"), std::string::npos);
+    EXPECT_EQ(session.emit().find("param input: NewType = NewType(\"default OldType\")"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_type_rename OldType NewType"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
+    EXPECT_NE(renamed.find("@Bind(Type = NewType(\"let annotation OldType\"))"), std::string::npos);
+    EXPECT_NE(renamed.find("const cached = new NewType"), std::string::npos);
     EXPECT_NE(renamed.find("Bind(Type = NewType(\"graph annotation OldType\"))"), std::string::npos);
     EXPECT_NE(renamed.find("Bind(Type = NewType(\"param annotation OldType\"))"), std::string::npos);
     EXPECT_NE(renamed.find("Bind(Type = NewType(\"node annotation OldType\"))"), std::string::npos);
-    EXPECT_NE(renamed.find("Bind(Type = NewType(\"metadata annotation OldType\"))"), std::string::npos);
-    EXPECT_NE(renamed.find("in input : NewType = NewType(\"default OldType\")"), std::string::npos);
-    EXPECT_NE(renamed.find("Holder fieldInit{value = NewType(\"field OldType\")}"), std::string::npos);
-    EXPECT_NE(renamed.find("Holder rawInit{NewType(\"raw OldType\")}"), std::string::npos);
-    EXPECT_NE(renamed.find("position:fieldInit.asset(NewType(\"metadata OldType\"))"), std::string::npos);
+    EXPECT_NE(renamed.find("Bind(Type = NewType(\"event annotation OldType\"))"), std::string::npos);
+    EXPECT_NE(renamed.find("param input: NewType = NewType(\"default OldType\")"), std::string::npos);
+    EXPECT_NE(renamed.find("value: NewType(\"field OldType\")"), std::string::npos);
     EXPECT_NE(renamed.find("OldType stays string"), std::string::npos);
     EXPECT_EQ(renamed.find("Bind(Type = OldType"), std::string::npos);
-    EXPECT_EQ(renamed.find("in input : OldType"), std::string::npos);
-    EXPECT_EQ(renamed.find("value = OldType"), std::string::npos);
-    EXPECT_EQ(renamed.find("rawInit{OldType"), std::string::npos);
-    EXPECT_EQ(renamed.find("asset(OldType"), std::string::npos);
+    EXPECT_EQ(renamed.find("new OldType"), std::string::npos);
+    EXPECT_EQ(renamed.find("param input: OldType"), std::string::npos);
+    EXPECT_EQ(renamed.find("value: OldType"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_type_rename OldType NewType"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -1695,17 +1778,21 @@ TEST(CLIEditor, ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReference
     CLIEditor editor(session);
 
     const std::string source =
-        "[Comment(\"OldNode stays string\")]\n"
-        "Graph UsesDeclaredNodes {\n"
-        "    OldNode first{};\n"
-        "    OldNode second{};\n"
+        "@Comment(\"OldNode stays string\")\n"
+        "graph UsesDeclaredNodes {\n"
+        "    node first {\n"
+        "        type OldNode;\n"
+        "    }\n"
+        "    node second {\n"
+        "        type OldNode;\n"
+        "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
 
     EXPECT_TRUE(editor.execute("apply_import_node_rename " + quoted_path(declarations) + " OldNode NewNode deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("OldNode first{}"), std::string::npos);
+    EXPECT_NE(session.emit().find("type OldNode;"), std::string::npos);
     {
         std::ifstream in(declarations, std::ios::binary);
         std::stringstream contents;
@@ -1715,16 +1802,14 @@ TEST(CLIEditor, ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReference
 
     EXPECT_TRUE(editor.execute("apply_import_node_rename " + quoted_path(declarations) + " OldNode Graph"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("OldNode first{}"), std::string::npos);
+    EXPECT_NE(session.emit().find("type OldNode;"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_import_node_rename " + quoted_path(declarations) + " OldNode NewNode"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("NewNode first{}"), std::string::npos);
-    EXPECT_NE(renamed.find("NewNode second{}"), std::string::npos);
+    EXPECT_NE(renamed.find("type NewNode;"), std::string::npos);
     EXPECT_NE(renamed.find("OldNode stays string"), std::string::npos);
-    EXPECT_EQ(renamed.find("OldNode first{}"), std::string::npos);
-    EXPECT_EQ(renamed.find("OldNode second{}"), std::string::npos);
+    EXPECT_EQ(renamed.find("type OldNode;"), std::string::npos);
 
     std::ifstream in(declarations, std::ios::binary);
     std::stringstream contents;
@@ -1752,17 +1837,23 @@ TEST(CLIEditor, ApplyFilesNodeTypeRenameMigratesDiskGraphFilesAtomically) {
                    "    message: FString;\n"
                    "}\n");
     write_cli_text(first_file,
-                   "[Comment(\"OldNode stays string\")]\n"
-                   "Graph First {\n"
-                   "    OldNode first{};\n"
+                   "@Comment(\"OldNode stays string\")\n"
+                   "graph First {\n"
+                   "    node first {\n"
+                   "        type OldNode;\n"
+                   "    }\n"
                    "}\n");
     write_cli_text(second_file,
-                   "Graph Second {\n"
-                   "    OldNode second{};\n"
-                   "    NewNode existing{};\n"
+                   "graph Second {\n"
+                   "    node second {\n"
+                   "        type OldNode;\n"
+                   "    }\n"
+                   "    node existing {\n"
+                   "        type NewNode;\n"
+                   "    }\n"
                    "}\n");
     write_cli_text(untouched_file,
-                   "Graph Plain {\n"
+                   "graph Plain {\n"
                    "}\n");
 
     Environment env;
@@ -1779,13 +1870,12 @@ TEST(CLIEditor, ApplyFilesNodeTypeRenameMigratesDiskGraphFilesAtomically) {
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("OldNode first{}"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("NewNode first{}"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("type OldNode;"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("OldNode second{}"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("type OldNode;"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_files_node_type_rename OldNode NewNode " +
@@ -1796,21 +1886,20 @@ TEST(CLIEditor, ApplyFilesNodeTypeRenameMigratesDiskGraphFilesAtomically) {
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("NewNode first{}"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("type NewNode;"), std::string::npos);
         EXPECT_NE(first_contents.str().find("OldNode stays string"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("OldNode first{}"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("type OldNode;"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("NewNode second{}"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("NewNode existing{}"), std::string::npos);
-        EXPECT_EQ(second_contents.str().find("OldNode second{}"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("type NewNode;"), std::string::npos);
+        EXPECT_EQ(second_contents.str().find("type OldNode;"), std::string::npos);
 
         std::ifstream untouched_in(untouched_file, std::ios::binary);
         std::stringstream untouched_contents;
         untouched_contents << untouched_in.rdbuf();
-        EXPECT_NE(untouched_contents.str().find("Graph Plain"), std::string::npos);
+        EXPECT_NE(untouched_contents.str().find("graph Plain"), std::string::npos);
         EXPECT_EQ(untouched_contents.str().find("NewNode"), std::string::npos);
     }
 
@@ -1857,22 +1946,27 @@ TEST(CLIEditor, ApplySourceNodePinRenameMigratesActiveModulePinReferences) {
     CLIEditor editor(session);
 
     const std::string source =
-        "[Comment(\"enter exit message result stay string\")]\n"
-        "Graph UsesDeclaredPins {\n"
-        "    in text : FString;\n"
-        "    Worker worker{};\n"
-        "    SinkNode sink{};\n"
+        "@Comment(\"enter exit message result stay string\")\n"
+        "graph UsesDeclaredPins {\n"
+        "    @graph.input\n"
+        "    param text: FString;\n"
+        "    node worker {\n"
+        "        type Worker;\n"
+        "    }\n"
+        "    node sink {\n"
+        "        type SinkNode;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        context.start(worker.enter);\n"
-        "        worker.exit(context.done);\n"
-        "        worker.message = text;\n"
-        "        sink.value = worker.result;\n"
+        "        connect(context.start, worker.enter);\n"
+        "        connect(worker.exit, context.done);\n"
+        "        bind(text, worker.message);\n"
+        "        bind(worker.result, sink.value);\n"
         "    }\n"
         "    event OnTick {\n"
-        "        context.start(worker.enter);\n"
-        "        worker.exit(context.done);\n"
-        "        worker.message = text;\n"
-        "        sink.value = worker.result;\n"
+        "        connect(context.start, worker.enter);\n"
+        "        connect(worker.exit, context.done);\n"
+        "        bind(text, worker.message);\n"
+        "        bind(worker.result, sink.value);\n"
         "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
@@ -1893,10 +1987,10 @@ TEST(CLIEditor, ApplySourceNodePinRenameMigratesActiveModulePinReferences) {
     EXPECT_TRUE(editor.last_command_succeeded());
 
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("context.start(worker.begin)"), std::string::npos);
-    EXPECT_NE(renamed.find("worker.done(context.done)"), std::string::npos);
-    EXPECT_NE(renamed.find("worker.body = text"), std::string::npos);
-    EXPECT_NE(renamed.find("sink.value = worker.output"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(context.start, worker.begin)"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(worker.done, context.done)"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(text, worker.body)"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(worker.output, sink.value)"), std::string::npos);
     EXPECT_NE(renamed.find("enter exit message result stay string"), std::string::npos);
     EXPECT_EQ(renamed.find("worker.enter"), std::string::npos);
     EXPECT_EQ(renamed.find("worker.exit"), std::string::npos);
@@ -1947,16 +2041,21 @@ TEST(CLIEditor, ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleRefere
     CLIEditor editor(session);
 
     const std::string source =
-        "[Comment(\"enter exit message result stay string\")]\n"
-        "Graph UsesDeclaredPins {\n"
-        "    in text : FString;\n"
-        "    OldNode worker{};\n"
-        "    SinkNode sink{};\n"
+        "@Comment(\"enter exit message result stay string\")\n"
+        "graph UsesDeclaredPins {\n"
+        "    @graph.input\n"
+        "    param text: FString;\n"
+        "    node worker {\n"
+        "        type OldNode;\n"
+        "    }\n"
+        "    node sink {\n"
+        "        type SinkNode;\n"
+        "    }\n"
         "    event OnStart {\n"
-        "        context.start(worker.enter);\n"
-        "        worker.exit(context.done);\n"
-        "        worker.message = text;\n"
-        "        sink.value = worker.result;\n"
+        "        connect(context.start, worker.enter);\n"
+        "        connect(worker.exit, context.done);\n"
+        "        bind(text, worker.message);\n"
+        "        bind(worker.result, sink.value);\n"
         "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
@@ -1968,7 +2067,7 @@ TEST(CLIEditor, ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleRefere
 
     EXPECT_TRUE(editor.execute("apply_import_node_pin_rename " + quoted_path(declarations) + " OldNode message result"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("worker.message = text"), std::string::npos);
+    EXPECT_NE(session.emit().find("bind(text, worker.message)"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_import_node_pin_rename " + quoted_path(declarations) + " OldNode enter begin"));
     EXPECT_TRUE(editor.last_command_succeeded());
@@ -1980,10 +2079,10 @@ TEST(CLIEditor, ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleRefere
     EXPECT_TRUE(editor.last_command_succeeded());
 
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("context.start(worker.begin)"), std::string::npos);
-    EXPECT_NE(renamed.find("worker.done(context.done)"), std::string::npos);
-    EXPECT_NE(renamed.find("worker.body = text"), std::string::npos);
-    EXPECT_NE(renamed.find("sink.value = worker.output"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(context.start, worker.begin)"), std::string::npos);
+    EXPECT_NE(renamed.find("connect(worker.done, context.done)"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(text, worker.body)"), std::string::npos);
+    EXPECT_NE(renamed.find("bind(worker.output, sink.value)"), std::string::npos);
     EXPECT_NE(renamed.find("enter exit message result stay string"), std::string::npos);
     EXPECT_EQ(renamed.find("worker.enter"), std::string::npos);
     EXPECT_EQ(renamed.find("worker.exit"), std::string::npos);
@@ -2046,28 +2145,36 @@ TEST(CLIEditor, ApplyFilesNodePinRenameMigratesDiskGraphPinReferencesAtomically)
                    "    value: FString;\n"
                    "}\n");
     write_cli_text(first_file,
-                   "[Comment(\"enter message result stay string\")]\n"
-                   "Graph First {\n"
-                   "    in text : FString;\n"
-                   "    Worker worker{};\n"
-                   "    SinkNode sink{};\n"
+                   "@Comment(\"enter message result stay string\")\n"
+                   "graph First {\n"
+                   "    @graph.input\n"
+                   "    param text: FString;\n"
+                   "    node worker {\n"
+                   "        type Worker;\n"
+                   "    }\n"
+                   "    node sink {\n"
+                   "        type SinkNode;\n"
+                   "    }\n"
                    "    event OnStart {\n"
-                   "        context.start(worker.enter);\n"
-                   "        worker.message = text;\n"
-                   "        sink.value = worker.result;\n"
+                   "        connect(context.start, worker.enter);\n"
+                   "        bind(text, worker.message);\n"
+                   "        bind(worker.result, sink.value);\n"
                    "    }\n"
                    "}\n");
     write_cli_text(second_file,
-                   "Graph Second {\n"
-                   "    in text : FString;\n"
-                   "    Worker worker{};\n"
+                   "graph Second {\n"
+                   "    @graph.input\n"
+                   "    param text: FString;\n"
+                   "    node worker {\n"
+                   "        type Worker;\n"
+                   "    }\n"
                    "    event OnStart {\n"
-                   "        worker.exit(context.done);\n"
-                   "        worker.message = text;\n"
+                   "        connect(worker.exit, context.done);\n"
+                   "        bind(text, worker.message);\n"
                    "    }\n"
                    "}\n");
     write_cli_text(untouched_file,
-                   "Graph Plain {\n"
+                   "graph Plain {\n"
                    "}\n");
 
     Environment env;
@@ -2084,13 +2191,13 @@ TEST(CLIEditor, ApplyFilesNodePinRenameMigratesDiskGraphPinReferencesAtomically)
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("worker.message = text"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("worker.body = text"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("bind(text, worker.message)"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("bind(text, worker.body)"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("worker.message = text"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("bind(text, worker.message)"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_files_node_pin_rename Worker enter begin " +
@@ -2113,9 +2220,9 @@ TEST(CLIEditor, ApplyFilesNodePinRenameMigratesDiskGraphPinReferencesAtomically)
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("context.start(worker.begin)"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("worker.body = text"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("sink.value = worker.output"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("connect(context.start, worker.begin)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("bind(text, worker.body)"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("bind(worker.output, sink.value)"), std::string::npos);
         EXPECT_NE(first_contents.str().find("enter message result stay string"), std::string::npos);
         EXPECT_EQ(first_contents.str().find("worker.enter"), std::string::npos);
         EXPECT_EQ(first_contents.str().find("worker.message"), std::string::npos);
@@ -2124,15 +2231,15 @@ TEST(CLIEditor, ApplyFilesNodePinRenameMigratesDiskGraphPinReferencesAtomically)
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("worker.done(context.done)"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("worker.body = text"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("connect(worker.done, context.done)"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("bind(text, worker.body)"), std::string::npos);
         EXPECT_EQ(second_contents.str().find("worker.exit"), std::string::npos);
         EXPECT_EQ(second_contents.str().find("worker.message"), std::string::npos);
 
         std::ifstream untouched_in(untouched_file, std::ios::binary);
         std::stringstream untouched_contents;
         untouched_contents << untouched_in.rdbuf();
-        EXPECT_NE(untouched_contents.str().find("Graph Plain"), std::string::npos);
+        EXPECT_NE(untouched_contents.str().find("graph Plain"), std::string::npos);
         EXPECT_EQ(untouched_contents.str().find("worker."), std::string::npos);
     }
 
@@ -2161,30 +2268,30 @@ TEST(CLIEditor, ApplySourceSchemaRenameMigratesActiveModuleGraphBaseTypes) {
     CLIEditor editor(session);
 
     const std::string source =
-        "[Comment(\"OldSchema stays string\")]\n"
-        "Graph UsesSchema : OldSchema {\n"
+        "@Comment(\"OldSchema stays string\")\n"
+        "graph UsesSchema {\n"
+        "    schema OldSchema;\n"
         "}\n"
-        "Graph AlsoUsesSchema : OldSchema {\n"
+        "graph AlsoUsesSchema {\n"
+        "    schema OldSchema;\n"
         "}\n"
-        "Graph AlreadyNew : NewSchema {\n"
+        "graph AlreadyNew {\n"
+        "    schema NewSchema;\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
 
     EXPECT_TRUE(editor.execute("apply_source_schema_rename OldSchema NewSchema deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("Graph UsesSchema : OldSchema"), std::string::npos);
-    EXPECT_EQ(session.emit().find("Graph UsesSchema : NewSchema"), std::string::npos);
+    EXPECT_NE(session.emit().find("schema OldSchema;"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_schema_rename OldSchema NewSchema"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("Graph UsesSchema : NewSchema"), std::string::npos);
-    EXPECT_NE(renamed.find("Graph AlsoUsesSchema : NewSchema"), std::string::npos);
-    EXPECT_NE(renamed.find("Graph AlreadyNew : NewSchema"), std::string::npos);
+    EXPECT_NE(renamed.find("graph UsesSchema"), std::string::npos);
+    EXPECT_NE(renamed.find("schema NewSchema;"), std::string::npos);
     EXPECT_NE(renamed.find("OldSchema stays string"), std::string::npos);
-    EXPECT_EQ(renamed.find("Graph UsesSchema : OldSchema"), std::string::npos);
-    EXPECT_EQ(renamed.find("Graph AlsoUsesSchema : OldSchema"), std::string::npos);
+    EXPECT_EQ(renamed.find("schema OldSchema;"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_source_schema_rename OldSchema NewSchema"));
     EXPECT_FALSE(editor.last_command_succeeded());
@@ -2214,17 +2321,18 @@ TEST(CLIEditor, ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseType
     CLIEditor editor(session);
 
     const std::string source =
-        "[Comment(\"OldSchema stays string\")]\n"
-        "Graph UsesSchema : OldSchema {\n"
+        "@Comment(\"OldSchema stays string\")\n"
+        "graph UsesSchema {\n"
+        "    schema OldSchema;\n"
         "}\n"
-        "Graph Plain {\n"
+        "graph Plain {\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
 
     EXPECT_TRUE(editor.execute("apply_import_schema_rename " + quoted_path(declarations) + " OldSchema NewSchema deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("Graph UsesSchema : OldSchema"), std::string::npos);
+    EXPECT_NE(session.emit().find("schema OldSchema;"), std::string::npos);
     {
         std::ifstream in(declarations, std::ios::binary);
         std::stringstream contents;
@@ -2234,18 +2342,18 @@ TEST(CLIEditor, ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseType
 
     EXPECT_TRUE(editor.execute("apply_import_schema_rename " + quoted_path(declarations) + " OldSchema ExistingSchema"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("Graph UsesSchema : OldSchema"), std::string::npos);
+    EXPECT_NE(session.emit().find("schema OldSchema;"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_import_schema_rename " + quoted_path(declarations) + " OldSchema Graph"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("Graph UsesSchema : OldSchema"), std::string::npos);
+    EXPECT_NE(session.emit().find("schema OldSchema;"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_import_schema_rename " + quoted_path(declarations) + " OldSchema NewSchema"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("Graph UsesSchema : NewSchema"), std::string::npos);
+    EXPECT_NE(renamed.find("schema NewSchema;"), std::string::npos);
     EXPECT_NE(renamed.find("OldSchema stays string"), std::string::npos);
-    EXPECT_EQ(renamed.find("Graph UsesSchema : OldSchema"), std::string::npos);
+    EXPECT_EQ(renamed.find("schema OldSchema;"), std::string::npos);
 
     std::ifstream in(declarations, std::ios::binary);
     std::stringstream contents;
@@ -2334,16 +2442,19 @@ TEST(CLIEditor, ApplyFilesSchemaRenameMigratesDiskGraphBaseTypesAtomically) {
                    "    strict_type_match: false;\n"
                    "}\n");
     write_cli_text(first_file,
-                   "[Comment(\"OldSchema stays string\")]\n"
-                   "Graph First : OldSchema {\n"
+                   "@Comment(\"OldSchema stays string\")\n"
+                   "graph First {\n"
+                   "    schema OldSchema;\n"
                    "}\n");
     write_cli_text(second_file,
-                   "Graph Second : OldSchema {\n"
+                   "graph Second {\n"
+                   "    schema OldSchema;\n"
                    "}\n"
-                   "Graph AlreadyNew : NewSchema {\n"
+                   "graph AlreadyNew {\n"
+                   "    schema NewSchema;\n"
                    "}\n");
     write_cli_text(untouched_file,
-                   "Graph Plain {\n"
+                   "graph Plain {\n"
                    "}\n");
 
     Environment env;
@@ -2360,13 +2471,13 @@ TEST(CLIEditor, ApplyFilesSchemaRenameMigratesDiskGraphBaseTypesAtomically) {
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("Graph First : OldSchema"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("Graph First : NewSchema"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("schema OldSchema;"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("schema NewSchema;"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("Graph Second : OldSchema"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("schema OldSchema;"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_files_schema_rename OldSchema NewSchema " +
@@ -2377,21 +2488,20 @@ TEST(CLIEditor, ApplyFilesSchemaRenameMigratesDiskGraphBaseTypesAtomically) {
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("Graph First : NewSchema"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("schema NewSchema;"), std::string::npos);
         EXPECT_NE(first_contents.str().find("OldSchema stays string"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("Graph First : OldSchema"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("schema OldSchema;"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("Graph Second : NewSchema"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("Graph AlreadyNew : NewSchema"), std::string::npos);
-        EXPECT_EQ(second_contents.str().find("Graph Second : OldSchema"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("schema NewSchema;"), std::string::npos);
+        EXPECT_EQ(second_contents.str().find("schema OldSchema;"), std::string::npos);
 
         std::ifstream untouched_in(untouched_file, std::ios::binary);
         std::stringstream untouched_contents;
         untouched_contents << untouched_in.rdbuf();
-        EXPECT_NE(untouched_contents.str().find("Graph Plain"), std::string::npos);
+        EXPECT_NE(untouched_contents.str().find("graph Plain"), std::string::npos);
         EXPECT_EQ(untouched_contents.str().find("NewSchema"), std::string::npos);
     }
 
@@ -2416,28 +2526,35 @@ TEST(CLIEditor, ApplyFilesTypeRenameMigratesDiskGraphTypeReferencesAtomically) {
                    "    value: OldType;\n"
                    "}\n");
     write_cli_text(first_file,
-                   "[Bind(Type = OldType(\"let annotation OldType\"))]\n"
-                   "let cached = OldType(\"literal OldType\");\n"
-                   "[Comment(\"OldType stays string\"), Bind(Type = OldType(\"graph annotation OldType\"))]\n"
-                   "Graph First {\n"
-                   "    [Bind(Type = OldType(\"param annotation OldType\"))]\n"
-                   "    in input : OldType = OldType(\"default OldType\");\n"
-                   "    [Bind(Type = OldType(\"node annotation OldType\"))]\n"
-                   "    Holder fieldInit{value = OldType(\"field OldType\")};\n"
-                   "    Holder rawInit{OldType(\"raw OldType\")};\n"
-                   "    generate {\n"
-                   "        [Bind(Type = OldType(\"metadata annotation OldType\"))]\n"
-                   "        position:fieldInit.asset(OldType(\"metadata OldType\"));\n"
+                   "@Bind(Type = OldType(\"let annotation OldType\"))\n"
+                   "const cached = new OldType {\n"
+                   "}\n"
+                   "@Comment(\"OldType stays string\")\n"
+                   "@Bind(Type = OldType(\"graph annotation OldType\"))\n"
+                   "graph First {\n"
+                   "    @Bind(Type = OldType(\"param annotation OldType\"))\n"
+                   "    @graph.input\n"
+                   "    param input: OldType = OldType(\"default OldType\");\n"
+                   "    @Bind(Type = OldType(\"node annotation OldType\"))\n"
+                   "    node fieldInit {\n"
+                   "        type Holder;\n"
+                   "        value: OldType(\"field OldType\");\n"
+                   "    }\n"
+                   "    @Bind(Type = OldType(\"event annotation OldType\"))\n"
+                   "    event OnStart {\n"
                    "    }\n"
                    "}\n");
     write_cli_text(second_file,
-                   "Graph Second {\n"
-                   "    in input : OldType;\n"
-                   "    out output : OldType;\n"
-                   "    in existing : NewType;\n"
+                   "graph Second {\n"
+                   "    @graph.input\n"
+                   "    param input: OldType;\n"
+                   "    @graph.output\n"
+                   "    param output: OldType;\n"
+                   "    @graph.input\n"
+                   "    param existing: NewType;\n"
                    "}\n");
     write_cli_text(untouched_file,
-                   "Graph Plain {\n"
+                   "graph Plain {\n"
                    "}\n");
 
     Environment env;
@@ -2454,25 +2571,23 @@ TEST(CLIEditor, ApplyFilesTypeRenameMigratesDiskGraphTypeReferencesAtomically) {
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("[Bind(Type = OldType(\"let annotation OldType\"))]"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("@Bind(Type = OldType(\"let annotation OldType\"))"), std::string::npos);
         EXPECT_NE(first_contents.str().find("Bind(Type = OldType(\"graph annotation OldType\"))"), std::string::npos);
         EXPECT_NE(first_contents.str().find("Bind(Type = OldType(\"param annotation OldType\"))"), std::string::npos);
         EXPECT_NE(first_contents.str().find("Bind(Type = OldType(\"node annotation OldType\"))"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("Bind(Type = OldType(\"metadata annotation OldType\"))"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("let cached = OldType(\"literal OldType\");"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("in input : OldType = OldType(\"default OldType\")"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("Holder fieldInit{value = OldType(\"field OldType\")}"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("Holder rawInit{OldType(\"raw OldType\")}"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("position:fieldInit.asset(OldType(\"metadata OldType\"))"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("Bind(Type = OldType(\"event annotation OldType\"))"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("const cached = new OldType"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("param input: OldType = OldType(\"default OldType\")"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("value: OldType(\"field OldType\")"), std::string::npos);
         EXPECT_EQ(first_contents.str().find("Bind(Type = NewType"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("let cached = NewType(\"literal OldType\");"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("in input : NewType = NewType(\"default OldType\")"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("const cached = new NewType"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("param input: NewType = NewType(\"default OldType\")"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("in input : OldType"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("out output : OldType"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("param input: OldType"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("param output: OldType"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_files_type_rename OldType NewType " +
@@ -2483,37 +2598,33 @@ TEST(CLIEditor, ApplyFilesTypeRenameMigratesDiskGraphTypeReferencesAtomically) {
         std::ifstream first_in(first_file, std::ios::binary);
         std::stringstream first_contents;
         first_contents << first_in.rdbuf();
-        EXPECT_NE(first_contents.str().find("[Bind(Type = NewType(\"let annotation OldType\"))]"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("@Bind(Type = NewType(\"let annotation OldType\"))"), std::string::npos);
         EXPECT_NE(first_contents.str().find("Bind(Type = NewType(\"graph annotation OldType\"))"), std::string::npos);
         EXPECT_NE(first_contents.str().find("Bind(Type = NewType(\"param annotation OldType\"))"), std::string::npos);
         EXPECT_NE(first_contents.str().find("Bind(Type = NewType(\"node annotation OldType\"))"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("Bind(Type = NewType(\"metadata annotation OldType\"))"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("let cached = NewType(\"literal OldType\");"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("in input : NewType = NewType(\"default OldType\")"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("Holder fieldInit{value = NewType(\"field OldType\")}"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("Holder rawInit{NewType(\"raw OldType\")}"), std::string::npos);
-        EXPECT_NE(first_contents.str().find("position:fieldInit.asset(NewType(\"metadata OldType\"))"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("Bind(Type = NewType(\"event annotation OldType\"))"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("const cached = new NewType"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("param input: NewType = NewType(\"default OldType\")"), std::string::npos);
+        EXPECT_NE(first_contents.str().find("value: NewType(\"field OldType\")"), std::string::npos);
         EXPECT_NE(first_contents.str().find("OldType stays string"), std::string::npos);
         EXPECT_EQ(first_contents.str().find("Bind(Type = OldType"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("let cached = OldType(\"literal OldType\");"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("in input : OldType"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("value = OldType(\"field OldType\")"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("rawInit{OldType(\"raw OldType\")}"), std::string::npos);
-        EXPECT_EQ(first_contents.str().find("asset(OldType(\"metadata OldType\"))"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("const cached = new OldType"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("param input: OldType"), std::string::npos);
+        EXPECT_EQ(first_contents.str().find("value: OldType(\"field OldType\")"), std::string::npos);
 
         std::ifstream second_in(second_file, std::ios::binary);
         std::stringstream second_contents;
         second_contents << second_in.rdbuf();
-        EXPECT_NE(second_contents.str().find("in input : NewType"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("out output : NewType"), std::string::npos);
-        EXPECT_NE(second_contents.str().find("in existing : NewType"), std::string::npos);
-        EXPECT_EQ(second_contents.str().find("in input : OldType"), std::string::npos);
-        EXPECT_EQ(second_contents.str().find("out output : OldType"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("param input: NewType"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("param output: NewType"), std::string::npos);
+        EXPECT_NE(second_contents.str().find("param existing: NewType"), std::string::npos);
+        EXPECT_EQ(second_contents.str().find("param input: OldType"), std::string::npos);
+        EXPECT_EQ(second_contents.str().find("param output: OldType"), std::string::npos);
 
         std::ifstream untouched_in(untouched_file, std::ios::binary);
         std::stringstream untouched_contents;
         untouched_contents << untouched_in.rdbuf();
-        EXPECT_NE(untouched_contents.str().find("Graph Plain"), std::string::npos);
+        EXPECT_NE(untouched_contents.str().find("graph Plain"), std::string::npos);
         EXPECT_EQ(untouched_contents.str().find("NewType"), std::string::npos);
     }
 
@@ -2549,19 +2660,24 @@ TEST(CLIEditor, ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReference
     CLIEditor editor(session);
 
     const std::string source =
-        "let cached = OldType(\"literal OldType\");\n"
-        "[Comment(\"OldType stays string\")]\n"
-        "Graph UsesTypes {\n"
-        "    in input : OldType;\n"
-        "    out output : OldType;\n"
-        "    Passthrough worker{};\n"
+        "const cached = new OldType {\n"
+        "}\n"
+        "@Comment(\"OldType stays string\")\n"
+        "graph UsesTypes {\n"
+        "    @graph.input\n"
+        "    param input: OldType;\n"
+        "    @graph.output\n"
+        "    param output: OldType;\n"
+        "    node worker {\n"
+        "        type Passthrough;\n"
+        "    }\n"
         "}\n";
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
     EXPECT_TRUE(editor.last_command_succeeded());
 
     EXPECT_TRUE(editor.execute("apply_import_type_rename " + quoted_path(declarations) + " OldType NewType deadbeefdeadbeef"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("let cached = OldType(\"literal OldType\");"), std::string::npos);
+    EXPECT_NE(session.emit().find("const cached = new OldType"), std::string::npos);
     {
         std::ifstream in(declarations, std::ios::binary);
         std::stringstream contents;
@@ -2574,22 +2690,22 @@ TEST(CLIEditor, ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReference
 
     EXPECT_TRUE(editor.execute("apply_import_type_rename " + quoted_path(declarations) + " OldType ExistingType"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("in input : OldType"), std::string::npos);
+    EXPECT_NE(session.emit().find("param input: OldType"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_import_type_rename " + quoted_path(declarations) + " OldType Graph"));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("out output : OldType"), std::string::npos);
+    EXPECT_NE(session.emit().find("param output: OldType"), std::string::npos);
 
     EXPECT_TRUE(editor.execute("apply_import_type_rename " + quoted_path(declarations) + " OldType NewType"));
     EXPECT_TRUE(editor.last_command_succeeded());
     const std::string renamed = session.emit();
-    EXPECT_NE(renamed.find("let cached = NewType(\"literal OldType\");"), std::string::npos);
-    EXPECT_NE(renamed.find("in input : NewType"), std::string::npos);
-    EXPECT_NE(renamed.find("out output : NewType"), std::string::npos);
+    EXPECT_NE(renamed.find("const cached = new NewType"), std::string::npos);
+    EXPECT_NE(renamed.find("param input: NewType"), std::string::npos);
+    EXPECT_NE(renamed.find("param output: NewType"), std::string::npos);
     EXPECT_NE(renamed.find("OldType stays string"), std::string::npos);
-    EXPECT_EQ(renamed.find("let cached = OldType(\"literal OldType\");"), std::string::npos);
-    EXPECT_EQ(renamed.find("in input : OldType"), std::string::npos);
-    EXPECT_EQ(renamed.find("out output : OldType"), std::string::npos);
+    EXPECT_EQ(renamed.find("const cached = new OldType"), std::string::npos);
+    EXPECT_EQ(renamed.find("param input: OldType"), std::string::npos);
+    EXPECT_EQ(renamed.find("param output: OldType"), std::string::npos);
 
     std::ifstream in(declarations, std::ios::binary);
     std::stringstream contents;

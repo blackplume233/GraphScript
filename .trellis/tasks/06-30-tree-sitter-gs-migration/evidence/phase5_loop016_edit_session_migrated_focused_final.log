@@ -1,0 +1,30 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = EditSession.RenameGraphMigratesGraphNodeReferencesAndKeepsPersistentId:EditSession.RenameGraphDerivedPinsMigratesCrossGraphReferencesAndKeepsPersistentIds:EditSession.StateJsonExportsGenerateSourceRanges:EditSession.GenerateAnnotationsRoundTripAndExportPersistentIds:EditSession.StateJsonExportsStableElementIds:EditSession.LogicBlockAnnotationsRoundTripAndExportPersistentIds:EditSession.ConnectionAnnotationsRoundTripAndExportPersistentIds:EditSession.TopLevelAnnotationsRoundTripAndExportPersistentIds:EditSession.StateJsonExportsElementSourceRanges:EditSession.LoadSourceReplacesModuleAtomically
+[==========] Running 10 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 10 tests from EditSession
+[ RUN      ] EditSession.RenameGraphMigratesGraphNodeReferencesAndKeepsPersistentId
+[       OK ] EditSession.RenameGraphMigratesGraphNodeReferencesAndKeepsPersistentId (1 ms)
+[ RUN      ] EditSession.RenameGraphDerivedPinsMigratesCrossGraphReferencesAndKeepsPersistentIds
+[       OK ] EditSession.RenameGraphDerivedPinsMigratesCrossGraphReferencesAndKeepsPersistentIds (0 ms)
+[ RUN      ] EditSession.StateJsonExportsGenerateSourceRanges
+[       OK ] EditSession.StateJsonExportsGenerateSourceRanges (0 ms)
+[ RUN      ] EditSession.GenerateAnnotationsRoundTripAndExportPersistentIds
+[       OK ] EditSession.GenerateAnnotationsRoundTripAndExportPersistentIds (1 ms)
+[ RUN      ] EditSession.StateJsonExportsStableElementIds
+[       OK ] EditSession.StateJsonExportsStableElementIds (1 ms)
+[ RUN      ] EditSession.LogicBlockAnnotationsRoundTripAndExportPersistentIds
+[       OK ] EditSession.LogicBlockAnnotationsRoundTripAndExportPersistentIds (0 ms)
+[ RUN      ] EditSession.ConnectionAnnotationsRoundTripAndExportPersistentIds
+[       OK ] EditSession.ConnectionAnnotationsRoundTripAndExportPersistentIds (0 ms)
+[ RUN      ] EditSession.TopLevelAnnotationsRoundTripAndExportPersistentIds
+[       OK ] EditSession.TopLevelAnnotationsRoundTripAndExportPersistentIds (1 ms)
+[ RUN      ] EditSession.StateJsonExportsElementSourceRanges
+[       OK ] EditSession.StateJsonExportsElementSourceRanges (1 ms)
+[ RUN      ] EditSession.LoadSourceReplacesModuleAtomically
+[       OK ] EditSession.LoadSourceReplacesModuleAtomically (0 ms)
+[----------] 10 tests from EditSession (10 ms total)
+
+[----------] Global test environment tear-down
+[==========] 10 tests from 1 test suite ran. (10 ms total)
+[  PASSED  ] 10 tests.

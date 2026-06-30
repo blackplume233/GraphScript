@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -60,6 +61,7 @@ struct Attribute {
 
 struct ImportDecl {
     std::string path;
+    std::vector<Attribute> attributes;
     TextSpan span;
     TextSpan path_span;
 };
@@ -71,6 +73,7 @@ struct ParameterDecl {
     bool has_default = false;
     TextSpan span;
     TextSpan name_span;
+    TextSpan type_span;
 };
 
 struct ModuleDecl {
@@ -199,6 +202,7 @@ struct ConstObject {
     std::vector<Attribute> attributes;
     TextSpan span;
     TextSpan alias_span;
+    TextSpan type_span;
     size_t body_start_offset = 0;
     size_t body_end_offset = 0;
 };
@@ -222,6 +226,7 @@ struct Block {
     std::vector<Attribute> attributes;
     TextSpan span;
     TextSpan name_span;
+    TextSpan type_span;
     size_t body_start_offset = 0;
     size_t body_end_offset = 0;
     ItemContainer items;
@@ -345,7 +350,10 @@ struct FlowNode {
     std::string type;
     std::vector<Property> properties;
     std::vector<PinDefinition> pins;
+    std::vector<Attribute> attributes;
     TextSpan span;
+    TextSpan alias_span;
+    TextSpan type_span;
 };
 
 struct GraphParameter {
@@ -356,20 +364,28 @@ struct GraphParameter {
     bool has_default = false;
     std::vector<Attribute> attributes;
     TextSpan span;
+    TextSpan name_span;
+    TextSpan type_span;
 };
 
 struct FlowEdge {
     std::string from;
     std::string to;
     bool valid = true;
+    std::vector<Attribute> attributes;
     TextSpan span;
+    TextSpan from_span;
+    TextSpan to_span;
 };
 
 struct FlowDataEdge {
     std::string source;
     std::string target;
     bool valid = true;
+    std::vector<Attribute> attributes;
     TextSpan span;
+    TextSpan source_span;
+    TextSpan target_span;
 };
 
 struct FlowBlock {
@@ -377,6 +393,36 @@ struct FlowBlock {
     std::string name;
     std::vector<FlowEdge> edges;
     std::vector<FlowDataEdge> data_edges;
+    std::vector<Attribute> attributes;
+    TextSpan span;
+    TextSpan name_span;
+};
+
+struct FlowGenerateComment {
+    std::string instance;
+    std::string text;
+    std::vector<Attribute> attributes;
+    TextSpan span;
+    TextSpan instance_span;
+    TextSpan text_span;
+};
+
+struct FlowGenerateMetadata {
+    std::string scope;
+    std::string node;
+    std::string property;
+    Expression value;
+    std::vector<Attribute> attributes;
+    TextSpan span;
+    TextSpan scope_span;
+    TextSpan node_span;
+    TextSpan property_span;
+    TextSpan value_span;
+};
+
+struct FlowGenerateBlock {
+    std::vector<FlowGenerateComment> comments;
+    std::vector<FlowGenerateMetadata> metadata;
     TextSpan span;
 };
 
@@ -385,12 +431,17 @@ struct FlowGraph {
     std::string schema;
     std::vector<GraphParameter> parameters;
     std::vector<FlowNode> nodes;
+    std::vector<Attribute> attributes;
     // Canonical flattened edges for whole-graph consumers. FlowBlock keeps the
     // same source edges grouped by event/function/entry block for editor views.
     std::vector<FlowEdge> edges;
     std::vector<FlowDataEdge> data_edges;
     std::vector<FlowBlock> blocks;
+    std::optional<FlowGenerateBlock> generate;
     std::vector<Diagnostic> diagnostics;
+    TextSpan span;
+    TextSpan name_span;
+    TextSpan schema_span;
 };
 
 class FlowGraphProjector {

@@ -1,10 +1,7 @@
 #include "editor.h"
 #include "source_diagnostics.h"
 #include "graphscript/asset/language.h"
-#include "graphscript/compile/compiler.h"
 #include "graphscript/emit/emitter.h"
-#include "graphscript/parse/lexer.h"
-#include "graphscript/parse/parser.h"
 #include "graphscript/runtime/runtime_graph.h"
 #include <iostream>
 #include <sstream>
@@ -274,18 +271,114 @@ static Result<std::string, std::string> apply_source_patch_records(
     return Result<std::string, std::string>::ok(patched);
 }
 
-static SourceLocation identifier_end_location(const Token& token) {
-    SourceLocation end = token.location;
-    end.column += static_cast<uint32_t>(token.text.size());
-    return end;
+static bool is_identifier_text(const std::string& text) {
+    if (text.empty()) return false;
+    static const std::unordered_set<std::string> reserved = {
+        "Graph", "event", "function", "generate", "import", "let", "declare",
+        "graph", "node", "schema", "type", "param", "const", "new", "export"
+    };
+    if (reserved.count(text)) return false;
+    const unsigned char first = static_cast<unsigned char>(text.front());
+    if (!std::isalpha(first) && text.front() != '_') return false;
+    for (char c : text) {
+        const unsigned char ch = static_cast<unsigned char>(c);
+        if (!std::isalnum(ch) && c != '_') return false;
+    }
+    return true;
 }
 
-static bool is_identifier_text(const std::string& text) {
-    auto tokens = Lexer(text).tokenize();
-    return tokens.size() == 2 &&
-           tokens[0].type == TokenType::Identifier &&
-           tokens[0].text == text &&
-           tokens[1].type == TokenType::EndOfFile;
+static bool is_identifier_char(char c) {
+    const unsigned char ch = static_cast<unsigned char>(c);
+    return std::isalnum(ch) || c == '_';
+}
+
+static std::vector<SourcePatchRecord> collect_identifier_occurrence_patches(
+    const std::string& source,
+    const std::string& old_name,
+    const std::string& new_name) {
+    std::vector<SourcePatchRecord> records;
+    SourceLocation location;
+    bool in_string = false;
+    bool in_line_comment = false;
+    bool in_block_comment = false;
+
+    for (size_t i = 0; i < source.size();) {
+        const char c = source[i];
+        const char next = i + 1 < source.size() ? source[i + 1] : '\0';
+
+        auto advance = [&]() {
+            if (source[i] == '\r') {
+                if (i + 1 < source.size() && source[i + 1] == '\n') ++i;
+                ++location.line;
+                location.column = 1;
+            } else if (source[i] == '\n') {
+                ++location.line;
+                location.column = 1;
+            } else {
+                ++location.column;
+            }
+            ++i;
+        };
+
+        if (in_line_comment) {
+            if (c == '\r' || c == '\n') in_line_comment = false;
+            advance();
+            continue;
+        }
+        if (in_block_comment) {
+            if (c == '*' && next == '/') {
+                advance();
+                advance();
+                in_block_comment = false;
+                continue;
+            }
+            advance();
+            continue;
+        }
+        if (in_string) {
+            if (c == '\\' && next != '\0') {
+                advance();
+                advance();
+                continue;
+            }
+            if (c == '"') in_string = false;
+            advance();
+            continue;
+        }
+        if (c == '/' && next == '/') {
+            advance();
+            advance();
+            in_line_comment = true;
+            continue;
+        }
+        if (c == '/' && next == '*') {
+            advance();
+            advance();
+            in_block_comment = true;
+            continue;
+        }
+        if (c == '"') {
+            in_string = true;
+            advance();
+            continue;
+        }
+        if (is_identifier_char(c)) {
+            const size_t start = i;
+            const SourceLocation start_location = location;
+            while (i < source.size() && is_identifier_char(source[i])) advance();
+            const std::string ident = source.substr(start, i - start);
+            if (ident == old_name) {
+                SourcePatchRecord record;
+                record.range.start = start_location;
+                record.range.end = location;
+                record.replacement = new_name;
+                records.push_back(std::move(record));
+            }
+            continue;
+        }
+        advance();
+    }
+    return records;
 }
 
 static Result<std::vector<SourcePatchRecord>, std::string> build_identifier_rename_patches(
@@ -302,20 +395,7 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_identifier_rena
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Source identifier rename must change the name");
     }
 
-    std::vector<SourcePatchRecord> records;
-    auto tokens = Lexer(source).tokenize();
-    for (const auto& token : tokens) {
-        if (token.type == TokenType::Error) {
-            return Result<std::vector<SourcePatchRecord>, std::string>::err("Cannot rename identifiers in invalid source");
-        }
-        if (token.type != TokenType::Identifier || token.text != old_name) continue;
-
-        SourcePatchRecord record;
-        record.range.start = token.location;
-        record.range.end = identifier_end_location(token);
-        record.replacement = new_name;
-        records.push_back(record);
-    }
+    auto records = collect_identifier_occurrence_patches(source, old_name, new_name);
 
     if (records.empty()) {
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Source identifier rename found no matches");
@@ -1586,12 +1666,6 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_optional_type_r
     return Result<std::vector<SourcePatchRecord>, std::string>::ok(records);
 }
 
-static void unregister_declared_native_nodes(Environment& env, const ModuleNode& declaration_ast) {
-    for (const auto& node : declaration_ast.declare_nodes) {
-        env.nodes().unregister_node(node->name);
-    }
-}
-
 static void unregister_asset_declarations_from_env(Environment& env,
                                                    const asset::Module& module,
                                                    const std::string& source_name) {
@@ -1633,19 +1707,12 @@ static Result<Module, std::string> compile_source_for_ranges(
     const std::string& source,
     Environment& env,
     const std::string& source_name) {
-    Lexer lexer(source);
-    Parser parser(lexer.tokenize());
-    auto ast = parser.parse();
-    if (ast.is_err()) {
-        return Result<Module, std::string>::err("Parse error in emitted source");
+    EditSession temp_session(env);
+    auto loaded = temp_session.load_source(source, source_name);
+    if (loaded.is_err()) {
+        return Result<Module, std::string>::err("Asset source error: " + loaded.error());
     }
-
-    Compiler compiler(env);
-    auto compiled = compiler.compile(*ast.value(), source_name);
-    if (compiled.is_err()) {
-        return Result<Module, std::string>::err("Compile error in emitted source: " + compiled.error());
-    }
-    return compiled;
+    return Result<Module, std::string>::ok(temp_session.module());
 }
 
 static const Graph* find_graph_by_name(const Module& module, const std::string& name) {

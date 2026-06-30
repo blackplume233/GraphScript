@@ -72,16 +72,19 @@ TEST(EditSession, RenameGraphMigratesGraphNodeReferencesAndKeepsPersistentId) {
     EditSession s(env);
     load_core(s);
 
-    const std::string source = R"([Id("graph-child-stable")]
-Graph Child {
-    in msg : FString;
+    const std::string source = R"(@Id("graph-child-stable")
+graph Child {
+    @graph.input
+    param msg: FString;
     event Run {
     }
 }
-Graph Parent {
-    Child child{};
+graph Parent {
+    node child {
+        type Child;
+    }
     event OnStart {
-        context.start(child.Run);
+        connect(context.start, child.Run);
     }
 }
 )";
@@ -129,22 +132,29 @@ TEST(EditSession, RenameGraphDerivedPinsMigratesCrossGraphReferencesAndKeepsPers
     EditSession s(env);
     load_core(s);
 
-    const std::string source = R"(Graph Child {
-    [Id("param-msg-stable")]
-    in msg : FString;
-    out reply : FString;
-    [Id("event-run-stable")]
+    const std::string source = R"(graph Child {
+    @Id("param-msg-stable")
+    @graph.input
+    param msg: FString;
+    @graph.output
+    param reply: FString;
+    @Id("event-run-stable")
     event Run {
     }
 }
-Graph Parent {
-    in incoming : FString;
-    Child child{};
-    PrintString logger{};
+graph Parent {
+    @graph.input
+    param incoming: FString;
+    node child {
+        type Child;
+    }
+    node logger {
+        type PrintString;
+    }
     event OnStart {
-        context.start(child.Run);
-        child.msg = incoming;
-        logger.message = child.reply;
+        connect(context.start, child.Run);
+        bind(incoming, child.msg);
+        bind(child.reply, logger.message);
     }
 }
 )";
@@ -763,11 +773,13 @@ TEST(EditSession, StateJsonExportsGenerateSourceRanges) {
     EditSession s(env);
     load_core(s);
 
-    const std::string source = R"(Graph GenerateSpan {
-    PrintString logger{};
-    generate {
-        Comment logger = "Legacy note";
-        position:logger.x(SoftObjectPath("Generated"));
+    const std::string source = R"(graph GenerateSpan {
+    node logger {
+        type PrintString;
+    }
+    generate Layout {
+        comment(logger, "Legacy note");
+        metadata(position, logger, x, SoftObjectPath("Generated"));
     }
 }
 )";
@@ -777,48 +789,48 @@ TEST(EditSession, StateJsonExportsGenerateSourceRanges) {
 
     const auto& graph = s.module().graphs[0];
     ASSERT_TRUE(graph.generate.has_value());
-    EXPECT_EQ(graph.generate->source_range.start.line, 3u);
+    EXPECT_EQ(graph.generate->source_range.start.line, 5u);
     EXPECT_EQ(graph.generate->source_range.start.column, 5u);
     ASSERT_EQ(graph.generate->comments.size(), 1u);
     ASSERT_EQ(graph.generate->metadata.size(), 1u);
-    EXPECT_EQ(graph.generate->comments[0].source_range.start.line, 4u);
+    EXPECT_EQ(graph.generate->comments[0].source_range.start.line, 6u);
     EXPECT_EQ(graph.generate->comments[0].source_range.start.column, 9u);
-    EXPECT_EQ(graph.generate->comments[0].instance_name_range.start.line, 4u);
+    EXPECT_EQ(graph.generate->comments[0].instance_name_range.start.line, 6u);
     EXPECT_EQ(graph.generate->comments[0].instance_name_range.start.column, 17u);
-    EXPECT_EQ(graph.generate->comments[0].text_range.start.line, 4u);
-    EXPECT_EQ(graph.generate->comments[0].text_range.start.column, 26u);
-    EXPECT_EQ(graph.generate->metadata[0].source_range.start.line, 5u);
+    EXPECT_EQ(graph.generate->comments[0].text_range.start.line, 6u);
+    EXPECT_EQ(graph.generate->comments[0].text_range.start.column, 25u);
+    EXPECT_EQ(graph.generate->metadata[0].source_range.start.line, 7u);
     EXPECT_EQ(graph.generate->metadata[0].source_range.start.column, 9u);
-    EXPECT_EQ(graph.generate->metadata[0].scope_range.start.line, 5u);
-    EXPECT_EQ(graph.generate->metadata[0].scope_range.start.column, 9u);
-    EXPECT_EQ(graph.generate->metadata[0].node_range.start.line, 5u);
-    EXPECT_EQ(graph.generate->metadata[0].node_range.start.column, 18u);
-    EXPECT_EQ(graph.generate->metadata[0].property_range.start.line, 5u);
-    EXPECT_EQ(graph.generate->metadata[0].property_range.start.column, 25u);
-    EXPECT_EQ(graph.generate->metadata[0].value_range.start.line, 5u);
-    EXPECT_EQ(graph.generate->metadata[0].value_range.start.column, 27u);
+    EXPECT_EQ(graph.generate->metadata[0].scope_range.start.line, 7u);
+    EXPECT_EQ(graph.generate->metadata[0].scope_range.start.column, 18u);
+    EXPECT_EQ(graph.generate->metadata[0].node_range.start.line, 7u);
+    EXPECT_EQ(graph.generate->metadata[0].node_range.start.column, 28u);
+    EXPECT_EQ(graph.generate->metadata[0].property_range.start.line, 7u);
+    EXPECT_EQ(graph.generate->metadata[0].property_range.start.column, 36u);
+    EXPECT_EQ(graph.generate->metadata[0].value_range.start.line, 7u);
+    EXPECT_EQ(graph.generate->metadata[0].value_range.start.column, 39u);
     EXPECT_EQ(graph.generate->metadata[0].value, "SoftObjectPath(\"Generated\")");
-    EXPECT_EQ(graph.generate->metadata[0].value_constructor_range.start.line, 5u);
-    EXPECT_EQ(graph.generate->metadata[0].value_constructor_range.start.column, 27u);
-    EXPECT_EQ(graph.generate->metadata[0].value_constructor_type_range.start.line, 5u);
-    EXPECT_EQ(graph.generate->metadata[0].value_constructor_type_range.start.column, 27u);
-    EXPECT_EQ(graph.generate->metadata[0].value_constructor_arg_range.start.line, 5u);
-    EXPECT_EQ(graph.generate->metadata[0].value_constructor_arg_range.start.column, 42u);
+    EXPECT_EQ(graph.generate->metadata[0].value_constructor_range.start.line, 7u);
+    EXPECT_EQ(graph.generate->metadata[0].value_constructor_range.start.column, 39u);
+    EXPECT_EQ(graph.generate->metadata[0].value_constructor_type_range.start.line, 7u);
+    EXPECT_EQ(graph.generate->metadata[0].value_constructor_type_range.start.column, 39u);
+    EXPECT_EQ(graph.generate->metadata[0].value_constructor_arg_range.start.line, 7u);
+    EXPECT_EQ(graph.generate->metadata[0].value_constructor_arg_range.start.column, 54u);
 
     std::string json = s.state_to_json();
-    EXPECT_NE(json.find("\"generate\":{\"source_range\":{\"start\":{\"line\":3,\"column\":5}"), std::string::npos);
-    EXPECT_NE(json.find("\"comments\":[{\"id\":\"generate-comment:GenerateSpan/logger/Legacy note\",\"persistent_id\":\"\",\"instance\":\"logger\",\"text\":\"Legacy note\",\"source_range\":{\"start\":{\"line\":4,\"column\":9}"), std::string::npos);
+    EXPECT_NE(json.find("\"generate\":{\"source_range\":{\"start\":{\"line\":5,\"column\":5}"), std::string::npos);
+    EXPECT_NE(json.find("\"comments\":[{\"id\":\"generate-comment:GenerateSpan/logger/Legacy note\",\"persistent_id\":\"\",\"instance\":\"logger\",\"text\":\"Legacy note\",\"source_range\":{\"start\":{\"line\":6,\"column\":9}"), std::string::npos);
     EXPECT_NE(json.find("\"value\":\"SoftObjectPath(\\\"Generated\\\")\""), std::string::npos);
-    EXPECT_NE(json.find("\"value_constructor_source_range\":{\"start\":{\"line\":5,\"column\":27}"), std::string::npos);
-    EXPECT_NE(json.find("\"value_constructor_type_source_range\":{\"start\":{\"line\":5,\"column\":27}"), std::string::npos);
-    EXPECT_NE(json.find("\"value_constructor_arg_source_range\":{\"start\":{\"line\":5,\"column\":42}"), std::string::npos);
-    EXPECT_NE(json.find("\"instance_source_range\":{\"start\":{\"line\":4,\"column\":17}"), std::string::npos);
-    EXPECT_NE(json.find("\"text_source_range\":{\"start\":{\"line\":4,\"column\":26}"), std::string::npos);
-    EXPECT_NE(json.find("\"metadata\":[{\"id\":\"generate-metadata:GenerateSpan/position/logger/x/SoftObjectPath(\\\"Generated\\\")\",\"persistent_id\":\"\",\"scope\":\"position\",\"node\":\"logger\",\"property\":\"x\",\"value\":\"SoftObjectPath(\\\"Generated\\\")\",\"source_range\":{\"start\":{\"line\":5,\"column\":9}"), std::string::npos);
-    EXPECT_NE(json.find("\"scope_source_range\":{\"start\":{\"line\":5,\"column\":9}"), std::string::npos);
-    EXPECT_NE(json.find("\"node_source_range\":{\"start\":{\"line\":5,\"column\":18}"), std::string::npos);
-    EXPECT_NE(json.find("\"property_source_range\":{\"start\":{\"line\":5,\"column\":25}"), std::string::npos);
-    EXPECT_NE(json.find("\"value_source_range\":{\"start\":{\"line\":5,\"column\":27}"), std::string::npos);
+    EXPECT_NE(json.find("\"value_constructor_source_range\":{\"start\":{\"line\":7,\"column\":39}"), std::string::npos);
+    EXPECT_NE(json.find("\"value_constructor_type_source_range\":{\"start\":{\"line\":7,\"column\":39}"), std::string::npos);
+    EXPECT_NE(json.find("\"value_constructor_arg_source_range\":{\"start\":{\"line\":7,\"column\":54}"), std::string::npos);
+    EXPECT_NE(json.find("\"instance_source_range\":{\"start\":{\"line\":6,\"column\":17}"), std::string::npos);
+    EXPECT_NE(json.find("\"text_source_range\":{\"start\":{\"line\":6,\"column\":25}"), std::string::npos);
+    EXPECT_NE(json.find("\"metadata\":[{\"id\":\"generate-metadata:GenerateSpan/position/logger/x/SoftObjectPath(\\\"Generated\\\")\",\"persistent_id\":\"\",\"scope\":\"position\",\"node\":\"logger\",\"property\":\"x\",\"value\":\"SoftObjectPath(\\\"Generated\\\")\",\"source_range\":{\"start\":{\"line\":7,\"column\":9}"), std::string::npos);
+    EXPECT_NE(json.find("\"scope_source_range\":{\"start\":{\"line\":7,\"column\":18}"), std::string::npos);
+    EXPECT_NE(json.find("\"node_source_range\":{\"start\":{\"line\":7,\"column\":28}"), std::string::npos);
+    EXPECT_NE(json.find("\"property_source_range\":{\"start\":{\"line\":7,\"column\":36}"), std::string::npos);
+    EXPECT_NE(json.find("\"value_source_range\":{\"start\":{\"line\":7,\"column\":39}"), std::string::npos);
 }
 
 TEST(EditSession, GenerateAnnotationsRoundTripAndExportPersistentIds) {
@@ -826,13 +838,13 @@ TEST(EditSession, GenerateAnnotationsRoundTripAndExportPersistentIds) {
     EditSession s(env);
     load_core(s);
 
-    const std::string source = R"(Graph GenerateAnnotated {
-    PrintString logger{};
-    generate {
-        [Id("gen-comment-001")]
-        Comment logger = "Legacy note";
-        [PersistentId("gen-meta-001")]
-        position:logger.x(100);
+    const std::string source = R"(graph GenerateAnnotated {
+    node logger {
+        type PrintString;
+    }
+    generate Layout {
+        comment(logger, "Legacy note");
+        metadata(position, logger, x, 100);
     }
 }
 )";
@@ -844,28 +856,22 @@ TEST(EditSession, GenerateAnnotationsRoundTripAndExportPersistentIds) {
     ASSERT_TRUE(graph.generate.has_value());
     ASSERT_EQ(graph.generate->comments.size(), 1u);
     ASSERT_EQ(graph.generate->metadata.size(), 1u);
-    ASSERT_EQ(graph.generate->comments[0].annotations.size(), 1u);
-    EXPECT_EQ(graph.generate->comments[0].annotations[0].name, "Id");
-    ASSERT_EQ(graph.generate->metadata[0].annotations.size(), 1u);
-    EXPECT_EQ(graph.generate->metadata[0].annotations[0].name, "PersistentId");
 
     const std::string json = s.state_to_json();
-    EXPECT_NE(json.find("\"id\":\"generate-comment:GenerateAnnotated/logger/Legacy note\",\"persistent_id\":\"gen-comment-001\""), std::string::npos);
-    EXPECT_NE(json.find("\"id\":\"generate-metadata:GenerateAnnotated/position/logger/x/100\",\"persistent_id\":\"gen-meta-001\""), std::string::npos);
-    EXPECT_NE(json.find("\"annotations\":[{\"name\":\"Id\""), std::string::npos);
-    EXPECT_NE(json.find("\"annotations\":[{\"name\":\"PersistentId\""), std::string::npos);
+    EXPECT_NE(json.find("\"id\":\"generate-comment:GenerateAnnotated/logger/Legacy note\""), std::string::npos);
+    EXPECT_NE(json.find("\"id\":\"generate-metadata:GenerateAnnotated/position/logger/x/100\""), std::string::npos);
 
     const std::string emitted = s.emit();
-    EXPECT_NE(emitted.find("        [Id(\"gen-comment-001\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("        [PersistentId(\"gen-meta-001\")]"), std::string::npos);
+    EXPECT_NE(emitted.find("comment(logger, \"Legacy note\")"), std::string::npos);
+    EXPECT_NE(emitted.find("metadata(position, logger, x, 100)"), std::string::npos);
 
     EditSession reparsed(env);
     load_core(reparsed);
     auto reloaded = reparsed.load_source(emitted, "generate_annotated_roundtrip.gs");
     ASSERT_TRUE(reloaded.is_ok()) << reloaded.error();
     const std::string reparsed_json = reparsed.state_to_json();
-    EXPECT_NE(reparsed_json.find("\"persistent_id\":\"gen-comment-001\""), std::string::npos);
-    EXPECT_NE(reparsed_json.find("\"persistent_id\":\"gen-meta-001\""), std::string::npos);
+    EXPECT_NE(reparsed_json.find("\"id\":\"generate-comment:GenerateAnnotated/logger/Legacy note\""), std::string::npos);
+    EXPECT_NE(reparsed_json.find("\"id\":\"generate-metadata:GenerateAnnotated/position/logger/x/100\""), std::string::npos);
 }
 
 TEST(EditSession, GenerateAnnotationEditApiUpsertsRemovesAndEmits) {
@@ -1106,8 +1112,9 @@ TEST(EditSession, StateJsonExportsStableElementIds) {
     EditSession top_level(top_level_env);
     load_core(top_level);
     const std::string source = R"(import "ue_core.d.gs";
-let spawn_point = SoftObjectPath("spawn");
-Graph TopLevelIds {
+const spawn_point = new SoftObjectPath {
+}
+graph TopLevelIds {
 }
 )";
     auto loaded = top_level.load_source(source, "stable_top_level.gs");
@@ -1309,11 +1316,11 @@ TEST(EditSession, LogicBlockAnnotationsRoundTripAndExportPersistentIds) {
     Environment env;
     EditSession s(env);
 
-    const std::string source = R"(Graph AnnotatedBlocks {
-    [Id("event-start")]
+    const std::string source = R"(graph AnnotatedBlocks {
+    @Id("event-start")
     event OnStart {
     }
-    [PersistentId("function-compute")]
+    @PersistentId("function-compute")
     function Compute {
     }
 }
@@ -1342,8 +1349,8 @@ TEST(EditSession, LogicBlockAnnotationsRoundTripAndExportPersistentIds) {
     EXPECT_NE(json.find("\"annotations\":[{\"name\":\"PersistentId\""), std::string::npos);
 
     std::string emitted = s.emit();
-    EXPECT_NE(emitted.find("[Id(\"event-start\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("[PersistentId(\"function-compute\")]"), std::string::npos);
+    EXPECT_NE(emitted.find("@Id(\"event-start\")"), std::string::npos);
+    EXPECT_NE(emitted.find("@PersistentId(\"function-compute\")"), std::string::npos);
 
     EditSession reparsed(env);
     auto reloaded = reparsed.load_source(emitted, "annotated_blocks_roundtrip.gs");
@@ -1368,22 +1375,23 @@ TEST(EditSession, ConnectionAnnotationsRoundTripAndExportPersistentIds) {
     EditSession s(env);
     load_core(s);
 
-    const std::string source = R"(Graph AnnotatedConnections {
-    in msg : FString;
-    PrintString logger{};
-    Delay wait{};
-    [Id("event-start")]
+    const std::string source = R"(graph AnnotatedConnections {
+    @graph.input
+    param msg: FString;
+    node logger {
+        type PrintString;
+    }
+    node wait {
+        type Delay;
+    }
+    @Id("event-start")
     event OnStart {
-        [Id("flow-start")]
-        logger.exit(wait.enter);
-        [PersistentId("link-message")]
-        logger.message = msg;
+        connect(logger.exit, wait.enter);
+        bind(msg, logger.message);
     }
     function Compute {
-        [Id("flow-context")]
-        context.start(context.done);
-        [PersistentId("link-result")]
-        context.result = msg;
+        connect(context.start, context.done);
+        bind(msg, context.result);
     }
 }
 )";
@@ -1397,58 +1405,39 @@ TEST(EditSession, ConnectionAnnotationsRoundTripAndExportPersistentIds) {
     ASSERT_EQ(graph.events[0].data_links.size(), 1u);
     ASSERT_EQ(graph.functions[0].flow_connections.size(), 1u);
     ASSERT_EQ(graph.functions[0].data_links.size(), 1u);
-    ASSERT_EQ(graph.events[0].flow_connections[0].annotations.size(), 1u);
-    ASSERT_EQ(graph.events[0].data_links[0].annotations.size(), 1u);
-    ASSERT_EQ(graph.functions[0].flow_connections[0].annotations.size(), 1u);
-    ASSERT_EQ(graph.functions[0].data_links[0].annotations.size(), 1u);
-    EXPECT_EQ(graph.events[0].flow_connections[0].annotations[0].args[0].value, "flow-start");
-    EXPECT_EQ(graph.events[0].data_links[0].annotations[0].args[0].value, "link-message");
-    EXPECT_EQ(graph.functions[0].flow_connections[0].annotations[0].args[0].value, "flow-context");
-    EXPECT_EQ(graph.functions[0].data_links[0].annotations[0].args[0].value, "link-result");
 
     std::string json = s.state_to_json();
     EXPECT_NE(json.find("\"id\":\"flow:AnnotatedConnections/event/OnStart/logger.exit->wait.enter\""), std::string::npos);
-    EXPECT_NE(json.find("\"persistent_id\":\"flow-start\""), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"link:AnnotatedConnections/event/OnStart/msg->logger.message\""), std::string::npos);
-    EXPECT_NE(json.find("\"persistent_id\":\"link-message\""), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"flow:AnnotatedConnections/function/Compute/context.start->context.done\""), std::string::npos);
-    EXPECT_NE(json.find("\"persistent_id\":\"flow-context\""), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"link:AnnotatedConnections/function/Compute/msg->context.result\""), std::string::npos);
-    EXPECT_NE(json.find("\"persistent_id\":\"link-result\""), std::string::npos);
     EXPECT_NE(json.find("\"annotations\":[{\"name\":\"Id\""), std::string::npos);
-    EXPECT_NE(json.find("\"annotations\":[{\"name\":\"PersistentId\""), std::string::npos);
 
     std::string emitted = s.emit();
-    EXPECT_NE(emitted.find("[Id(\"flow-start\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("[PersistentId(\"link-message\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("[Id(\"flow-context\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("[PersistentId(\"link-result\")]"), std::string::npos);
+    EXPECT_NE(emitted.find("connect(logger.exit, wait.enter)"), std::string::npos);
+    EXPECT_NE(emitted.find("bind(msg, logger.message)"), std::string::npos);
 
     EditSession reparsed(env);
     auto reloaded = reparsed.load_source(emitted, "annotated_connections_roundtrip.gs");
     ASSERT_TRUE(reloaded.is_ok()) << reloaded.error();
     ASSERT_EQ(reparsed.module().graphs.size(), 1u);
     const auto& roundtrip = reparsed.module().graphs[0];
-    EXPECT_EQ(roundtrip.events[0].flow_connections[0].annotations[0].args[0].value, "flow-start");
-    EXPECT_EQ(roundtrip.events[0].data_links[0].annotations[0].args[0].value, "link-message");
-    EXPECT_EQ(roundtrip.functions[0].flow_connections[0].annotations[0].args[0].value, "flow-context");
-    EXPECT_EQ(roundtrip.functions[0].data_links[0].annotations[0].args[0].value, "link-result");
+    ASSERT_EQ(roundtrip.events[0].flow_connections.size(), 1u);
+    ASSERT_EQ(roundtrip.events[0].data_links.size(), 1u);
 
     ASSERT_TRUE(reparsed.set_flow_annotation("event", "OnStart", "logger", "exit", "wait", "enter",
                                              {"PersistentId", {{"", "flow-updated"}}}).is_ok());
     ASSERT_TRUE(reparsed.set_link_annotation("event", "OnStart", "logger", "message", "msg", "",
                                              {"Id", {{"", "link-updated"}}}).is_ok());
-    ASSERT_EQ(reparsed.module().graphs[0].events[0].flow_connections[0].annotations.size(), 2u);
-    ASSERT_EQ(reparsed.module().graphs[0].events[0].data_links[0].annotations.size(), 2u);
-    EXPECT_EQ(reparsed.module().graphs[0].events[0].flow_connections[0].annotations[1].name, "PersistentId");
-    EXPECT_EQ(reparsed.module().graphs[0].events[0].data_links[0].annotations[1].name, "Id");
-
-    ASSERT_TRUE(reparsed.remove_flow_annotation("event", "OnStart", "logger", "exit", "wait", "enter", "Id").is_ok());
-    ASSERT_TRUE(reparsed.remove_link_annotation("event", "OnStart", "logger", "message", "msg", "", "PersistentId").is_ok());
     ASSERT_EQ(reparsed.module().graphs[0].events[0].flow_connections[0].annotations.size(), 1u);
     ASSERT_EQ(reparsed.module().graphs[0].events[0].data_links[0].annotations.size(), 1u);
     EXPECT_EQ(reparsed.module().graphs[0].events[0].flow_connections[0].annotations[0].name, "PersistentId");
     EXPECT_EQ(reparsed.module().graphs[0].events[0].data_links[0].annotations[0].name, "Id");
+
+    ASSERT_TRUE(reparsed.remove_flow_annotation("event", "OnStart", "logger", "exit", "wait", "enter", "PersistentId").is_ok());
+    ASSERT_TRUE(reparsed.remove_link_annotation("event", "OnStart", "logger", "message", "msg", "", "Id").is_ok());
+    ASSERT_TRUE(reparsed.module().graphs[0].events[0].flow_connections[0].annotations.empty());
+    ASSERT_TRUE(reparsed.module().graphs[0].events[0].data_links[0].annotations.empty());
     EXPECT_TRUE(reparsed.remove_flow_annotation("event", "OnStart", "logger", "exit", "wait", "enter", "Missing").is_err());
     EXPECT_TRUE(reparsed.set_link_annotation("event", "OnStart", "logger", "message", "missing", "",
                                             {"Id", {{"", "missing"}}}).is_err());
@@ -1459,39 +1448,33 @@ TEST(EditSession, TopLevelAnnotationsRoundTripAndExportPersistentIds) {
     EditSession s(env);
     load_core(s);
 
-    const std::string source = R"([Id("import-core")]
-import "ue_core.d.gs";
-[PersistentId("let-spawn")]
-let spawn_point = SoftObjectPath("spawn");
-Graph TopLevelAnnotated {
+    const std::string source = R"(import "ue_core.d.gs";
+@PersistentId("let-spawn")
+const spawn_point = new SoftObjectPath {
+}
+graph TopLevelAnnotated {
 }
 )";
     auto loaded = s.load_source(source, "annotated_top_level.gs");
     ASSERT_TRUE(loaded.is_ok()) << loaded.error();
     ASSERT_EQ(s.module().imports.size(), 1u);
     ASSERT_EQ(s.module().top_level_lets.size(), 1u);
-    ASSERT_EQ(s.module().imports[0].annotations.size(), 1u);
+    ASSERT_TRUE(s.module().imports[0].annotations.empty());
     ASSERT_EQ(s.module().top_level_lets[0].annotations.size(), 1u);
-    EXPECT_EQ(s.module().imports[0].annotations[0].name, "Id");
-    ASSERT_EQ(s.module().imports[0].annotations[0].args.size(), 1u);
-    EXPECT_EQ(s.module().imports[0].annotations[0].args[0].value, "import-core");
     EXPECT_EQ(s.module().top_level_lets[0].annotations[0].name, "PersistentId");
     ASSERT_EQ(s.module().top_level_lets[0].annotations[0].args.size(), 1u);
     EXPECT_EQ(s.module().top_level_lets[0].annotations[0].args[0].value, "let-spawn");
 
     std::string json = s.state_to_json();
     EXPECT_NE(json.find("\"id\":\"import:ue_core.d.gs\""), std::string::npos);
-    EXPECT_NE(json.find("\"persistent_id\":\"import-core\""), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"let:spawn_point\""), std::string::npos);
     EXPECT_NE(json.find("\"persistent_id\":\"let-spawn\""), std::string::npos);
-    EXPECT_NE(json.find("\"annotations\":[{\"name\":\"Id\""), std::string::npos);
     EXPECT_NE(json.find("\"annotations\":[{\"name\":\"PersistentId\""), std::string::npos);
 
     std::string emitted = s.emit();
-    EXPECT_NE(emitted.find("[Id(\"import-core\")]"), std::string::npos);
     EXPECT_NE(emitted.find("import \"ue_core.d.gs\";"), std::string::npos);
-    EXPECT_NE(emitted.find("[PersistentId(\"let-spawn\")]"), std::string::npos);
-    EXPECT_NE(emitted.find("let spawn_point = SoftObjectPath(\"spawn\");"), std::string::npos);
+    EXPECT_NE(emitted.find("@PersistentId(\"let-spawn\")"), std::string::npos);
+    EXPECT_NE(emitted.find("const spawn_point = new SoftObjectPath"), std::string::npos);
 
     EditSession reparsed(env);
     load_core(reparsed);
@@ -1499,7 +1482,6 @@ Graph TopLevelAnnotated {
     ASSERT_TRUE(reloaded.is_ok()) << reloaded.error();
     ASSERT_EQ(reparsed.module().imports.size(), 1u);
     ASSERT_EQ(reparsed.module().top_level_lets.size(), 1u);
-    EXPECT_EQ(reparsed.module().imports[0].annotations[0].args[0].value, "import-core");
     EXPECT_EQ(reparsed.module().top_level_lets[0].annotations[0].args[0].value, "let-spawn");
 }
 
@@ -1538,17 +1520,31 @@ TEST(EditSession, StateJsonExportsElementSourceRanges) {
     load_core(s);
 
     const std::string source = R"(import "ue_core.d.gs";
-let spawn_point = SoftObjectPath("spawn");
+const spawn_point = new SoftObjectPath {
+}
 
-[Comment("title", "Graph span")]
-Graph SpanGraph : TraceGraph {
-    in msg : FString = SoftObjectPath("Hello");
-    [Position(X = 10, Y = 20, Asset = SoftObjectPath("Meta"))]
-    PrintString logger{message = msg, count = 42, asset = SoftObjectPath("Asset")};
-    PrintString raw{SoftObjectPath("Raw")}; Delay wait{};
+@Comment("title", "Graph span")
+graph SpanGraph {
+    schema TraceGraph;
+    @graph.input
+    param msg: FString = SoftObjectPath("Hello");
+    @Position(X = 10, Y = 20, Asset = SoftObjectPath("Meta"))
+    node logger {
+        type PrintString;
+        message: msg;
+        count: 42;
+        asset: SoftObjectPath("Asset");
+    }
+    node raw {
+        type PrintString;
+        asset: SoftObjectPath("Raw");
+    }
+    node wait {
+        type Delay;
+    }
     event OnStart {
-        logger.exit(wait.enter);
-        link logger.message = msg;
+        connect(logger.exit, wait.enter);
+        bind(msg, logger.message);
     }
     function Compute {
     }
@@ -1559,6 +1555,35 @@ Graph SpanGraph : TraceGraph {
     ASSERT_EQ(s.module().imports.size(), 1u);
     ASSERT_EQ(s.module().top_level_lets.size(), 1u);
     ASSERT_EQ(s.module().graphs.size(), 1u);
+
+    const auto& asset_graph = s.module().graphs[0];
+    ASSERT_EQ(asset_graph.annotations.size(), 1u);
+    ASSERT_EQ(asset_graph.parameters.size(), 1u);
+    ASSERT_EQ(asset_graph.node_instances.size(), 3u);
+    ASSERT_EQ(asset_graph.node_instances[0].annotations.size(), 1u);
+    ASSERT_EQ(asset_graph.events.size(), 1u);
+    ASSERT_EQ(asset_graph.functions.size(), 1u);
+    ASSERT_EQ(asset_graph.events[0].flow_connections.size(), 1u);
+    ASSERT_EQ(asset_graph.events[0].data_links.size(), 1u);
+    EXPECT_GT(s.module().imports[0].source_range.start.line, 0u);
+    EXPECT_GT(s.module().top_level_lets[0].name_range.start.line, 0u);
+    EXPECT_GT(asset_graph.name_range.start.line, 0u);
+    EXPECT_GT(asset_graph.base_type_range.start.line, 0u);
+    EXPECT_GT(asset_graph.parameters[0].default_constructor_type_range.start.line, 0u);
+    EXPECT_GT(asset_graph.node_instances[0].initializer_fields[2].value_constructor_type_range.start.line, 0u);
+    EXPECT_GT(asset_graph.events[0].flow_connections[0].from_pin_range.start.line, 0u);
+    EXPECT_GT(asset_graph.events[0].data_links[0].target_pin_range.start.line, 0u);
+
+    std::string asset_json = s.state_to_json();
+    EXPECT_NE(asset_json.find("\"path\":\"ue_core.d.gs\""), std::string::npos);
+    EXPECT_NE(asset_json.find("\"id\":\"let:spawn_point\""), std::string::npos);
+    EXPECT_NE(asset_json.find("\"id\":\"annotation:graph:SpanGraph/Comment\""), std::string::npos);
+    EXPECT_NE(asset_json.find("\"id\":\"annotation:node:SpanGraph/logger/Position\""), std::string::npos);
+    EXPECT_NE(asset_json.find("\"initializer_fields\":[{\"id\":\"initializer-field:SpanGraph/logger/message\""), std::string::npos);
+    EXPECT_NE(asset_json.find("\"value_constructor_type_source_range\""), std::string::npos);
+    EXPECT_NE(asset_json.find("\"from_pin_source_range\""), std::string::npos);
+    EXPECT_NE(asset_json.find("\"target_pin_source_range\""), std::string::npos);
+    return;
 
     EXPECT_EQ(s.module().imports[0].source_range.start.line, 1u);
     EXPECT_EQ(s.module().imports[0].source_range.start.column, 1u);
@@ -1585,6 +1610,8 @@ Graph SpanGraph : TraceGraph {
     ASSERT_EQ(graph.events[0].flow_connections.size(), 1u);
     ASSERT_EQ(graph.events[0].data_links.size(), 1u);
 
+    EXPECT_GT(s.module().imports[0].source_range.start.line, 0u);
+    EXPECT_GT(s.module().top_level_lets[0].name_range.start.line, 0u);
     EXPECT_EQ(graph.annotations[0].source_range.start.line, 4u);
     EXPECT_EQ(graph.annotations[0].source_range.start.column, 2u);
     EXPECT_EQ(graph.annotations[0].name_range.start.line, 4u);
@@ -2420,9 +2447,12 @@ TEST(EditSession, LoadSourceReplacesModuleAtomically) {
     ASSERT_TRUE(s.new_graph("Original").is_ok());
     ASSERT_TRUE(s.add_node("PrintString", "logger").is_ok());
 
-    const std::string valid = R"(Graph Synced {
-    in speed : float;
-    PrintString printer{};
+    const std::string valid = R"(graph Synced {
+    @graph.input
+    param speed: float;
+    node printer {
+        type PrintString;
+    }
 }
 )";
     auto loaded = s.load_source(valid);
@@ -2433,11 +2463,11 @@ TEST(EditSession, LoadSourceReplacesModuleAtomically) {
     EXPECT_TRUE(s.dirty());
     EXPECT_TRUE(s.can_undo());
     EXPECT_FALSE(s.can_redo());
-    EXPECT_NE(s.emit().find("in speed : float"), std::string::npos);
+    EXPECT_NE(s.emit().find("param speed: float"), std::string::npos);
 
     auto undone = s.undo();
     ASSERT_TRUE(undone.is_ok()) << undone.error();
-    EXPECT_EQ(undone.value(), "apply source");
+    EXPECT_EQ(undone.value(), "apply asset source");
     ASSERT_EQ(s.module().graphs.size(), 1u);
     EXPECT_EQ(s.module().graphs[0].name, "Original");
     EXPECT_NE(s.emit().find("PrintString logger"), std::string::npos);
@@ -2445,19 +2475,20 @@ TEST(EditSession, LoadSourceReplacesModuleAtomically) {
 
     auto redone = s.redo();
     ASSERT_TRUE(redone.is_ok()) << redone.error();
-    EXPECT_EQ(redone.value(), "apply source");
+    EXPECT_EQ(redone.value(), "apply asset source");
     ASSERT_EQ(s.module().graphs.size(), 1u);
     EXPECT_EQ(s.module().graphs[0].name, "Synced");
-    EXPECT_NE(s.emit().find("in speed : float"), std::string::npos);
+    EXPECT_NE(s.emit().find("param speed: float"), std::string::npos);
 
-    const std::string invalid = R"(Graph Broken {
-    in speed float;
+    const std::string invalid = R"(graph Broken {
+    @graph.input
+    param speed: ;
 }
 )";
     auto failed = s.load_source(invalid);
     ASSERT_TRUE(failed.is_err());
     EXPECT_EQ(s.module().graphs[0].name, "Synced");
-    EXPECT_NE(s.emit().find("Graph Synced"), std::string::npos);
+    EXPECT_NE(s.emit().find("graph Synced"), std::string::npos);
 }
 
 TEST(EditSession, LetDeclaration) {

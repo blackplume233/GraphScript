@@ -186,6 +186,7 @@ std::vector<ParameterDecl> parse_parameters(const std::string& source, TSNode li
         param.name = slice(source, name);
         param.name_span = span_of(name);
         param.type = slice(source, type);
+        param.type_span = span_of(type);
         if (!null_node(def)) {
             param.default_value = parse_expression(source, def);
             param.has_default = true;
@@ -330,6 +331,7 @@ Directive parse_directive(const std::string& source, TSNode node) {
         p.name = slice(source, name);
         p.name_span = span_of(name);
         p.type = slice(source, type);
+        p.type_span = span_of(type);
         if (!null_node(def)) {
             p.default_value = parse_expression(source, def);
             p.has_default = true;
@@ -355,7 +357,9 @@ ConstObject parse_const(const std::string& source, TSNode node) {
     TSNode value = child_by_field(node, "value");
     object.alias = slice(source, alias);
     object.alias_span = span_of(alias);
-    object.type = slice(source, child_by_field(value, "type"));
+    TSNode type = child_by_field(value, "type");
+    object.type = slice(source, type);
+    object.type_span = span_of(type);
     TSNode body = child_by_field(value, "body");
     object.body_start_offset = null_node(body) ? object.span.offset : ts_node_start_byte(body);
     object.body_end_offset = null_node(body) ? object.span.offset + object.span.length : (ts_node_end_byte(body) > 0 ? ts_node_end_byte(body) - 1 : ts_node_end_byte(body));
@@ -376,7 +380,9 @@ std::unique_ptr<Block> parse_block(const std::string& source, TSNode node) {
     TSNode name = child_by_field(node, "name");
     block->name = slice(source, name);
     block->name_span = span_of(name);
-    block->type = slice(source, child_by_field(node, "type"));
+    TSNode type = child_by_field(node, "type");
+    block->type = slice(source, type);
+    block->type_span = span_of(type);
     block->parameters = parse_parameters(source, child_by_field(node, "parameters"));
     TSNode body = child_by_field(node, "body");
     block->body_start_offset = null_node(body) ? block->span.offset : ts_node_start_byte(body);
@@ -608,6 +614,7 @@ void parse_export_into(const std::string& source, TSNode node, Module& module) {
 ImportDecl parse_import(const std::string& source, TSNode node) {
     ImportDecl import;
     import.span = span_of(node);
+    import.attributes = parse_attributes(source, node);
     TSNode path = child_by_field(node, "path");
     import.path = unquote(slice(source, path));
     import.path_span = span_of(path);
@@ -690,6 +697,13 @@ void collect_flow_blocks(const ItemContainer& items, std::vector<const Block*>& 
     }
 }
 
+void collect_generate_blocks(const ItemContainer& items, std::vector<const Block*>& out) {
+    for (const auto& block : items.blocks) {
+        if (block->kind == "generate") out.push_back(block.get());
+        collect_generate_blocks(block->items, out);
+    }
+}
+
 void collect_command_calls(const ItemContainer& items, std::vector<const CommandCall*>& out) {
     for (const auto& call : items.calls) out.push_back(&call);
     for (const auto& object : items.consts) {
@@ -716,6 +730,12 @@ std::string first_directive_arg(const ItemContainer& items, const std::string& n
     const Directive* directive = find_directive(items, name);
     if (!directive || directive->args.empty()) return "";
     return directive->args.front().text;
+}
+
+TextSpan first_directive_arg_span(const ItemContainer& items, const std::string& name) {
+    const Directive* directive = find_directive(items, name);
+    if (!directive || directive->args.empty()) return {};
+    return directive->args.front().span;
 }
 
 std::string attr_arg_value(const Attribute& attr, const std::string& name) {
@@ -766,6 +786,9 @@ void project_command_call(const CommandCall& call,
         FlowEdge edge;
         edge.from = call.args[0].text;
         edge.to = call.args[1].text;
+        edge.attributes = call.attributes;
+        edge.from_span = call.args[0].span;
+        edge.to_span = call.args[1].span;
         edge.span = call.span;
         const std::string from_alias = endpoint_owner(edge.from);
         const std::string to_alias = endpoint_owner(edge.to);
@@ -785,6 +808,9 @@ void project_command_call(const CommandCall& call,
         FlowDataEdge edge;
         edge.source = call.args[0].text;
         edge.target = call.args[1].text;
+        edge.attributes = call.attributes;
+        edge.source_span = call.args[0].span;
+        edge.target_span = call.args[1].span;
         edge.span = call.span;
         const std::string source_owner = endpoint_owner(edge.source);
         const std::string target_owner = endpoint_owner(edge.target);
@@ -1122,7 +1148,14 @@ Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module,
     FlowGraph graph;
     graph.name = graph_block->name;
     graph.schema = graph_block->type;
-    if (graph.schema.empty()) graph.schema = first_directive_arg(graph_block->items, "schema");
+    graph.span = graph_block->span;
+    graph.name_span = graph_block->name_span;
+    graph.schema_span = graph_block->type_span;
+    graph.attributes = graph_block->attributes;
+    if (graph.schema.empty()) {
+        graph.schema = first_directive_arg(graph_block->items, "schema");
+        graph.schema_span = first_directive_arg_span(graph_block->items, "schema");
+    }
 
     std::unordered_set<std::string> parameter_names;
     for (const auto& directive : graph_block->items.directives) {
@@ -1139,6 +1172,8 @@ Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module,
         projected_param.has_default = param.has_default;
         projected_param.attributes = directive.attributes;
         projected_param.span = directive.span;
+        projected_param.name_span = param.name_span;
+        projected_param.type_span = param.type_span;
         parameter_names.insert(projected_param.name);
         graph.parameters.push_back(std::move(projected_param));
     }
@@ -1151,7 +1186,10 @@ Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module,
         node.alias = object->alias;
         node.type = object->type;
         node.properties = object->properties;
+        node.attributes = object->attributes;
         node.span = object->span;
+        node.alias_span = object->alias_span;
+        node.type_span = object->type_span;
         if (object_pins.count(object->type)) node.pins = object_pins[object->type];
         aliases.insert(node.alias);
         graph.nodes.push_back(std::move(node));
@@ -1163,7 +1201,10 @@ Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module,
         node.alias = block->name;
         node.type = first_directive_arg(block->items, "type");
         node.properties = block->items.properties;
+        node.attributes = block->attributes;
         node.span = block->span;
+        node.alias_span = block->name_span;
+        node.type_span = first_directive_arg_span(block->items, "type");
         if (object_pins.count(node.type)) node.pins = object_pins[node.type];
         aliases.insert(node.alias);
         graph.nodes.push_back(std::move(node));
@@ -1181,7 +1222,9 @@ Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module,
         FlowBlock projected_block;
         projected_block.kind = block->kind;
         projected_block.name = block->name;
+        projected_block.attributes = block->attributes;
         projected_block.span = block->span;
+        projected_block.name_span = block->name_span;
         std::vector<const CommandCall*> block_calls;
         collect_local_command_calls(block->items, block_calls);
         for (const auto* call : block_calls) {
@@ -1193,6 +1236,45 @@ Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module,
             for (size_t i = before_data_edges; i < projected_block.data_edges.size(); ++i) graph.data_edges.push_back(projected_block.data_edges[i]);
         }
         graph.blocks.push_back(std::move(projected_block));
+    }
+
+    std::vector<const Block*> generate_blocks;
+    collect_generate_blocks(graph_block->items, generate_blocks);
+    if (!generate_blocks.empty()) {
+        FlowGenerateBlock projected_generate;
+        projected_generate.span = generate_blocks.front()->span;
+        std::vector<const CommandCall*> generate_calls;
+        collect_local_command_calls(generate_blocks.front()->items, generate_calls);
+        for (const auto* call : generate_calls) {
+            if (call->callee_parts.size() == 1 && call->callee_parts.front() == "comment" && call->args.size() >= 2) {
+                FlowGenerateComment comment;
+                comment.instance = call->args[0].text;
+                comment.text = call->args[1].text;
+                comment.attributes = call->attributes;
+                comment.span = call->span;
+                comment.instance_span = call->args[0].span;
+                comment.text_span = call->args[1].span;
+                projected_generate.comments.push_back(std::move(comment));
+                continue;
+            }
+            if (call->callee_parts.size() == 1 && call->callee_parts.front() == "metadata" && call->args.size() >= 4) {
+                FlowGenerateMetadata metadata;
+                metadata.scope = call->args[0].text;
+                metadata.node = call->args[1].text;
+                metadata.property = call->args[2].text;
+                metadata.value = call->args[3];
+                metadata.attributes = call->attributes;
+                metadata.span = call->span;
+                metadata.scope_span = call->args[0].span;
+                metadata.node_span = call->args[1].span;
+                metadata.property_span = call->args[2].span;
+                metadata.value_span = call->args[3].span;
+                projected_generate.metadata.push_back(std::move(metadata));
+                continue;
+            }
+            graph.diagnostics.push_back(make_diag(Severity::Warning, "GS-FLW-007", "Unsupported generate command", call->span.range));
+        }
+        graph.generate = std::move(projected_generate);
     }
 
     return Result<FlowGraph, std::string>::ok(std::move(graph));

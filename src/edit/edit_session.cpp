@@ -1,9 +1,6 @@
 #include "graphscript/edit/edit_session.h"
 #include "graphscript/asset/language.h"
-#include "graphscript/compile/compiler.h"
 #include "graphscript/emit/emitter.h"
-#include "graphscript/parse/lexer.h"
-#include "graphscript/parse/parser.h"
 #include "graphscript/schema/schema_registry.h"
 #include <filesystem>
 #include <fstream>
@@ -96,11 +93,19 @@ static std::string trim_copy(const std::string& text) {
 }
 
 static bool is_identifier_text(const std::string& text) {
-    auto tokens = Lexer(text).tokenize();
-    return tokens.size() == 2 &&
-           tokens[0].type == TokenType::Identifier &&
-           tokens[0].text == text &&
-           tokens[1].type == TokenType::EndOfFile;
+    if (text.empty()) return false;
+    static const std::unordered_set<std::string> reserved = {
+        "Graph", "event", "function", "generate", "import", "let", "declare",
+        "graph", "node", "schema", "type", "param", "const", "new", "export"
+    };
+    if (reserved.count(text)) return false;
+    const unsigned char first = static_cast<unsigned char>(text.front());
+    if (!std::isalpha(first) && text.front() != '_') return false;
+    for (char c : text) {
+        const unsigned char ch = static_cast<unsigned char>(c);
+        if (!std::isalnum(ch) && c != '_') return false;
+    }
+    return true;
 }
 
 static std::vector<std::string> split_top_level_commas(const std::string& text) {
@@ -3176,23 +3181,6 @@ static std::string read_file_contents(const std::string& path) {
     return ss.str();
 }
 
-// Parses source text into an AST.
-static std::unique_ptr<ModuleNode> parse_text(const std::string& src) {
-    Lexer lexer(src);
-    auto tokens = lexer.tokenize();
-    Parser parser(std::move(tokens));
-    auto result = parser.parse();
-    if (result.is_err()) return nullptr;
-    return std::move(result).value();
-}
-
-static std::optional<asset::Module> parse_asset_text(const std::string& source, const std::string& source_name) {
-    asset::Parser parser(source, source_name);
-    auto parsed = parser.parse();
-    if (!parsed.diagnostics.empty()) return std::nullopt;
-    return std::move(parsed.module);
-}
-
 static asset::ParseResult parse_asset_result(const std::string& source, const std::string& source_name) {
     asset::Parser parser(source, source_name);
     return parser.parse();
@@ -3244,6 +3232,12 @@ static bool has_asset_declaration_import_items(const asset::Module& module) {
            has_asset_declaration_symbol(module);
 }
 
+static SourceRange asset_legacy_token_range(const asset::TextSpan& span) {
+    SourceRange range = span.range;
+    if (span.length > 0 && range.end.column > range.start.column) --range.end.column;
+    return range;
+}
+
 static std::string asset_attr_arg(const asset::Attribute& attr, const std::string& name) {
     for (const auto& arg : attr.args) {
         if (arg.name == name) return arg.value.text;
@@ -3262,9 +3256,13 @@ static Annotation asset_annotation(const asset::Attribute& attr) {
         converted.value = arg.value.text;
         converted.source_range = arg.span.range;
         converted.value_range = arg.value.span.range;
-        converted.value_constructor_range = arg.value.span.range;
-        converted.value_constructor_type_range = arg.value.span.range;
-        converted.value_constructor_arg_range = arg.value.span.range;
+        if (arg.value.kind == asset::ExprKind::Call) {
+            converted.value_constructor_range = asset_legacy_token_range(arg.value.span);
+            converted.value_constructor_type_range = asset_legacy_token_range(arg.value.callee_span);
+            if (!arg.value.elements.empty()) {
+                converted.value_constructor_arg_range = asset_legacy_token_range(arg.value.elements.front().span);
+            }
+        }
         annotation.args.push_back(std::move(converted));
     }
     return annotation;
@@ -3444,6 +3442,16 @@ static ParamDirection asset_param_direction(const std::string& direction) {
     return ParamDirection::In;
 }
 
+static SourceRange asset_legacy_endpoint_component_range(const asset::TextSpan& span,
+                                                         size_t offset,
+                                                         size_t length) {
+    SourceRange range = span.range;
+    range.start.column += static_cast<uint32_t>(offset);
+    range.end = range.start;
+    if (length > 0) range.end.column += static_cast<uint32_t>(length - 1);
+    return range;
+}
+
 static PinAddress asset_pin_address(const std::string& endpoint) {
     auto dot = endpoint.find('.');
     if (dot == std::string::npos) return {"", endpoint};
@@ -3452,7 +3460,7 @@ static PinAddress asset_pin_address(const std::string& endpoint) {
 
 static DataSource asset_data_source(const std::string& endpoint) {
     auto dot = endpoint.find('.');
-    if (dot == std::string::npos) return {"", endpoint};
+    if (dot == std::string::npos) return {endpoint, ""};
     return {endpoint.substr(0, dot), endpoint.substr(dot + 1)};
 }
 
@@ -3460,7 +3468,26 @@ static FlowConnection asset_flow_edge(const asset::FlowEdge& edge) {
     FlowConnection flow;
     flow.from = asset_pin_address(edge.from);
     flow.to = asset_pin_address(edge.to);
+    flow.annotations = asset_annotations(edge.attributes);
     flow.source_range = edge.span.range;
+    flow.from_endpoint_range = asset_legacy_token_range(edge.from_span);
+    flow.to_endpoint_range = asset_legacy_token_range(edge.to_span);
+    const size_t from_dot = edge.from.find('.');
+    if (from_dot != std::string::npos) {
+        flow.from_node_range = asset_legacy_endpoint_component_range(edge.from_span, 0, from_dot);
+        flow.from_pin_range = asset_legacy_endpoint_component_range(
+            edge.from_span, from_dot + 1, edge.from.size() - from_dot - 1);
+    } else {
+        flow.from_node_range = asset_legacy_token_range(edge.from_span);
+    }
+    const size_t to_dot = edge.to.find('.');
+    if (to_dot != std::string::npos) {
+        flow.to_node_range = asset_legacy_endpoint_component_range(edge.to_span, 0, to_dot);
+        flow.to_pin_range = asset_legacy_endpoint_component_range(
+            edge.to_span, to_dot + 1, edge.to.size() - to_dot - 1);
+    } else {
+        flow.to_node_range = asset_legacy_token_range(edge.to_span);
+    }
     return flow;
 }
 
@@ -3468,7 +3495,26 @@ static DataLink asset_data_edge(const asset::FlowDataEdge& edge) {
     DataLink link;
     link.source = asset_data_source(edge.source);
     link.target = asset_pin_address(edge.target);
+    link.annotations = asset_annotations(edge.attributes);
     link.source_range = edge.span.range;
+    link.source_endpoint_range = asset_legacy_token_range(edge.source_span);
+    link.target_endpoint_range = asset_legacy_token_range(edge.target_span);
+    const size_t source_dot = edge.source.find('.');
+    if (source_dot != std::string::npos) {
+        link.source_node_range = asset_legacy_endpoint_component_range(edge.source_span, 0, source_dot);
+        link.source_pin_range = asset_legacy_endpoint_component_range(
+            edge.source_span, source_dot + 1, edge.source.size() - source_dot - 1);
+    } else {
+        link.source_node_range = asset_legacy_token_range(edge.source_span);
+    }
+    const size_t target_dot = edge.target.find('.');
+    if (target_dot != std::string::npos) {
+        link.target_node_range = asset_legacy_endpoint_component_range(edge.target_span, 0, target_dot);
+        link.target_pin_range = asset_legacy_endpoint_component_range(
+            edge.target_span, target_dot + 1, edge.target.size() - target_dot - 1);
+    } else {
+        link.target_node_range = asset_legacy_token_range(edge.target_span);
+    }
     return link;
 }
 
@@ -3476,13 +3522,28 @@ static Graph asset_graph_to_legacy_graph(const asset::FlowGraph& flow) {
     Graph graph;
     graph.name = flow.name;
     if (!flow.schema.empty()) graph.base_type = flow.schema;
+    graph.source_range = flow.span.range;
+    graph.name_range = asset_legacy_token_range(flow.name_span);
+    graph.base_type_range = asset_legacy_token_range(flow.schema_span);
+    graph.annotations = asset_annotations(flow.attributes);
     for (const auto& param : flow.parameters) {
         GraphParameter converted;
         converted.name = param.name;
         converted.type_name = param.type;
         converted.direction = asset_param_direction(param.direction);
         converted.default_value = param.has_default ? param.default_value.text : "";
+        converted.annotations = asset_annotations(param.attributes);
         converted.source_range = param.span.range;
+        converted.name_range = asset_legacy_token_range(param.name_span);
+        converted.type_name_range = asset_legacy_token_range(param.type_span);
+        converted.default_value_range = asset_legacy_token_range(param.default_value.span);
+        if (param.default_value.kind == asset::ExprKind::Call) {
+            converted.default_constructor_range = asset_legacy_token_range(param.default_value.span);
+            converted.default_constructor_type_range = asset_legacy_token_range(param.default_value.callee_span);
+            if (!param.default_value.elements.empty()) {
+                converted.default_constructor_arg_range = asset_legacy_token_range(param.default_value.elements.front().span);
+            }
+        }
         graph.parameters.push_back(std::move(converted));
     }
     for (const auto& node : flow.nodes) {
@@ -3490,13 +3551,23 @@ static Graph asset_graph_to_legacy_graph(const asset::FlowGraph& flow) {
         instance.type_name = node.type;
         instance.instance_name = node.alias;
         instance.source_range = node.span.range;
+        instance.type_name_range = asset_legacy_token_range(node.type_span);
+        instance.instance_name_range = asset_legacy_token_range(node.alias_span);
+        instance.annotations = asset_annotations(node.attributes);
         for (const auto& property : node.properties) {
             InitializerField field;
             field.name = property.path;
             field.value = property.value.text;
             field.source_range = property.span.range;
-            field.name_range = property.name_span.range;
-            field.value_range = property.value_span.range;
+            field.name_range = asset_legacy_token_range(property.name_span);
+            field.value_range = asset_legacy_token_range(property.value_span);
+            if (property.value.kind == asset::ExprKind::Call) {
+                field.value_constructor_range = asset_legacy_token_range(property.value.span);
+                field.value_constructor_type_range = asset_legacy_token_range(property.value.callee_span);
+                if (!property.value.elements.empty()) {
+                    field.value_constructor_arg_range = asset_legacy_token_range(property.value.elements.front().span);
+                }
+            }
             instance.initializer_fields.push_back(std::move(field));
         }
         graph.node_instances.push_back(std::move(instance));
@@ -3506,6 +3577,8 @@ static Graph asset_graph_to_legacy_graph(const asset::FlowGraph& flow) {
             Function fn;
             fn.name = block.name;
             fn.source_range = block.span.range;
+            fn.name_range = asset_legacy_token_range(block.name_span);
+            fn.annotations = asset_annotations(block.attributes);
             for (const auto& edge : block.edges) fn.flow_connections.push_back(asset_flow_edge(edge));
             for (const auto& edge : block.data_edges) fn.data_links.push_back(asset_data_edge(edge));
             graph.functions.push_back(std::move(fn));
@@ -3513,10 +3586,48 @@ static Graph asset_graph_to_legacy_graph(const asset::FlowGraph& flow) {
             Event ev;
             ev.name = block.name;
             ev.source_range = block.span.range;
+            ev.name_range = asset_legacy_token_range(block.name_span);
+            ev.annotations = asset_annotations(block.attributes);
             for (const auto& edge : block.edges) ev.flow_connections.push_back(asset_flow_edge(edge));
             for (const auto& edge : block.data_edges) ev.data_links.push_back(asset_data_edge(edge));
             graph.events.push_back(std::move(ev));
         }
+    }
+    if (flow.generate) {
+        GenerateBlock generate;
+        generate.source_range = flow.generate->span.range;
+        for (const auto& comment : flow.generate->comments) {
+            GenerateComment converted;
+            converted.instance_name = comment.instance;
+            converted.text = comment.text;
+            converted.annotations = asset_annotations(comment.attributes);
+            converted.source_range = comment.span.range;
+            converted.instance_name_range = asset_legacy_token_range(comment.instance_span);
+            converted.text_range = asset_legacy_token_range(comment.text_span);
+            generate.comments.push_back(std::move(converted));
+        }
+        for (const auto& metadata : flow.generate->metadata) {
+            GenerateMetadata converted;
+            converted.scope = metadata.scope;
+            converted.node = metadata.node;
+            converted.property = metadata.property;
+            converted.value = metadata.value.text;
+            converted.annotations = asset_annotations(metadata.attributes);
+            converted.source_range = metadata.span.range;
+            converted.scope_range = asset_legacy_token_range(metadata.scope_span);
+            converted.node_range = asset_legacy_token_range(metadata.node_span);
+            converted.property_range = asset_legacy_token_range(metadata.property_span);
+            converted.value_range = asset_legacy_token_range(metadata.value_span);
+            if (metadata.value.kind == asset::ExprKind::Call) {
+                converted.value_constructor_range = asset_legacy_token_range(metadata.value.span);
+                converted.value_constructor_type_range = asset_legacy_token_range(metadata.value.callee_span);
+                if (!metadata.value.elements.empty()) {
+                    converted.value_constructor_arg_range = asset_legacy_token_range(metadata.value.elements.front().span);
+                }
+            }
+            generate.metadata.push_back(std::move(converted));
+        }
+        graph.generate = std::move(generate);
     }
     return graph;
 }
@@ -3528,16 +3639,19 @@ static void collect_asset_graph_names(const asset::ItemContainer& items, std::ve
     }
 }
 
-static bool has_asset_declarations(const asset::Module& module) {
-    return !module.imports.empty() ||
-           !module.modules.empty() ||
-           !module.enums.empty() ||
-           !module.objects.empty() ||
-           !module.block_kinds.empty() ||
-           !module.commands.empty() ||
-           !module.schemas.empty() ||
-           !module.lints.empty() ||
-           !module.symbols.empty();
+static void collect_asset_top_level_lets(const asset::ItemContainer& items, std::vector<LetDecl>& lets) {
+    for (const auto& object : items.consts) {
+        LetDecl decl;
+        decl.name = object.alias;
+        decl.name_range = asset_legacy_token_range(object.alias_span);
+        decl.type_name = object.type;
+        decl.type_name_range = asset_legacy_token_range(object.type_span);
+        decl.source_range = object.span.range;
+        decl.constructor_range = object.span.range;
+        decl.constructor_arg_range = object.span.range;
+        decl.annotations = asset_annotations(object.attributes);
+        lets.push_back(std::move(decl));
+    }
 }
 
 static Result<Module, std::string> compile_asset_session_module(const asset::Module& asset_module,
@@ -3547,10 +3661,13 @@ static Result<Module, std::string> compile_asset_session_module(const asset::Mod
     for (const auto& import : asset_module.imports) {
         ImportDecl converted;
         converted.path = import.path;
+        converted.annotations = asset_annotations(import.attributes);
         converted.source_range = import.span.range;
         converted.path_range = import.path_span.range;
         module.imports.push_back(std::move(converted));
     }
+
+    collect_asset_top_level_lets(asset_module.items, module.top_level_lets);
 
     std::vector<std::string> graph_names;
     collect_asset_graph_names(asset_module.items, graph_names);
@@ -3558,7 +3675,8 @@ static Result<Module, std::string> compile_asset_session_module(const asset::Mod
         auto projected = asset::FlowGraphProjector::project(asset_module, graph_name);
         if (projected.is_err()) return Result<Module, std::string>::err(projected.error());
         if (!projected.value().diagnostics.empty()) {
-            return Result<Module, std::string>::err(projected.value().diagnostics.front().message);
+            return Result<Module, std::string>::err(
+                "graph '" + graph_name + "': " + projected.value().diagnostics.front().message);
         }
         module.graphs.push_back(asset_graph_to_legacy_graph(projected.value()));
     }
@@ -3569,56 +3687,26 @@ Result<void, std::string> EditSession::load_source(const std::string& source, co
     if (source.empty()) return Result<void, std::string>::err("Cannot load empty source");
 
     const std::string effective_source_name = source_name.empty() ? file_path_ : source_name;
-    auto asset_module = parse_asset_text(source, effective_source_name);
-    if (asset_module) {
-        auto linted = lint_asset_module(*asset_module);
-        if (linted.is_err()) return linted;
-        auto asset_result = compile_asset_session_module(*asset_module, effective_source_name);
-        if (asset_result.is_err()) return Result<void, std::string>::err(asset_result.error());
-        if (asset_result.value().graphs.empty()) {
-            if (has_asset_declarations(*asset_module)) {
-                return Result<void, std::string>::err("Asset source must contain at least one graph");
-            }
-        } else {
-            std::string active_graph_name;
-            if (active_ >= 0 && active_ < static_cast<int>(module_.graphs.size())) {
-                active_graph_name = module_.graphs[active_].name;
-            }
-
-            push_module_undo("apply asset source");
-            module_ = std::move(asset_result).value();
-            mark_loaded_imports();
-            refresh_module_graph_node_definitions(env_, module_);
-            active_ = module_.graphs.empty() ? -1 : 0;
-            if (!active_graph_name.empty()) {
-                for (size_t i = 0; i < module_.graphs.size(); ++i) {
-                    if (module_.graphs[i].name == active_graph_name) {
-                        active_ = static_cast<int>(i);
-                        break;
-                    }
-                }
-            }
-            asset_source_ = source;
-            dirty_ = true;
-            return Result<void, std::string>::ok();
-        }
+    auto asset_parsed = parse_asset_result(source, effective_source_name);
+    if (!asset_parsed.diagnostics.empty()) {
+        return Result<void, std::string>::err(asset_parse_error_message(effective_source_name, asset_parsed.diagnostics));
     }
 
-    auto ast = parse_text(source);
-    if (!ast) return Result<void, std::string>::err("Parse error in source");
-
-    Compiler compiler(env_);
-    auto result = compiler.compile(*ast, effective_source_name);
-    if (result.is_err()) return Result<void, std::string>::err("Compile error: " + result.error());
+    auto linted = lint_asset_module(asset_parsed.module);
+    if (linted.is_err()) return linted;
+    auto asset_result = compile_asset_session_module(asset_parsed.module, effective_source_name);
+    if (asset_result.is_err()) return Result<void, std::string>::err(asset_result.error());
+    if (asset_result.value().graphs.empty()) {
+        return Result<void, std::string>::err("Asset source must contain at least one graph");
+    }
 
     std::string active_graph_name;
     if (active_ >= 0 && active_ < static_cast<int>(module_.graphs.size())) {
         active_graph_name = module_.graphs[active_].name;
     }
 
-    push_module_undo("apply source");
-    module_ = std::move(result).value();
-    asset_source_.reset();
+    push_module_undo("apply asset source");
+    module_ = std::move(asset_result).value();
     mark_loaded_imports();
     refresh_module_graph_node_definitions(env_, module_);
     active_ = module_.graphs.empty() ? -1 : 0;
@@ -3630,6 +3718,7 @@ Result<void, std::string> EditSession::load_source(const std::string& source, co
             }
         }
     }
+    asset_source_ = source;
     dirty_ = true;
     return Result<void, std::string>::ok();
 }

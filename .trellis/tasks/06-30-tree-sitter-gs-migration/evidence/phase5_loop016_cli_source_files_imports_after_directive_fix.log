@@ -1,0 +1,218 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = CLIEditor.ApplySource*:CLIEditor.ApplyFiles*:CLIEditor.ApplyImport*:CLIEditor.RenameGraphDerivedPinCommandsAreReplayable
+[==========] Running 28 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 28 tests from CLIEditor
+[ RUN      ] CLIEditor.RenameGraphDerivedPinCommandsAreReplayable
+  Applied source snapshot
+  Renamed param 'msg' to 'text'
+  Renamed event 'Run' to 'Execute'
+[       OK ] CLIEditor.RenameGraphDerivedPinCommandsAreReplayable (0 ms)
+[ RUN      ] CLIEditor.ApplySourceBase64CommandIsReplayable
+  Applied source snapshot
+  [ERROR] Invalid base64 source snapshot
+[       OK ] CLIEditor.ApplySourceBase64CommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.ApplySourcePatchCommandIsReplayable
+  Applied source snapshot
+  Applied source patch
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Invalid base64 source patch replacement
+  [ERROR] Source patch range is outside current source
+[       OK ] CLIEditor.ApplySourcePatchCommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.ApplySourcePatchesBase64CommandIsAtomicAndReplayable
+  Applied source snapshot
+  Applied source patches
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Source patch ranges overlap
+[       OK ] CLIEditor.ApplySourcePatchesBase64CommandIsAtomicAndReplayable (0 ms)
+[ RUN      ] CLIEditor.ApplySourceIdentifierRenameUsesTokenPatches
+  Applied source snapshot
+  Applied source identifier rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Source identifier rename found no matches
+  [ERROR] New source identifier is invalid
+[       OK ] CLIEditor.ApplySourceIdentifierRenameUsesTokenPatches (0 ms)
+[ RUN      ] CLIEditor.ApplySourceParamRenameUsesActiveGraphRanges
+  Applied source snapshot
+  Applied source parameter rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Parameter 'missing' not found
+  [ERROR] New parameter identifier is invalid
+[       OK ] CLIEditor.ApplySourceParamRenameUsesActiveGraphRanges (0 ms)
+[ RUN      ] CLIEditor.ApplySourceEventRenameUsesActiveGraphRanges
+  Applied source snapshot
+  Applied source event rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Event 'Missing' not found
+  [ERROR] New event identifier is invalid
+[       OK ] CLIEditor.ApplySourceEventRenameUsesActiveGraphRanges (0 ms)
+[ RUN      ] CLIEditor.ApplySourceFunctionRenameUsesActiveGraphRanges
+  Applied source snapshot
+  Applied source function rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Function 'Missing' not found
+  [ERROR] New function identifier is invalid
+[       OK ] CLIEditor.ApplySourceFunctionRenameUsesActiveGraphRanges (0 ms)
+[ RUN      ] CLIEditor.ApplySourceNodeRenameUsesActiveGraphRanges
+  Applied source snapshot
+  Applied source node rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Node 'missing' not found
+  [ERROR] New node identifier is invalid
+[       OK ] CLIEditor.ApplySourceNodeRenameUsesActiveGraphRanges (0 ms)
+[ RUN      ] CLIEditor.ApplySourceGraphRenameMigratesGraphNodeTypes
+  Applied source snapshot
+  Applied source graph rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Graph 'Missing' not found
+  [ERROR] Graph 'Parent' already exists
+  [ERROR] New graph identifier is invalid
+[       OK ] CLIEditor.ApplySourceGraphRenameMigratesGraphNodeTypes (0 ms)
+[ RUN      ] CLIEditor.ApplyFilesGraphRenameMigratesDiskGraphDeclarationsAndNodeTypesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_graph_rename\first.gs
+  [ERROR] Graph 'Leaf' already exists
+  Applied file graph rename to 2 file(s), 3 reference(s)
+  [ERROR] Graph 'Child' has no declarations or graph-node references in the provided files
+  [ERROR] New graph identifier is invalid
+[       OK ] CLIEditor.ApplyFilesGraphRenameMigratesDiskGraphDeclarationsAndNodeTypesAtomically (6 ms)
+[ RUN      ] CLIEditor.ApplyFilesGraphParamRenameMigratesDiskGraphInterfaceDataPinsAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_graph_param_rename\first.gs
+  [ERROR] Parameter 'velocity' already exists on graph 'Child'
+  Applied file graph parameter rename to 2 file(s), 6 reference(s)
+  [ERROR] Graph parameter 'speed' on graph 'Child' has no declarations or references in the provided files
+  [ERROR] New parameter identifier is invalid
+[       OK ] CLIEditor.ApplyFilesGraphParamRenameMigratesDiskGraphInterfaceDataPinsAtomically (6 ms)
+[ RUN      ] CLIEditor.ApplyFilesGraphEventRenameMigratesDiskGraphInterfaceExecPinsAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_graph_event_rename\first.gs
+  [ERROR] Event 'Execute' already exists on graph 'Child'
+  Applied file graph event rename to 2 file(s), 5 reference(s)
+  [ERROR] Graph event 'Run' on graph 'Child' has no declarations or references in the provided files
+  [ERROR] New event identifier is invalid
+[       OK ] CLIEditor.ApplyFilesGraphEventRenameMigratesDiskGraphInterfaceExecPinsAtomically (5 ms)
+[ RUN      ] CLIEditor.ApplyFilesGraphFunctionRenameMigratesDiskGraphFunctionInterfaceExecPinsAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_graph_function_rename\first.gs
+  [ERROR] Function 'Evaluate' already exists on graph 'Worker'
+  Applied file graph function rename to 2 file(s), 5 patch(es)
+  [ERROR] Graph function 'Compute' on graph 'Worker' has no declarations in the provided files
+  [ERROR] New function identifier is invalid
+[       OK ] CLIEditor.ApplyFilesGraphFunctionRenameMigratesDiskGraphFunctionInterfaceExecPinsAtomically (6 ms)
+[ RUN      ] CLIEditor.ApplySourceNodeTypeRenameMigratesDeclaredNodeReferences
+  Applied source snapshot
+  Applied source node type rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Node type 'Missing' is not declared
+  [ERROR] Node type 'Missing' is not declared
+  [ERROR] New node type identifier is invalid
+[       OK ] CLIEditor.ApplySourceNodeTypeRenameMigratesDeclaredNodeReferences (2 ms)
+[ RUN      ] CLIEditor.ApplySourceTypeRenameMigratesActiveModuleTypeReferences
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  Applied source type rename
+  [ERROR] Type 'OldType' has no references in current source
+  [ERROR] Type 'MissingType' is not declared
+  [ERROR] New type identifier is invalid
+[       OK ] CLIEditor.ApplySourceTypeRenameMigratesActiveModuleTypeReferences (2 ms)
+[ RUN      ] CLIEditor.ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] New declaration node identifier is invalid
+  Applied import node rename
+[       OK ] CLIEditor.ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReferences (4 ms)
+[ RUN      ] CLIEditor.ApplyFilesNodeTypeRenameMigratesDiskGraphFilesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_node_type_rename\first.gs
+  Applied file node type rename to 2 file(s), 2 reference(s)
+  [ERROR] Node type 'OldNode' has no references in the provided files
+  [ERROR] Node type 'Missing' is not declared
+[       OK ] CLIEditor.ApplyFilesNodeTypeRenameMigratesDiskGraphFilesAtomically (5 ms)
+[ RUN      ] CLIEditor.ApplySourceNodePinRenameMigratesActiveModulePinReferences
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  Applied source node pin rename
+  Applied source node pin rename
+  Applied source node pin rename
+  Applied source node pin rename
+  [ERROR] Pin 'enter' on node type 'Worker' has no references in current source
+  [ERROR] Node type 'MissingWorker' is not declared
+  [ERROR] Pin 'missing' is not declared on node type 'Worker'
+  [ERROR] Pin 'missing' is not declared on node type 'Worker'
+  [ERROR] New pin identifier is invalid
+[       OK ] CLIEditor.ApplySourceNodePinRenameMigratesActiveModulePinReferences (2 ms)
+[ RUN      ] CLIEditor.ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Declaration pin 'result' already exists on node 'OldNode'
+  Applied import node pin rename
+  Applied import node pin rename
+  Applied import node pin rename
+  Applied import node pin rename
+[       OK ] CLIEditor.ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleReferences (12 ms)
+[ RUN      ] CLIEditor.ApplyFilesNodePinRenameMigratesDiskGraphPinReferencesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_node_pin_rename\first.gs
+  Applied file node pin rename to 1 file(s), 1 reference(s)
+  Applied file node pin rename to 2 file(s), 2 reference(s)
+  Applied file node pin rename to 1 file(s), 1 reference(s)
+  Applied file node pin rename to 1 file(s), 1 reference(s)
+  [ERROR] Pin 'message' on node type 'Worker' has no references in the provided files
+  [ERROR] Pin 'missing' is not declared on node type 'Worker'
+[       OK ] CLIEditor.ApplyFilesNodePinRenameMigratesDiskGraphPinReferencesAtomically (8 ms)
+[ RUN      ] CLIEditor.ApplySourceSchemaRenameMigratesActiveModuleGraphBaseTypes
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  Applied source schema rename
+  [ERROR] Schema 'OldSchema' has no references in current source
+  [ERROR] Schema 'MissingSchema' is not declared
+  [ERROR] New schema identifier is invalid
+[       OK ] CLIEditor.ApplySourceSchemaRenameMigratesActiveModuleGraphBaseTypes (2 ms)
+[ RUN      ] CLIEditor.ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseTypes
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Schema 'ExistingSchema' already exists
+  [ERROR] New declaration schema identifier is invalid
+  Applied import schema rename
+[       OK ] CLIEditor.ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseTypes (4 ms)
+[ RUN      ] CLIEditor.ApplyImportSchemaFieldRenamePatchesDeclarationFieldName
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Declaration schema field 'existing_field' already exists on schema 'PreviewSchema'
+  [ERROR] Declaration schema 'MissingSchema' is not loaded
+  [ERROR] Declaration schema field 'missing' not found on schema 'PreviewSchema'
+  [ERROR] New declaration schema field identifier is invalid
+  Applied import schema field rename
+[       OK ] CLIEditor.ApplyImportSchemaFieldRenamePatchesDeclarationFieldName (4 ms)
+[ RUN      ] CLIEditor.ApplyFilesSchemaRenameMigratesDiskGraphBaseTypesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_schema_rename\first.gs
+  Applied file schema rename to 2 file(s), 2 reference(s)
+  [ERROR] Schema 'OldSchema' has no references in the provided files
+  [ERROR] Schema 'MissingSchema' is not declared
+[       OK ] CLIEditor.ApplyFilesSchemaRenameMigratesDiskGraphBaseTypesAtomically (5 ms)
+[ RUN      ] CLIEditor.ApplyFilesTypeRenameMigratesDiskGraphTypeReferencesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_type_rename\first.gs
+  Applied file type rename to 2 file(s), 11 reference(s)
+  [ERROR] Type 'OldType' has no references in the provided files
+  [ERROR] Type 'MissingType' is not declared
+[       OK ] CLIEditor.ApplyFilesTypeRenameMigratesDiskGraphTypeReferencesAtomically (6 ms)
+[ RUN      ] CLIEditor.ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Type 'ExistingType' already exists
+  [ERROR] New declaration type identifier is invalid
+  Applied import type rename
+[       OK ] CLIEditor.ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReferences (5 ms)
+[ RUN      ] CLIEditor.ApplySourceCommandsSupportEnvironmentGuard
+  Applied source snapshot
+  Applied source patch
+  [ERROR] Source environment hash mismatch
+[       OK ] CLIEditor.ApplySourceCommandsSupportEnvironmentGuard (3 ms)
+[----------] 28 tests from CLIEditor (104 ms total)
+
+[----------] Global test environment tear-down
+[==========] 28 tests from 1 test suite ran. (104 ms total)
+[  PASSED  ] 28 tests.
