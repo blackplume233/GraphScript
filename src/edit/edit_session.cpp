@@ -3193,6 +3193,29 @@ static std::optional<asset::Module> parse_asset_text(const std::string& source, 
     return std::move(parsed.module);
 }
 
+static asset::ParseResult parse_asset_result(const std::string& source, const std::string& source_name) {
+    asset::Parser parser(source, source_name);
+    return parser.parse();
+}
+
+static bool looks_like_asset_declaration_source(const std::string& source) {
+    return source.find("export declare") != std::string::npos ||
+           source.find("declare module") != std::string::npos ||
+           source.find("declare enum") != std::string::npos ||
+           source.find("declare kind") != std::string::npos ||
+           source.find("declare block") != std::string::npos ||
+           source.find("declare command") != std::string::npos ||
+           source.find("declare lint") != std::string::npos ||
+           source.find("declare object") != std::string::npos ||
+           source.find("declare schema") != std::string::npos;
+}
+
+static std::string asset_parse_error_message(const std::string& path, const std::vector<Diagnostic>& diagnostics) {
+    std::string message = "Asset parse error in: " + path;
+    if (!diagnostics.empty()) message += ": " + diagnostics.front().message;
+    return message;
+}
+
 static Result<void, std::string> lint_asset_module(const asset::Module& module) {
     asset::Linter linter;
     auto diagnostics = linter.lint(module);
@@ -3604,11 +3627,14 @@ Result<void, std::string> EditSession::load_import(const std::string& path) {
     auto src = read_file_contents(path);
     if (src.empty()) return Result<void, std::string>::err("Cannot read file: " + path);
 
-    auto asset_module = parse_asset_text(src, path);
-    if (asset_module && has_asset_declaration_import_items(*asset_module)) {
-        auto linted = lint_asset_module(*asset_module);
+    auto asset_parsed = parse_asset_result(src, path);
+    if (!asset_parsed.diagnostics.empty() && looks_like_asset_declaration_source(src)) {
+        return Result<void, std::string>::err(asset_parse_error_message(path, asset_parsed.diagnostics));
+    }
+    if (asset_parsed.diagnostics.empty() && has_asset_declaration_import_items(asset_parsed.module)) {
+        auto linted = lint_asset_module(asset_parsed.module);
         if (linted.is_err()) return linted;
-        auto registered = register_asset_declarations(env_, *asset_module, path);
+        auto registered = register_asset_declarations(env_, asset_parsed.module, path);
         if (registered.is_err()) return registered;
         loaded_import_keys_.push_back(key);
         add_import(path, true);

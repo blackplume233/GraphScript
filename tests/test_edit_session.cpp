@@ -2706,6 +2706,27 @@ TEST(EditSession, LoadAssetImportAcceptsDeclarationOnlyMetadataKinds) {
     }
 }
 
+TEST(EditSession, LoadAssetImportRejectsMalformedAssetDeclarationWithoutLegacyFallback) {
+    const auto path = std::filesystem::temp_directory_path() / "graphscript_asset_malformed_decl_012.d.gs";
+    {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "export declare object Broken {\n"
+               "    @flow.input\n"
+               "    target: Actor\n"
+               "}\n";
+    }
+
+    Environment env;
+    EditSession s(env);
+    auto loaded = s.load_import(path.string());
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_NE(loaded.error().find("Asset parse error in:"), std::string::npos);
+    EXPECT_FALSE(s.is_import_loaded(path.string()));
+    EXPECT_TRUE(s.module().imports.empty());
+    EXPECT_TRUE(env.nodes().all().empty());
+}
+
 TEST(EditSession, LoadAssetImportRejectsGraphSourceWithImportOrExportList) {
     struct Case {
         const char* name;
