@@ -5,6 +5,7 @@
 #include <cstring>
 #include <sstream>
 #include <unordered_set>
+#include <utility>
 
 #include "tree-sitter-graphscript_asset.h"
 #include "tree_sitter/api.h"
@@ -109,15 +110,6 @@ Diagnostic make_diag(Severity severity,
     diag.range = range;
     diag.hint = hint;
     return diag;
-}
-
-std::string join_parts(const std::vector<std::string>& parts, size_t begin, size_t end) {
-    std::string out;
-    for (size_t i = begin; i < end && i < parts.size(); ++i) {
-        if (!out.empty()) out += ".";
-        out += parts[i];
-    }
-    return out;
 }
 
 std::vector<std::string> split_qualified(const std::string& text) {
@@ -307,6 +299,7 @@ Assignment parse_assignment(const std::string& source, TSNode node) {
 Directive parse_directive(const std::string& source, TSNode node) {
     Directive directive;
     directive.span = span_of(node);
+    directive.attributes = parse_attributes(source, node);
     directive.name = slice(source, child_by_field(node, "name"));
     TSNode param = first_named_child_of_type(node, "directive_param_declaration");
     if (!null_node(param)) {
@@ -356,23 +349,23 @@ ConstObject parse_const(const std::string& source, TSNode node) {
     return object;
 }
 
-std::unique_ptr<Scope> parse_scope(const std::string& source, TSNode node) {
-    auto scope = std::make_unique<Scope>();
-    scope->span = span_of(node);
-    scope->attributes = parse_attributes(source, node);
-    scope->kind = slice(source, child_by_field(node, "kind"));
+std::unique_ptr<Block> parse_block(const std::string& source, TSNode node) {
+    auto block = std::make_unique<Block>();
+    block->span = span_of(node);
+    block->attributes = parse_attributes(source, node);
+    block->kind = slice(source, child_by_field(node, "kind"));
     TSNode name = child_by_field(node, "name");
-    scope->name = slice(source, name);
-    scope->name_span = span_of(name);
-    scope->type = slice(source, child_by_field(node, "type"));
-    scope->parameters = parse_parameters(source, child_by_field(node, "parameters"));
+    block->name = slice(source, name);
+    block->name_span = span_of(name);
+    block->type = slice(source, child_by_field(node, "type"));
+    block->parameters = parse_parameters(source, child_by_field(node, "parameters"));
     TSNode body = child_by_field(node, "body");
-    scope->body_start_offset = null_node(body) ? scope->span.offset : ts_node_start_byte(body);
-    scope->body_end_offset = null_node(body) ? scope->span.offset + scope->span.length : (ts_node_end_byte(body) > 0 ? ts_node_end_byte(body) - 1 : ts_node_end_byte(body));
+    block->body_start_offset = null_node(body) ? block->span.offset : ts_node_start_byte(body);
+    block->body_end_offset = null_node(body) ? block->span.offset + block->span.length : (ts_node_end_byte(body) > 0 ? ts_node_end_byte(body) - 1 : ts_node_end_byte(body));
     for (TSNode child : named_children(body)) {
-        parse_item_into(source, child, scope->items);
+        parse_item_into(source, child, block->items);
     }
-    return scope;
+    return block;
 }
 
 ObjectDecl parse_object_decl(const std::string& source, TSNode node, bool exported) {
@@ -438,8 +431,8 @@ EnumDecl parse_enum_decl(const std::string& source, TSNode node, bool exported) 
     return decl;
 }
 
-ScopeKindDecl parse_scope_kind_decl(const std::string& source, TSNode node, bool exported) {
-    ScopeKindDecl decl;
+BlockKindDecl parse_block_kind_decl(const std::string& source, TSNode node, bool exported) {
+    BlockKindDecl decl;
     decl.span = span_of(node);
     decl.exported = exported;
     decl.name = slice(source, child_by_field(node, "name"));
@@ -485,12 +478,26 @@ LintDecl parse_lint_decl(const std::string& source, TSNode node, bool exported) 
     return decl;
 }
 
-SymbolDecl make_symbol(const std::string& kind, const std::string& name, bool exported, TextSpan span) {
+bool field_is_flow_pin(const FieldDecl& field) {
+    for (const auto& attr : field.attributes) {
+        if (attr.name == "flow.pin" || attr.name == "flow.input" || attr.name == "flow.output") return true;
+    }
+    return false;
+}
+
+SymbolDecl make_symbol(const std::string& kind,
+                       const std::string& name,
+                       bool exported,
+                       TextSpan span,
+                       std::string base_type = {},
+                       TextSpan name_span = {}) {
     SymbolDecl symbol;
     symbol.kind = kind;
     symbol.name = name;
+    symbol.base_type = std::move(base_type);
     symbol.exported = exported;
     symbol.span = span;
+    symbol.name_span = name_span;
     return symbol;
 }
 
@@ -505,19 +512,30 @@ void parse_declaration_into(const std::string& source, TSNode node, bool exporte
     if (type == "module_declaration") {
         module.modules.push_back(parse_module_decl(source, node));
     } else if (type == "type_declaration") {
-        module.symbols.push_back(make_symbol("type", slice(source, child_by_field(node, "name")), exported, span_of(node)));
+        TSNode name = child_by_field(node, "name");
+        module.symbols.push_back(make_symbol(
+            "type",
+            slice(source, name),
+            exported,
+            span_of(node),
+            slice(source, child_by_field(node, "type")),
+            span_of(name)));
     } else if (type == "enum_declaration") {
         auto decl = parse_enum_decl(source, node, exported);
         module.symbols.push_back(make_symbol("enum", decl.name, exported, decl.span));
         module.enums.push_back(std::move(decl));
+    } else if (type == "kind_declaration") {
+        const std::string family = slice(source, child_by_field(node, "family"));
+        const std::string name = slice(source, child_by_field(node, "name"));
+        module.symbols.push_back(make_symbol("kind " + family, name, exported, span_of(node)));
     } else if (type == "object_declaration") {
         auto decl = parse_object_decl(source, node, exported);
         module.symbols.push_back(make_symbol("object", decl.name, exported, decl.span));
         module.objects.push_back(std::move(decl));
-    } else if (type == "scope_kind_declaration") {
-        auto decl = parse_scope_kind_decl(source, node, exported);
-        module.symbols.push_back(make_symbol("scope", decl.name, exported, decl.span));
-        module.scope_kinds.push_back(std::move(decl));
+    } else if (type == "block_kind_declaration") {
+        auto decl = parse_block_kind_decl(source, node, exported);
+        module.symbols.push_back(make_symbol("block", decl.name, exported, decl.span));
+        module.block_kinds.push_back(std::move(decl));
     } else if (type == "command_declaration") {
         auto decl = parse_command_decl(source, node, exported);
         module.symbols.push_back(make_symbol("command", decl.name, exported, decl.span));
@@ -557,7 +575,7 @@ ImportDecl parse_import(const std::string& source, TSNode node) {
 }
 
 void parse_item_into(const std::string& source, TSNode node, ItemContainer& items) {
-    if (is_type(node, "scope_declaration")) items.scopes.push_back(parse_scope(source, node));
+    if (is_type(node, "block_declaration")) items.blocks.push_back(parse_block(source, node));
     else if (is_type(node, "const_declaration")) items.consts.push_back(parse_const(source, node));
     else if (is_type(node, "property_declaration")) items.properties.push_back(parse_property(source, node));
     else if (is_type(node, "call_statement")) items.calls.push_back(parse_call(source, node));
@@ -565,20 +583,28 @@ void parse_item_into(const std::string& source, TSNode node, ItemContainer& item
     else if (is_type(node, "directive_statement")) items.directives.push_back(parse_directive(source, node));
 }
 
-const Scope* find_graph_scope_in(const ItemContainer& items, const std::string& graph_name) {
-    for (const auto& scope : items.scopes) {
-        if (scope->kind == "graph" && (graph_name.empty() || scope->name == graph_name)) {
-            return scope.get();
+const Block* find_graph_block_in(const ItemContainer& items, const std::string& graph_name) {
+    for (const auto& block : items.blocks) {
+        if (block->kind == "graph" && (graph_name.empty() || block->name == graph_name)) {
+            return block.get();
         }
-        if (const auto* nested = find_graph_scope_in(scope->items, graph_name)) return nested;
+        if (const auto* nested = find_graph_block_in(block->items, graph_name)) return nested;
     }
     return nullptr;
 }
 
-const Scope* find_scope_by_name_in(const ItemContainer& items, const std::string& name) {
-    for (const auto& scope : items.scopes) {
-        if (scope->name == name) return scope.get();
-        if (const auto* nested = find_scope_by_name_in(scope->items, name)) return nested;
+const Block* find_block_by_name_in(const ItemContainer& items, const std::string& name) {
+    for (const auto& block : items.blocks) {
+        if (block->name == name) return block.get();
+        if (const auto* nested = find_block_by_name_in(block->items, name)) return nested;
+    }
+    return nullptr;
+}
+
+const Block* find_block_by_kind_and_name_in(const ItemContainer& items, const std::string& kind, const std::string& name) {
+    for (const auto& block : items.blocks) {
+        if (block->kind == kind && block->name == name) return block.get();
+        if (const auto* nested = find_block_by_kind_and_name_in(block->items, kind, name)) return nested;
     }
     return nullptr;
 }
@@ -587,22 +613,41 @@ const ConstObject* find_const_object(const ItemContainer& items, const std::stri
     for (const auto& object : items.consts) {
         if (object.alias == alias) return &object;
     }
-    for (const auto& scope : items.scopes) {
-        if (const auto* found = find_const_object(scope->items, alias)) return found;
+    for (const auto& block : items.blocks) {
+        if (const auto* found = find_const_object(block->items, alias)) return found;
     }
     return nullptr;
 }
 
-void collect_const_aliases(const ItemContainer& items, std::unordered_set<std::string>& aliases, bool& duplicate) {
+void collect_node_aliases(const ItemContainer& items, std::unordered_set<std::string>& aliases, bool& duplicate) {
     for (const auto& object : items.consts) {
         if (!aliases.insert(object.alias).second) duplicate = true;
     }
-    for (const auto& scope : items.scopes) collect_const_aliases(scope->items, aliases, duplicate);
+    for (const auto& block : items.blocks) {
+        if (block->kind == "node" && !aliases.insert(block->name).second) duplicate = true;
+        collect_node_aliases(block->items, aliases, duplicate);
+    }
 }
 
 void collect_const_objects(const ItemContainer& items, std::vector<const ConstObject*>& out) {
     for (const auto& object : items.consts) out.push_back(&object);
-    for (const auto& scope : items.scopes) collect_const_objects(scope->items, out);
+    for (const auto& block : items.blocks) collect_const_objects(block->items, out);
+}
+
+void collect_node_blocks(const ItemContainer& items, std::vector<const Block*>& out) {
+    for (const auto& block : items.blocks) {
+        if (block->kind == "node") out.push_back(block.get());
+        collect_node_blocks(block->items, out);
+    }
+}
+
+void collect_flow_blocks(const ItemContainer& items, std::vector<const Block*>& out) {
+    for (const auto& block : items.blocks) {
+        if (block->kind == "event" || block->kind == "function" || block->kind == "entry") {
+            out.push_back(block.get());
+        }
+        collect_flow_blocks(block->items, out);
+    }
 }
 
 void collect_command_calls(const ItemContainer& items, std::vector<const CommandCall*>& out) {
@@ -610,7 +655,27 @@ void collect_command_calls(const ItemContainer& items, std::vector<const Command
     for (const auto& object : items.consts) {
         for (const auto& call : object.calls) out.push_back(&call);
     }
-    for (const auto& scope : items.scopes) collect_command_calls(scope->items, out);
+    for (const auto& block : items.blocks) collect_command_calls(block->items, out);
+}
+
+void collect_local_command_calls(const ItemContainer& items, std::vector<const CommandCall*>& out) {
+    for (const auto& call : items.calls) out.push_back(&call);
+    for (const auto& object : items.consts) {
+        for (const auto& call : object.calls) out.push_back(&call);
+    }
+}
+
+const Directive* find_directive(const ItemContainer& items, const std::string& name) {
+    for (const auto& directive : items.directives) {
+        if (directive.name == name) return &directive;
+    }
+    return nullptr;
+}
+
+std::string first_directive_arg(const ItemContainer& items, const std::string& name) {
+    const Directive* directive = find_directive(items, name);
+    if (!directive || directive->args.empty()) return "";
+    return directive->args.front().text;
 }
 
 std::string attr_arg_value(const Attribute& attr, const std::string& name) {
@@ -618,6 +683,84 @@ std::string attr_arg_value(const Attribute& attr, const std::string& name) {
         if (arg.name == name) return arg.value.text;
     }
     return "";
+}
+
+std::string endpoint_owner(const std::string& endpoint) {
+    const size_t dot = endpoint.find('.');
+    return dot == std::string::npos ? endpoint : endpoint.substr(0, dot);
+}
+
+bool known_endpoint_owner(const std::string& owner,
+                          const std::unordered_set<std::string>& node_aliases,
+                          const std::unordered_set<std::string>& parameter_names,
+                          bool allow_node_aliases) {
+    return owner == "context" || parameter_names.find(owner) != parameter_names.end() ||
+           (allow_node_aliases && node_aliases.find(owner) != node_aliases.end());
+}
+
+std::string graph_parameter_direction(const std::vector<Attribute>& attributes) {
+    for (const auto& attr : attributes) {
+        if (attr.name == "graph.input") return "in";
+        if (attr.name == "graph.output") return "out";
+        if (attr.name == "graph.var") return "var";
+    }
+    return "var";
+}
+
+size_t graph_parameter_direction_attribute_count(const std::vector<Attribute>& attributes) {
+    size_t count = 0;
+    for (const auto& attr : attributes) {
+        if (attr.name == "graph.input" || attr.name == "graph.output" || attr.name == "graph.var") ++count;
+    }
+    return count;
+}
+
+void project_command_call(const CommandCall& call,
+                          const std::unordered_set<std::string>& aliases,
+                          const std::unordered_set<std::string>& parameters,
+                          bool allow_node_aliases,
+                          std::vector<FlowEdge>& edges,
+                          std::vector<FlowDataEdge>& data_edges,
+                          std::vector<Diagnostic>& diagnostics) {
+    if (call.callee_parts.size() == 1 && call.callee_parts.front() == "connect" && call.args.size() >= 2) {
+        FlowEdge edge;
+        edge.from = call.args[0].text;
+        edge.to = call.args[1].text;
+        edge.span = call.span;
+        const std::string from_alias = endpoint_owner(edge.from);
+        const std::string to_alias = endpoint_owner(edge.to);
+        if (!known_endpoint_owner(from_alias, aliases, parameters, allow_node_aliases)) {
+            edge.valid = false;
+            diagnostics.push_back(make_diag(Severity::Error, "GS-FLW-002", "Unknown source node in connection", call.span.range, from_alias));
+        }
+        if (!known_endpoint_owner(to_alias, aliases, parameters, allow_node_aliases)) {
+            edge.valid = false;
+            diagnostics.push_back(make_diag(Severity::Error, "GS-FLW-003", "Unknown target node in connection", call.span.range, to_alias));
+        }
+        edges.push_back(std::move(edge));
+        return;
+    }
+
+    if (call.callee_parts.size() == 1 && call.callee_parts.front() == "bind" && call.args.size() >= 2) {
+        FlowDataEdge edge;
+        edge.source = call.args[0].text;
+        edge.target = call.args[1].text;
+        edge.span = call.span;
+        const std::string source_owner = endpoint_owner(edge.source);
+        const std::string target_owner = endpoint_owner(edge.target);
+        if (!known_endpoint_owner(source_owner, aliases, parameters, allow_node_aliases)) {
+            edge.valid = false;
+            diagnostics.push_back(make_diag(Severity::Error, "GS-FLW-004", "Unknown source in data link", call.span.range, source_owner));
+        }
+        if (!known_endpoint_owner(target_owner, aliases, parameters, allow_node_aliases)) {
+            edge.valid = false;
+            diagnostics.push_back(make_diag(Severity::Error, "GS-FLW-005", "Unknown target in data link", call.span.range, target_owner));
+        }
+        data_edges.push_back(std::move(edge));
+        return;
+    }
+
+    diagnostics.push_back(make_diag(Severity::Warning, "GS-FLW-001", "Unsupported command call in graph", call.span.range));
 }
 
 } // namespace
@@ -685,7 +828,8 @@ std::vector<Diagnostic> Linter::lint(const Module& module, ModuleGraph* graph) {
     for (const auto& object : module.objects) {
         std::unordered_set<std::string> field_names;
         for (const auto& field : object.fields) {
-            if (!field_names.insert(field.name).second) {
+            const std::string role = field_is_flow_pin(field) ? "pin:" : "field:";
+            if (!field_names.insert(role + field.name).second) {
                 diagnostics.push_back(make_diag(Severity::Error, "GS-LINT-002", "Duplicate field declaration", field.span.range, field.name));
             }
         }
@@ -693,9 +837,9 @@ std::vector<Diagnostic> Linter::lint(const Module& module, ModuleGraph* graph) {
 
     std::unordered_set<std::string> aliases;
     bool duplicate_alias = false;
-    collect_const_aliases(module.items, aliases, duplicate_alias);
+    collect_node_aliases(module.items, aliases, duplicate_alias);
     if (duplicate_alias) {
-        diagnostics.push_back(make_diag(Severity::Error, "GS-LINT-003", "Duplicate const alias", {}));
+        diagnostics.push_back(make_diag(Severity::Error, "GS-LINT-003", "Duplicate node alias", {}));
     }
     return diagnostics;
 }
@@ -740,6 +884,14 @@ Result<TextPatch, std::string> Patcher::set_property(const std::string&,
             return Result<TextPatch, std::string>::ok(std::move(patch));
         }
     }
+    if (const auto* node = find_block_by_kind_and_name_in(module.items, "node", object_alias)) {
+        for (const auto& property : node->items.properties) {
+            if (property.path != property_path) continue;
+            TextPatch patch;
+            patch.edits.push_back({property.value_span.offset, property.value_span.length, value, property.value_span.range});
+            return Result<TextPatch, std::string>::ok(std::move(patch));
+        }
+    }
     return Result<TextPatch, std::string>::err("Property not found");
 }
 
@@ -749,34 +901,34 @@ Result<TextPatch, std::string> Patcher::add_node(const std::string&,
                                                  const std::string& alias,
                                                  const std::string& type,
                                                  const std::string& body) {
-    const Scope* graph = find_graph_scope_in(module.items, graph_name);
-    if (!graph) return Result<TextPatch, std::string>::err("Graph scope not found");
-    const std::string object_body = body.empty() ? "" : "\n        " + body + "\n    ";
+    const Block* graph = find_graph_block_in(module.items, graph_name);
+    if (!graph) return Result<TextPatch, std::string>::err("Graph block not found");
+    const std::string property_body = body.empty() ? "" : "\n        " + body + "\n";
     TextPatch patch;
-    patch.edits.push_back({graph->body_end_offset, 0, "    const " + alias + " = new " + type + " {" + object_body + "}\n", graph->span.range});
+    patch.edits.push_back({graph->body_end_offset, 0, "    node " + alias + " {\n        type " + type + ";" + property_body + "    }\n", graph->span.range});
     return Result<TextPatch, std::string>::ok(std::move(patch));
 }
 
-Result<TextPatch, std::string> Patcher::add_scope(const std::string& source,
+Result<TextPatch, std::string> Patcher::add_block(const std::string& source,
                                                   const Module& module,
-                                                  const std::string& parent_scope_name,
+                                                  const std::string& parent_block_name,
                                                   const std::string& kind,
                                                   const std::string& name,
                                                   const std::string& type) {
-    if (!is_identifier_text(kind)) return Result<TextPatch, std::string>::err("Scope kind must be an identifier");
-    if (!is_identifier_text(name)) return Result<TextPatch, std::string>::err("Scope name must be an identifier");
+    if (!is_identifier_text(kind)) return Result<TextPatch, std::string>::err("Block kind must be an identifier");
+    if (!is_identifier_text(name)) return Result<TextPatch, std::string>::err("Block name must be an identifier");
 
     TextPatch patch;
-    const std::string type_suffix = type.empty() ? "" : ": " + type;
-    if (parent_scope_name.empty()) {
+    const std::string type_line = type.empty() ? "" : "        type " + type + ";\n";
+    if (parent_block_name.empty()) {
         const bool needs_newline = !source.empty() && source.back() != '\n';
-        patch.edits.push_back({source.size(), 0, std::string(needs_newline ? "\n" : "") + "scope " + kind + " " + name + type_suffix + " {\n}\n", {}});
+        patch.edits.push_back({source.size(), 0, std::string(needs_newline ? "\n" : "") + kind + " " + name + " {\n" + type_line + "}\n", {}});
         return Result<TextPatch, std::string>::ok(std::move(patch));
     }
 
-    const Scope* parent = find_scope_by_name_in(module.items, parent_scope_name);
-    if (!parent) return Result<TextPatch, std::string>::err("Parent scope not found");
-    patch.edits.push_back({parent->body_end_offset, 0, "    scope " + kind + " " + name + type_suffix + " {\n    }\n", parent->span.range});
+    const Block* parent = find_block_by_name_in(module.items, parent_block_name);
+    if (!parent) return Result<TextPatch, std::string>::err("Parent block not found");
+    patch.edits.push_back({parent->body_end_offset, 0, "    " + kind + " " + name + " {\n" + type_line + "    }\n", parent->span.range});
     return Result<TextPatch, std::string>::ok(std::move(patch));
 }
 
@@ -789,8 +941,8 @@ Result<TextPatch, std::string> Patcher::add_attribute(const std::string& source,
     TextSpan target;
     if (const auto* object = find_const_object(module.items, target_name)) {
         target = object->span;
-    } else if (const auto* scope = find_scope_by_name_in(module.items, target_name)) {
-        target = scope->span;
+    } else if (const auto* block = find_block_by_name_in(module.items, target_name)) {
+        target = block->span;
     } else {
         return Result<TextPatch, std::string>::err("Attribute target not found");
     }
@@ -813,10 +965,10 @@ Result<TextPatch, std::string> Patcher::connect(const std::string&,
                                                 const std::string& graph_name,
                                                 const std::string& from,
                                                 const std::string& to) {
-    const Scope* graph = find_graph_scope_in(module.items, graph_name);
-    if (!graph) return Result<TextPatch, std::string>::err("Graph scope not found");
+    const Block* graph = find_graph_block_in(module.items, graph_name);
+    if (!graph) return Result<TextPatch, std::string>::err("Graph block not found");
     TextPatch patch;
-    patch.edits.push_back({graph->body_end_offset, 0, "    " + from + ".connect(" + to + ");\n", graph->span.range});
+    patch.edits.push_back({graph->body_end_offset, 0, "    connect(" + from + ", " + to + ");\n", graph->span.range});
     return Result<TextPatch, std::string>::ok(std::move(patch));
 }
 
@@ -825,15 +977,21 @@ Result<TextPatch, std::string> Patcher::disconnect(const std::string& source,
                                                    const std::string& graph_name,
                                                    const std::string& from,
                                                    const std::string& to) {
-    const Scope* graph = find_graph_scope_in(module.items, graph_name);
-    if (!graph) return Result<TextPatch, std::string>::err("Graph scope not found");
+    const Block* graph = find_graph_block_in(module.items, graph_name);
+    if (!graph) return Result<TextPatch, std::string>::err("Graph block not found");
     TextPatch patch;
     std::vector<const CommandCall*> calls;
     collect_command_calls(graph->items, calls);
     for (const auto* call : calls) {
-        if (call->callee_parts.size() < 3 || call->callee_parts.back() != "connect" || call->args.empty()) continue;
-        const std::string call_from = join_parts(call->callee_parts, 0, call->callee_parts.size() - 1);
-        if (call_from != from || call->args.front().text != to) continue;
+        std::string call_from;
+        std::string call_to;
+        if (call->callee_parts.size() == 1 && call->callee_parts.front() == "connect" && call->args.size() >= 2) {
+            call_from = call->args[0].text;
+            call_to = call->args[1].text;
+        } else {
+            continue;
+        }
+        if (call_from != from || call_to != to) continue;
         size_t offset = call->span.offset;
         size_t length = call->span.length;
         const size_t line_start = source.rfind('\n', call->span.offset);
@@ -852,12 +1010,17 @@ Result<TextPatch, std::string> Patcher::rename_node(const std::string& source,
                                                     const std::string& old_alias,
                                                     const std::string& new_alias) {
     if (!is_identifier_text(new_alias)) return Result<TextPatch, std::string>::err("New alias must be an identifier");
-    const Scope* graph = find_graph_scope_in(module.items, graph_name);
-    if (!graph) return Result<TextPatch, std::string>::err("Graph scope not found");
+    const Block* graph = find_graph_block_in(module.items, graph_name);
+    if (!graph) return Result<TextPatch, std::string>::err("Graph block not found");
     bool found_old = false;
     for (const auto& object : graph->items.consts) {
         if (object.alias == old_alias) found_old = true;
         if (object.alias == new_alias) return Result<TextPatch, std::string>::err("Node alias already exists");
+    }
+    for (const auto& block : graph->items.blocks) {
+        if (block->kind != "node") continue;
+        if (block->name == old_alias) found_old = true;
+        if (block->name == new_alias) return Result<TextPatch, std::string>::err("Node alias already exists");
     }
     if (!found_old) return Result<TextPatch, std::string>::err("Node alias not found");
 
@@ -875,23 +1038,23 @@ Result<TextPatch, std::string> Patcher::rename_node(const std::string& source,
     return Result<TextPatch, std::string>::ok(std::move(patch));
 }
 
-Result<TextPatch, std::string> Patcher::rename_scope(const std::string&,
+Result<TextPatch, std::string> Patcher::rename_block(const std::string&,
                                                      const Module& module,
                                                      const std::string& old_name,
                                                      const std::string& new_name) {
-    if (!is_identifier_text(new_name)) return Result<TextPatch, std::string>::err("New scope name must be an identifier");
-    const Scope* scope = find_scope_by_name_in(module.items, old_name);
-    if (!scope) return Result<TextPatch, std::string>::err("Scope not found");
-    if (find_scope_by_name_in(module.items, new_name)) return Result<TextPatch, std::string>::err("Scope name already exists");
+    if (!is_identifier_text(new_name)) return Result<TextPatch, std::string>::err("New block name must be an identifier");
+    const Block* block = find_block_by_name_in(module.items, old_name);
+    if (!block) return Result<TextPatch, std::string>::err("Block not found");
+    if (find_block_by_name_in(module.items, new_name)) return Result<TextPatch, std::string>::err("Block name already exists");
 
     TextPatch patch;
-    patch.edits.push_back({scope->name_span.offset, scope->name_span.length, new_name, scope->name_span.range});
+    patch.edits.push_back({block->name_span.offset, block->name_span.length, new_name, block->name_span.range});
     return Result<TextPatch, std::string>::ok(std::move(patch));
 }
 
 Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module, const std::string& graph_name) {
-    const Scope* graph_scope = find_graph_scope_in(module.items, graph_name);
-    if (!graph_scope) return Result<FlowGraph, std::string>::err("Graph scope not found");
+    const Block* graph_block = find_graph_block_in(module.items, graph_name);
+    if (!graph_block) return Result<FlowGraph, std::string>::err("Graph block not found");
 
     std::unordered_map<std::string, std::vector<PinDefinition>> object_pins;
     for (const auto& object : module.objects) {
@@ -917,12 +1080,32 @@ Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module,
     }
 
     FlowGraph graph;
-    graph.name = graph_scope->name;
-    graph.schema = graph_scope->type;
+    graph.name = graph_block->name;
+    graph.schema = graph_block->type;
+    if (graph.schema.empty()) graph.schema = first_directive_arg(graph_block->items, "schema");
+
+    std::unordered_set<std::string> parameter_names;
+    for (const auto& directive : graph_block->items.directives) {
+        if (directive.name != "param" || directive.parameters.empty()) continue;
+        if (graph_parameter_direction_attribute_count(directive.attributes) > 1) {
+            graph.diagnostics.push_back(make_diag(Severity::Error, "GS-FLW-006", "Conflicting graph parameter direction attributes", directive.span.range));
+        }
+        const auto& param = directive.parameters.front();
+        GraphParameter projected_param;
+        projected_param.name = param.name;
+        projected_param.type = param.type;
+        projected_param.direction = graph_parameter_direction(directive.attributes);
+        projected_param.default_value = param.default_value;
+        projected_param.has_default = param.has_default;
+        projected_param.attributes = directive.attributes;
+        projected_param.span = directive.span;
+        parameter_names.insert(projected_param.name);
+        graph.parameters.push_back(std::move(projected_param));
+    }
 
     std::unordered_set<std::string> aliases;
     std::vector<const ConstObject*> objects;
-    collect_const_objects(graph_scope->items, objects);
+    collect_const_objects(graph_block->items, objects);
     for (const auto* object : objects) {
         FlowNode node;
         node.alias = object->alias;
@@ -933,29 +1116,43 @@ Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module,
         aliases.insert(node.alias);
         graph.nodes.push_back(std::move(node));
     }
+    std::vector<const Block*> node_blocks;
+    collect_node_blocks(graph_block->items, node_blocks);
+    for (const auto* block : node_blocks) {
+        FlowNode node;
+        node.alias = block->name;
+        node.type = first_directive_arg(block->items, "type");
+        node.properties = block->items.properties;
+        node.span = block->span;
+        if (object_pins.count(node.type)) node.pins = object_pins[node.type];
+        aliases.insert(node.alias);
+        graph.nodes.push_back(std::move(node));
+    }
 
     std::vector<const CommandCall*> calls;
-    collect_command_calls(graph_scope->items, calls);
+    collect_local_command_calls(graph_block->items, calls);
     for (const auto* call : calls) {
-        if (call->callee_parts.size() < 3 || call->callee_parts.back() != "connect" || call->args.empty()) {
-            graph.diagnostics.push_back(make_diag(Severity::Warning, "GS-FLW-001", "Unsupported command call in graph", call->span.range));
-            continue;
+        project_command_call(*call, aliases, parameter_names, true, graph.edges, graph.data_edges, graph.diagnostics);
+    }
+
+    std::vector<const Block*> flow_blocks;
+    collect_flow_blocks(graph_block->items, flow_blocks);
+    for (const auto* block : flow_blocks) {
+        FlowBlock projected_block;
+        projected_block.kind = block->kind;
+        projected_block.name = block->name;
+        projected_block.span = block->span;
+        std::vector<const CommandCall*> block_calls;
+        collect_local_command_calls(block->items, block_calls);
+        for (const auto* call : block_calls) {
+            const bool allow_node_aliases = block->kind != "function";
+            const size_t before_edges = projected_block.edges.size();
+            const size_t before_data_edges = projected_block.data_edges.size();
+            project_command_call(*call, aliases, parameter_names, allow_node_aliases, projected_block.edges, projected_block.data_edges, graph.diagnostics);
+            for (size_t i = before_edges; i < projected_block.edges.size(); ++i) graph.edges.push_back(projected_block.edges[i]);
+            for (size_t i = before_data_edges; i < projected_block.data_edges.size(); ++i) graph.data_edges.push_back(projected_block.data_edges[i]);
         }
-        FlowEdge edge;
-        edge.from = join_parts(call->callee_parts, 0, call->callee_parts.size() - 1);
-        edge.to = call->args.front().text;
-        edge.span = call->span;
-        const std::string from_alias = call->callee_parts.front();
-        const std::string to_alias = edge.to.substr(0, edge.to.find('.'));
-        if (from_alias != "context" && aliases.find(from_alias) == aliases.end()) {
-            edge.valid = false;
-            graph.diagnostics.push_back(make_diag(Severity::Error, "GS-FLW-002", "Unknown source node in connection", call->span.range, from_alias));
-        }
-        if (to_alias != "context" && aliases.find(to_alias) == aliases.end()) {
-            edge.valid = false;
-            graph.diagnostics.push_back(make_diag(Severity::Error, "GS-FLW-003", "Unknown target node in connection", call->span.range, to_alias));
-        }
-        graph.edges.push_back(std::move(edge));
+        graph.blocks.push_back(std::move(projected_block));
     }
 
     return Result<FlowGraph, std::string>::ok(std::move(graph));

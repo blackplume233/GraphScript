@@ -33,10 +33,6 @@ static std::string read_fixture(const std::string& filename) {
     return read_file(GS_TEST_FIXTURES_DIR, filename);
 }
 
-static std::string read_preset(const std::string& filename) {
-    return read_file(GS_PRESETS_DIR, filename);
-}
-
 static std::unique_ptr<ModuleNode> do_parse(const std::string& src) {
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
@@ -55,16 +51,23 @@ static Module do_compile(const std::string& src, Environment& env, const std::st
     return std::move(result).value();
 }
 
+static void load_preset(Environment& env, const std::string& filename) {
+    EditSession session(env);
+    const std::string path = std::string(GS_PRESETS_DIR) + "/" + filename;
+    auto loaded = session.load_import(path);
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+}
+
 static void load_core(Environment& env) {
-    do_compile(read_preset("ue_core.d.gs"), env, "ue_core.d.gs");
+    load_preset(env, "ue_core.d.gs");
 }
 
 static void load_htn(Environment& env) {
-    do_compile(read_preset("htn_nodes.d.gs"), env, "htn_nodes.d.gs");
+    load_preset(env, "htn_nodes.d.gs");
 }
 
 static void load_task(Environment& env) {
-    do_compile(read_preset("task_nodes.d.gs"), env, "task_nodes.d.gs");
+    load_preset(env, "task_nodes.d.gs");
 }
 
 /// Asserts two Modules are structurally equivalent; prints dumps on failure.

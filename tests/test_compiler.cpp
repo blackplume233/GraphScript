@@ -21,9 +21,65 @@ static std::string read_fixture(const std::string& filename) {
     return read_file(GS_TEST_FIXTURES_DIR, filename);
 }
 
-static std::string read_preset(const std::string& filename) {
-    return read_file(GS_PRESETS_DIR, filename);
+static constexpr const char* kLegacyCoreDeclarations = R"(// Legacy declarations for compiler-layer tests only.
+declare type FName;
+declare type FString;
+declare type FVector : constructible;
+declare type FRotator : constructible;
+declare type SoftObjectPath : constructible;
+declare type AActor;
+declare type UObject;
+declare type float;
+declare type int;
+declare type bool;
+
+declare Node PrintString {
+    exec in enter;
+    exec out exit;
+    field message : FString = "";
+    data in message : FString;
 }
+
+declare Node Delay {
+    exec in enter;
+    exec out completed;
+    field duration : float = 0.2;
+    data in duration : float;
+}
+
+declare Node GetActorLocation {
+    data in target : AActor;
+    data out location : FVector;
+}
+)";
+
+static constexpr const char* kLegacyHtnDeclarations = R"(// HTN domain node declarations
+declare type HTNTask;
+declare type HTNCondition;
+
+declare Node HTN_MoveToTarget {
+    exec in enter;
+    exec out success;
+    exec out fail;
+    data in target : AActor;
+    data in speed : float;
+}
+
+declare Node HTN_CheckDistance {
+    exec in enter;
+    exec out inRange;
+    exec out outOfRange;
+    data in target : AActor;
+    data in threshold : float;
+}
+
+declare Schema HTNGraph {
+    max_exec_fan_out: unlimited;
+    allow_exec_fan_in: false;
+    strict_type_match: true;
+    allowed_node_tags: ["htn_task", "htn_decorator", "htn_service", "common"];
+}
+)";
 
 static std::unique_ptr<ModuleNode> parse(std::string_view src) {
     Lexer lexer(src);
@@ -35,7 +91,7 @@ static std::unique_ptr<ModuleNode> parse(std::string_view src) {
 }
 
 TEST(Compiler, CompileDeclareTypes) {
-    auto ast = parse(read_preset("ue_core.d.gs"));
+    auto ast = parse(kLegacyCoreDeclarations);
     ASSERT_NE(ast, nullptr);
 
     Environment env;
@@ -57,7 +113,7 @@ TEST(Compiler, CompileDeclareTypes) {
 }
 
 TEST(Compiler, CompileDeclareNodes) {
-    auto ast = parse(read_preset("ue_core.d.gs"));
+    auto ast = parse(kLegacyCoreDeclarations);
     ASSERT_NE(ast, nullptr);
 
     Environment env;
@@ -83,7 +139,7 @@ TEST(Compiler, CompileDeclareNodes) {
 }
 
 TEST(Compiler, CompileDeclareSchemas) {
-    auto ast = parse(read_preset("htn_nodes.d.gs"));
+    auto ast = parse(kLegacyHtnDeclarations);
     ASSERT_NE(ast, nullptr);
 
     Environment env;
@@ -106,7 +162,7 @@ TEST(Compiler, CompileMinimalGraph) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_preset("ue_core.d.gs"));
+    auto core_ast = parse(kLegacyCoreDeclarations);
     compiler.compile(*core_ast);
 
     auto ast = parse(read_fixture("minimal.gs"));
@@ -126,7 +182,7 @@ TEST(Compiler, GraphAsNodeDerivation) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_preset("ue_core.d.gs"));
+    auto core_ast = parse(kLegacyCoreDeclarations);
     compiler.compile(*core_ast);
 
     auto ast = parse(read_fixture("graph_as_node.gs"));
@@ -182,9 +238,9 @@ TEST(Compiler, GraphWithBaseType) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_preset("ue_core.d.gs"));
+    auto core_ast = parse(kLegacyCoreDeclarations);
     compiler.compile(*core_ast);
-    auto htn_ast = parse(read_preset("htn_nodes.d.gs"));
+    auto htn_ast = parse(kLegacyHtnDeclarations);
     compiler.compile(*htn_ast);
 
     auto ast = parse(read_fixture("htn_basic.gs"));
@@ -202,7 +258,7 @@ TEST(Compiler, LetDeclarations) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_preset("ue_core.d.gs"));
+    auto core_ast = parse(kLegacyCoreDeclarations);
     compiler.compile(*core_ast);
 
     auto ast = parse(read_fixture("round_trip.gs"));
@@ -236,7 +292,7 @@ TEST(Compiler, FlowConnections) {
     Environment env;
     Compiler compiler(env);
 
-    auto core_ast = parse(read_preset("ue_core.d.gs"));
+    auto core_ast = parse(kLegacyCoreDeclarations);
     compiler.compile(*core_ast);
 
     auto ast = parse(read_fixture("minimal.gs"));

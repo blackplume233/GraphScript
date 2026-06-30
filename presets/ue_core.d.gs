@@ -1,30 +1,39 @@
 // UE Core type declarations
-declare type FName;
-declare type FString;
-declare type FVector : constructible;
-declare type FRotator : constructible;
-declare type SoftObjectPath : constructible;
-declare type AActor;
-declare type UObject;
-declare type float;
-declare type int;
-declare type bool;
+export declare type FName;
+export declare type FString;
+export declare type FVector: constructible;
+export declare type FRotator: constructible;
+export declare type SoftObjectPath: constructible;
+export declare type AActor;
+export declare type UObject;
+export declare type float;
+export declare type int;
+export declare type bool;
+export declare type Exec;
 
-declare Node PrintString {
-    exec in enter;
-    exec out exit;
-    field message : FString = "";
-    data in message : FString;
+export declare object PrintString {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    message: FString = "";
+    @flow.input
+    message: FString;
 }
 
-declare Node Delay {
-    exec in enter;
-    exec out completed;
-    field duration : float = 0.2;
-    data in duration : float;
+export declare object Delay {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    completed: Exec;
+    duration: float = 0.2;
+    @flow.input
+    duration: float;
 }
 
-declare Node GetActorLocation {
-    data in target : AActor;
-    data out location : FVector;
+export declare object GetActorLocation {
+    @flow.input
+    target: AActor;
+    @flow.output
+    location: FVector;
 }

@@ -2712,8 +2712,7 @@ TEST(EditSession, LoadAssetImportRejectsMalformedAssetDeclarationWithoutLegacyFa
         std::ofstream out(path, std::ios::binary);
         ASSERT_TRUE(out.is_open());
         out << "export declare object Broken {\n"
-               "    @flow.input\n"
-               "    target: Actor\n"
+               "    target:\n"
                "}\n";
     }
 
@@ -2722,6 +2721,25 @@ TEST(EditSession, LoadAssetImportRejectsMalformedAssetDeclarationWithoutLegacyFa
     auto loaded = s.load_import(path.string());
     ASSERT_TRUE(loaded.is_err());
     EXPECT_NE(loaded.error().find("Asset parse error in:"), std::string::npos);
+    EXPECT_FALSE(s.is_import_loaded(path.string()));
+    EXPECT_TRUE(s.module().imports.empty());
+    EXPECT_TRUE(env.nodes().all().empty());
+}
+
+TEST(EditSession, LoadAssetImportRejectsMalformedDgsAssetWithoutLegacyFallback) {
+    const auto path = std::filesystem::temp_directory_path() / "graphscript_asset_malformed_graph_012.d.gs";
+    {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "graph Imported {\n"
+               "    node log {\n";
+    }
+
+    Environment env;
+    EditSession s(env);
+    auto loaded = s.load_import(path.string());
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_NE(loaded.error().find("Asset parse error in:"), std::string::npos) << loaded.error();
     EXPECT_FALSE(s.is_import_loaded(path.string()));
     EXPECT_TRUE(s.module().imports.empty());
     EXPECT_TRUE(env.nodes().all().empty());
@@ -2982,6 +3000,51 @@ TEST(EditSession, LoadAssetImportRegistersTypeObjectAndSchemaDeclarations) {
     ASSERT_NE(schema, nullptr);
     EXPECT_EQ(schema->connection_policy.max_exec_fan_out, 2);
     EXPECT_TRUE(schema->connection_policy.allow_exec_fan_in);
+}
+
+TEST(EditSession, LoadPresetImportsUseAssetDeclarations) {
+    Environment env;
+    EditSession s(env);
+    const std::filesystem::path preset_dir = GS_PRESETS_DIR;
+    const char* presets[] = {
+        "ue_core.d.gs",
+        "ue_blueprint.d.gs",
+        "task_nodes.d.gs",
+        "levelscript_nodes.d.gs",
+        "htn_nodes.d.gs",
+    };
+
+    for (const char* preset : presets) {
+        const auto path = preset_dir / preset;
+        auto loaded = s.load_import(path.string());
+        ASSERT_TRUE(loaded.is_ok()) << preset << ": " << loaded.error();
+        EXPECT_TRUE(s.is_import_loaded(path.string())) << preset;
+    }
+
+    auto* vector_type = env.types().find("FVector");
+    ASSERT_NE(vector_type, nullptr);
+    EXPECT_TRUE(vector_type->constructible);
+
+    auto* print = env.nodes().find("PrintString");
+    ASSERT_NE(print, nullptr);
+    ASSERT_EQ(print->fields.size(), 1u);
+    EXPECT_EQ(print->fields[0].name, "message");
+    EXPECT_EQ(print->fields[0].default_value, "");
+    ASSERT_NE(print->find_pin("message"), nullptr);
+    EXPECT_EQ(print->find_pin("message")->direction, PinDirection::Input);
+    ASSERT_NE(print->find_pin("enter"), nullptr);
+    EXPECT_EQ(print->find_pin("enter")->kind, PinKind::Exec);
+
+    auto* add_float = env.nodes().find("Add_Float");
+    ASSERT_NE(add_float, nullptr);
+    ASSERT_NE(add_float->find_pin("Result"), nullptr);
+    EXPECT_EQ(add_float->find_pin("Result")->direction, PinDirection::Output);
+
+    auto* htn = env.schemas().find("HTNGraph");
+    ASSERT_NE(htn, nullptr);
+    EXPECT_EQ(htn->connection_policy.max_exec_fan_out, -1);
+    EXPECT_FALSE(htn->connection_policy.allow_exec_fan_in);
+    EXPECT_TRUE(htn->connection_policy.strict_type_match);
 }
 
 TEST(EditSession, UndoRedoAssetSourceLoadRestoresSourceCache) {

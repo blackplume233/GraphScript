@@ -3210,6 +3210,25 @@ static bool looks_like_asset_declaration_source(const std::string& source) {
            source.find("declare schema") != std::string::npos;
 }
 
+static bool line_starts_with_token(const std::string& source, const std::string& token) {
+    size_t line_start = 0;
+    while (line_start <= source.size()) {
+        size_t first = line_start;
+        while (first < source.size() && (source[first] == ' ' || source[first] == '\t' || source[first] == '\r')) {
+            ++first;
+        }
+        if (source.compare(first, token.size(), token) == 0) return true;
+        const size_t next = source.find('\n', line_start);
+        if (next == std::string::npos) break;
+        line_start = next + 1;
+    }
+    return false;
+}
+
+static bool looks_like_asset_graph_source(const std::string& source) {
+    return line_starts_with_token(source, "graph ");
+}
+
 static std::string asset_parse_error_message(const std::string& path, const std::vector<Diagnostic>& diagnostics) {
     std::string message = "Asset parse error in: " + path;
     if (!diagnostics.empty()) message += ": " + diagnostics.front().message;
@@ -3245,7 +3264,8 @@ static bool has_asset_declaration_symbol(const asset::Module& module) {
 
 static bool has_asset_declaration_import_items(const asset::Module& module) {
     if (has_asset_source_items(module.items)) return false;
-    return !module.modules.empty() ||
+    return !module.imports.empty() ||
+           !module.modules.empty() ||
            !module.enums.empty() ||
            !module.objects.empty() ||
            !module.block_kinds.empty() ||
@@ -3343,8 +3363,9 @@ static Result<void, std::string> register_asset_declarations(Environment& env,
         if (symbol.kind != "type") continue;
         TypeInfo info;
         info.name = symbol.name;
+        info.constructible = symbol.base_type == "constructible";
         info.source_range = symbol.span.range;
-        info.name_range = symbol.span.range;
+        info.name_range = symbol.name_span.range;
         info.source_file = source_name;
         env.types().register_type(std::move(info));
     }
@@ -3628,7 +3649,8 @@ Result<void, std::string> EditSession::load_import(const std::string& path) {
     if (src.empty()) return Result<void, std::string>::err("Cannot read file: " + path);
 
     auto asset_parsed = parse_asset_result(src, path);
-    if (!asset_parsed.diagnostics.empty() && looks_like_asset_declaration_source(src)) {
+    if (!asset_parsed.diagnostics.empty() &&
+        (looks_like_asset_declaration_source(src) || looks_like_asset_graph_source(src))) {
         return Result<void, std::string>::err(asset_parse_error_message(path, asset_parsed.diagnostics));
     }
     if (asset_parsed.diagnostics.empty() && has_asset_declaration_import_items(asset_parsed.module)) {

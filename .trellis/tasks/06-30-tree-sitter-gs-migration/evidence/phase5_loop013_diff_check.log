@@ -1,0 +1,17 @@
+warning: in the working copy of 'include/graphscript/asset/language.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'presets/htn_nodes.d.gs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'presets/levelscript_nodes.d.gs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'presets/task_nodes.d.gs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'presets/ue_blueprint.d.gs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'presets/ue_core.d.gs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/asset/language.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/edit/edit_session.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_asset_language.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_blueprint_scenarios.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_compiler.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_edit_session.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_emitter.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_integration_deep.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_parser.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_qa_loop.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_qa_stress.cpp', LF will be replaced by CRLF the next time Git touches it

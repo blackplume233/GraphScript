@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <fstream>
 #include <sstream>
+#include "graphscript/asset/language.h"
 #include "graphscript/parse/lexer.h"
 #include "graphscript/parse/parser.h"
 
@@ -123,38 +124,44 @@ declare Schema HTNGraph {
     EXPECT_EQ(schema->fields[4]->value_constructor_arg_range.start.column, 35u);
 }
 
-TEST(Parser, UeCoreFixture) {
+TEST(Parser, AssetUeCorePreset) {
     auto src = read_preset("ue_core.d.gs");
     ASSERT_FALSE(src.empty());
-    auto result = parse_source(src);
-    ASSERT_TRUE(result.is_ok()) << result.error();
-    auto& mod = result.value();
-    EXPECT_GE(mod->declare_types.size(), 5u);
-    EXPECT_GE(mod->declare_nodes.size(), 3u);
+    asset::Parser parser(src, "ue_core.d.gs");
+    auto result = parser.parse();
+    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_GE(result.module.symbols.size(), 5u);
+    EXPECT_GE(result.module.objects.size(), 3u);
 }
 
-TEST(Parser, HtnNodesFixture) {
+TEST(Parser, AssetHtnNodesPreset) {
     auto src = read_preset("htn_nodes.d.gs");
     ASSERT_FALSE(src.empty());
-    auto result = parse_source(src);
-    ASSERT_TRUE(result.is_ok()) << result.error();
-    auto& mod = result.value();
-    EXPECT_GE(mod->declare_nodes.size(), 2u);
-    EXPECT_EQ(mod->declare_schemas.size(), 1u);
+    asset::Parser parser(src, "htn_nodes.d.gs");
+    auto result = parser.parse();
+    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_GE(result.module.objects.size(), 2u);
+    EXPECT_EQ(result.module.schemas.size(), 1u);
 }
 
-TEST(Parser, TaskNodesFixture) {
+TEST(Parser, AssetTaskNodesPreset) {
     auto src = read_preset("task_nodes.d.gs");
     ASSERT_FALSE(src.empty());
-    auto result = parse_source(src);
-    ASSERT_TRUE(result.is_ok()) << result.error();
+    asset::Parser parser(src, "task_nodes.d.gs");
+    auto result = parser.parse();
+    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_GE(result.module.objects.size(), 3u);
+    EXPECT_EQ(result.module.schemas.size(), 1u);
 }
 
-TEST(Parser, LevelScriptNodesFixture) {
+TEST(Parser, AssetLevelScriptNodesPreset) {
     auto src = read_preset("levelscript_nodes.d.gs");
     ASSERT_FALSE(src.empty());
-    auto result = parse_source(src);
-    ASSERT_TRUE(result.is_ok()) << result.error();
+    asset::Parser parser(src, "levelscript_nodes.d.gs");
+    auto result = parser.parse();
+    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_GE(result.module.objects.size(), 2u);
+    EXPECT_EQ(result.module.schemas.size(), 1u);
 }
 
 // ─── .gs script files ──────────────────────────────────────────────

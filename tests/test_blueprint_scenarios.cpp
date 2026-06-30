@@ -32,10 +32,6 @@ static std::string read_fixture(const std::string& filename) {
     return read_file(GS_TEST_FIXTURES_DIR, filename);
 }
 
-static std::string read_preset(const std::string& filename) {
-    return read_file(GS_PRESETS_DIR, filename);
-}
-
 static std::unique_ptr<ModuleNode> do_parse(const std::string& src) {
     Lexer lexer(src);
     auto tokens = lexer.tokenize();
@@ -54,9 +50,16 @@ static Module do_compile(const std::string& src, Environment& env, const std::st
     return std::move(result).value();
 }
 
+static void load_preset(Environment& env, const std::string& filename) {
+    EditSession session(env);
+    const std::string path = std::string(GS_PRESETS_DIR) + "/" + filename;
+    auto loaded = session.load_import(path);
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+}
+
 static void load_all(Environment& env) {
-    do_compile(read_preset("ue_core.d.gs"), env, "ue_core.d.gs");
-    do_compile(read_preset("ue_blueprint.d.gs"), env, "ue_blueprint.d.gs");
+    load_preset(env, "ue_core.d.gs");
+    load_preset(env, "ue_blueprint.d.gs");
 }
 
 static void assert_modules_eq(const Module& a, const Module& b,

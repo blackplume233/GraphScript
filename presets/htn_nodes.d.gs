@@ -1,24 +1,34 @@
 // HTN domain node declarations
-declare type HTNTask;
-declare type HTNCondition;
+export declare type HTNTask;
+export declare type HTNCondition;
 
-declare Node HTN_MoveToTarget {
-    exec in enter;
-    exec out success;
-    exec out fail;
-    data in target : AActor;
-    data in speed : float;
+export declare object HTN_MoveToTarget {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    success: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    fail: Exec;
+    @flow.input
+    target: AActor;
+    @flow.input
+    speed: float;
 }
 
-declare Node HTN_CheckDistance {
-    exec in enter;
-    exec out inRange;
-    exec out outOfRange;
-    data in target : AActor;
-    data in threshold : float;
+export declare object HTN_CheckDistance {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    inRange: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    outOfRange: Exec;
+    @flow.input
+    target: AActor;
+    @flow.input
+    threshold: float;
 }
 
-declare Schema HTNGraph {
+export declare schema HTNGraph: FlowGraphSchema {
     max_exec_fan_out: unlimited;
     allow_exec_fan_in: false;
     strict_type_match: true;

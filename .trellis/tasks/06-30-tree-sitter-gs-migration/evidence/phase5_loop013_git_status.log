@@ -1,0 +1,530 @@
+ M .claude/agents/trellis-check.md
+ M .claude/agents/trellis-implement.md
+ M .claude/agents/trellis-research.md
+ M .claude/commands/trellis/continue.md
+ M .claude/commands/trellis/finish-work.md
+ M .claude/hooks/inject-subagent-context.py
+ M .claude/hooks/inject-workflow-state.py
+ M .claude/hooks/session-start.py
+ M .claude/settings.json
+ M .claude/skills/trellis-before-dev/SKILL.md
+ M .claude/skills/trellis-brainstorm/SKILL.md
+ M .claude/skills/trellis-break-loop/SKILL.md
+ M .claude/skills/trellis-check/SKILL.md
+ M .claude/skills/trellis-meta/SKILL.md
+ M .claude/skills/trellis-meta/references/customize-local/add-project-local-conventions.md
+ M .claude/skills/trellis-meta/references/customize-local/change-agents.md
+ M .claude/skills/trellis-meta/references/customize-local/change-context-loading.md
+ M .claude/skills/trellis-meta/references/customize-local/change-hooks.md
+ M .claude/skills/trellis-meta/references/customize-local/change-skills-or-commands.md
+ M .claude/skills/trellis-meta/references/customize-local/change-spec-structure.md
+ M .claude/skills/trellis-meta/references/customize-local/change-task-lifecycle.md
+ M .claude/skills/trellis-meta/references/customize-local/change-workflow.md
+ M .claude/skills/trellis-meta/references/customize-local/overview.md
+ M .claude/skills/trellis-meta/references/local-architecture/context-injection.md
+ M .claude/skills/trellis-meta/references/local-architecture/generated-files.md
+ M .claude/skills/trellis-meta/references/local-architecture/overview.md
+ M .claude/skills/trellis-meta/references/local-architecture/spec-system.md
+ M .claude/skills/trellis-meta/references/local-architecture/task-system.md
+ M .claude/skills/trellis-meta/references/local-architecture/workflow.md
+ M .claude/skills/trellis-meta/references/local-architecture/workspace-memory.md
+ M .claude/skills/trellis-meta/references/platform-files/agents.md
+ M .claude/skills/trellis-meta/references/platform-files/hooks-and-settings.md
+ M .claude/skills/trellis-meta/references/platform-files/overview.md
+ M .claude/skills/trellis-meta/references/platform-files/platform-map.md
+ M .claude/skills/trellis-meta/references/platform-files/skills-and-commands.md
+ M .claude/skills/trellis-update-spec/SKILL.md
+ M .cursor/agents/trellis-check.md
+ M .cursor/agents/trellis-implement.md
+ M .cursor/agents/trellis-research.md
+ M .cursor/commands/trellis-continue.md
+ M .cursor/commands/trellis-finish-work.md
+ M .cursor/hooks.json
+ M .cursor/hooks/inject-shell-session-context.py
+ M .cursor/hooks/inject-subagent-context.py
+ M .cursor/hooks/inject-workflow-state.py
+ M .cursor/hooks/session-start.py
+ M .cursor/skills/trellis-before-dev/SKILL.md
+ M .cursor/skills/trellis-brainstorm/SKILL.md
+ M .cursor/skills/trellis-break-loop/SKILL.md
+ M .cursor/skills/trellis-check/SKILL.md
+ M .cursor/skills/trellis-meta/SKILL.md
+ M .cursor/skills/trellis-meta/references/customize-local/add-project-local-conventions.md
+ M .cursor/skills/trellis-meta/references/customize-local/change-agents.md
+ M .cursor/skills/trellis-meta/references/customize-local/change-context-loading.md
+ M .cursor/skills/trellis-meta/references/customize-local/change-hooks.md
+ M .cursor/skills/trellis-meta/references/customize-local/change-skills-or-commands.md
+ M .cursor/skills/trellis-meta/references/customize-local/change-spec-structure.md
+ M .cursor/skills/trellis-meta/references/customize-local/change-task-lifecycle.md
+ M .cursor/skills/trellis-meta/references/customize-local/change-workflow.md
+ M .cursor/skills/trellis-meta/references/customize-local/overview.md
+ M .cursor/skills/trellis-meta/references/local-architecture/context-injection.md
+ M .cursor/skills/trellis-meta/references/local-architecture/generated-files.md
+ M .cursor/skills/trellis-meta/references/local-architecture/overview.md
+ M .cursor/skills/trellis-meta/references/local-architecture/spec-system.md
+ M .cursor/skills/trellis-meta/references/local-architecture/task-system.md
+ M .cursor/skills/trellis-meta/references/local-architecture/workflow.md
+ M .cursor/skills/trellis-meta/references/local-architecture/workspace-memory.md
+ M .cursor/skills/trellis-meta/references/platform-files/agents.md
+ M .cursor/skills/trellis-meta/references/platform-files/hooks-and-settings.md
+ M .cursor/skills/trellis-meta/references/platform-files/overview.md
+ M .cursor/skills/trellis-meta/references/platform-files/platform-map.md
+ M .cursor/skills/trellis-meta/references/platform-files/skills-and-commands.md
+ M .cursor/skills/trellis-update-spec/SKILL.md
+ M .gitignore
+ M .pi/agents/trellis-check.md
+ M .pi/agents/trellis-implement.md
+ M .pi/agents/trellis-research.md
+ M .pi/extensions/trellis/index.ts
+ M .pi/prompts/trellis-continue.md
+ M .pi/prompts/trellis-finish-work.md
+ M .pi/settings.json
+ M .pi/skills/trellis-before-dev/SKILL.md
+ M .pi/skills/trellis-brainstorm/SKILL.md
+ M .pi/skills/trellis-break-loop/SKILL.md
+ M .pi/skills/trellis-check/SKILL.md
+ M .pi/skills/trellis-meta/SKILL.md
+ M .pi/skills/trellis-meta/references/customize-local/add-project-local-conventions.md
+ M .pi/skills/trellis-meta/references/customize-local/change-agents.md
+ M .pi/skills/trellis-meta/references/customize-local/change-context-loading.md
+ M .pi/skills/trellis-meta/references/customize-local/change-hooks.md
+ M .pi/skills/trellis-meta/references/customize-local/change-skills-or-commands.md
+ M .pi/skills/trellis-meta/references/customize-local/change-spec-structure.md
+ M .pi/skills/trellis-meta/references/customize-local/change-task-lifecycle.md
+ M .pi/skills/trellis-meta/references/customize-local/change-workflow.md
+ M .pi/skills/trellis-meta/references/customize-local/overview.md
+ M .pi/skills/trellis-meta/references/local-architecture/context-injection.md
+ M .pi/skills/trellis-meta/references/local-architecture/generated-files.md
+ M .pi/skills/trellis-meta/references/local-architecture/overview.md
+ M .pi/skills/trellis-meta/references/local-architecture/spec-system.md
+ M .pi/skills/trellis-meta/references/local-architecture/task-system.md
+ M .pi/skills/trellis-meta/references/local-architecture/workflow.md
+ M .pi/skills/trellis-meta/references/local-architecture/workspace-memory.md
+ M .pi/skills/trellis-meta/references/platform-files/agents.md
+ M .pi/skills/trellis-meta/references/platform-files/hooks-and-settings.md
+ M .pi/skills/trellis-meta/references/platform-files/overview.md
+ M .pi/skills/trellis-meta/references/platform-files/platform-map.md
+ M .pi/skills/trellis-meta/references/platform-files/skills-and-commands.md
+ M .pi/skills/trellis-update-spec/SKILL.md
+ M .trellis/.template-hashes.json
+ M .trellis/config.yaml
+ M .trellis/scripts/__init__.py
+ M .trellis/scripts/add_session.py
+ M .trellis/scripts/common/__init__.py
+ M .trellis/scripts/common/active_task.py
+ M .trellis/scripts/common/cli_adapter.py
+ M .trellis/scripts/common/config.py
+ M .trellis/scripts/common/developer.py
+ M .trellis/scripts/common/git.py
+ M .trellis/scripts/common/git_context.py
+ M .trellis/scripts/common/io.py
+ M .trellis/scripts/common/log.py
+ M .trellis/scripts/common/packages_context.py
+ M .trellis/scripts/common/paths.py
+ M .trellis/scripts/common/safe_commit.py
+ M .trellis/scripts/common/session_context.py
+ M .trellis/scripts/common/task_context.py
+ M .trellis/scripts/common/task_queue.py
+ M .trellis/scripts/common/task_store.py
+ M .trellis/scripts/common/task_utils.py
+ M .trellis/scripts/common/tasks.py
+ M .trellis/scripts/common/trellis_config.py
+ M .trellis/scripts/common/types.py
+ M .trellis/scripts/common/workflow_phase.py
+ M .trellis/scripts/get_context.py
+ M .trellis/scripts/get_developer.py
+ M .trellis/scripts/init_developer.py
+ M .trellis/scripts/task.py
+ M .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-011.md
+ M .trellis/tasks/06-30-tree-sitter-gs-migration/task.json
+ M .trellis/workflow.md
+ M cli/editor.cpp
+ M cli/main.cpp
+ M cli/source_diagnostics.cpp
+ M cli/source_diagnostics.h
+ M docs/plans/README.md
+ M docs/plans/tree-sitter-gs-migration-plan.md
+ M docs/spec/architecture.md
+ M docs/spec/index.md
+ M include/graphscript/asset/language.h
+ M include/graphscript/compile/compiler.h
+ M include/graphscript/core/annotation.h
+ M include/graphscript/core/connection.h
+ M include/graphscript/core/graph.h
+ M include/graphscript/core/initializer_field.h
+ M include/graphscript/core/node.h
+ M include/graphscript/core/pin.h
+ M include/graphscript/core/types.h
+ M include/graphscript/diagnostic/diagnostic.h
+ M include/graphscript/edit/edit_session.h
+ M include/graphscript/emit/emitter.h
+ M include/graphscript/parse/ast.h
+ M include/graphscript/parse/token.h
+ M include/graphscript/schema/graph_schema.h
+ M presets/htn_nodes.d.gs
+ M presets/levelscript_nodes.d.gs
+ M presets/task_nodes.d.gs
+ M presets/ue_blueprint.d.gs
+ M presets/ue_core.d.gs
+ M src/asset/language.cpp
+ M src/debug/dump.cpp
+ M src/edit/edit_session.cpp
+ M tests/test_asset_language.cpp
+ M tests/test_blueprint_scenarios.cpp
+ M tests/test_cli_editor.cpp
+ M tests/test_compiler.cpp
+ M tests/test_edit_session.cpp
+ M tests/test_emitter.cpp
+ M tests/test_integration_deep.cpp
+ M tests/test_parser.cpp
+ M tests/test_qa_loop.cpp
+ M tests/test_qa_stress.cpp
+ M tests/test_source_diagnostics.cpp
+ M tools/tree-sitter-graphscript-asset/grammar.js
+ M tools/tree-sitter-graphscript-asset/package.json
+ M tools/tree-sitter-graphscript-asset/queries/highlights.scm
+ M tools/tree-sitter-graphscript-asset/src/grammar.json
+ M tools/tree-sitter-graphscript-asset/src/node-types.json
+ M tools/tree-sitter-graphscript-asset/src/parser.c
+?? .agents/
+?? .codex/
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_asset_tests_after_review_fixes.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_cli_help.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_cli_help_after_review_fixes.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_cli_parse.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_cli_patch_qualified_type.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_cli_patch_qualified_type_reparse.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_cli_patch_qualified_type_reparse_file.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_cli_project.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_cli_project_after_review_fixes.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_cmake_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_gs_cli_rebuild_after_review_fixes.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_gs_tests_after_review.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_gs_tests_after_review_fixes.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_gs_tests_rebuild_after_review.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_gs_tests_rebuild_after_review_fixes.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_gs_tests_rebuild_after_review_fixes_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_patch_qualified_output.gs
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_residual_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_residual_scan_after_review.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_residual_scan_after_review_fixes.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_smoke.d.gs
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_smoke.gs
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_tree_sitter_generate.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase1_tree_sitter_generate_after_review_fixes.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_cli_compile_unknown.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_cli_help.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_cli_help_old_command_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_cli_legacy_surface_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_cli_lint.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_cli_parse.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_cli_patch.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_cli_project.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_docs_spec_cli_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_gs_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase2_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase3_inventory_key_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_asset_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_asset_tests_after_review.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_broken_project.gs
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_build_gs_cli.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_cli_project.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_full_cpp_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_full_cpp_tests_after_review.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_gs_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_gs_build_after_review.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_gs_tests_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_gs_tests_build_after_review.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_legacy_pattern_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_project_smoke.gs
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_projection.d.gs
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_projection.gs
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_rebuild_after_review.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_residual_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_suffix_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_tree_sitter_generate.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase4_tree_sitter_generate_after_review.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_declaration_only_focused_tests_latest.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_declaration_only_scan_latest.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_build_gs_tests_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_build_gs_tests_retry2.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_build_gs_tests_retry3.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_build_gs_tests_retry4.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_build_gs_tests_retry5.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_diff_check_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_diff_check_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_focused_tests_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_focused_tests_retry2.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_focused_tests_retry3.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_focused_tests_retry4.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_full_cpp_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_scan_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_asset_import_parse_error_scan_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_serve_import_edit_smoke.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_serve_import_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_serve_import_serve_smoke.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_asset_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_asset_focused_after_cache_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_asset_focused_after_review_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_asset_review_fix_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_asset_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_asset_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_cache_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_gs_build_after_cache_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_review_fix_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_review_fix_build2.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_review_fix_build3.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_review_fix_build4.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_review_fix_build5.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_review_fix_build6.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_review_fix_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_edit_session_review_fix_tests6.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_full_cpp_after_edit_session_asset.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_full_cpp_after_edit_session_cache_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_full_cpp_after_edit_session_review_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_full_cpp_after_edit_session_review_fix6.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_full_cpp_after_review_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_full_cpp_after_source_diag.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_full_cpp_after_transition.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_gs_cli_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_gs_loop011.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_gs_loop011_r3.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_gs_loop011_r5.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_gs_loop011_r6.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_gs_loop011_r7.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_gs_r2.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_gs_tests_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_tests_loop011.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_tests_loop011_r4.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_tests_loop011_r4_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_tests_loop011_r5.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_tests_loop011_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_tests_r3.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_build_tests_r3_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_configure_loop011.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_focused_tests_loop011_r3.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_focused_tests_loop011_r4.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_focused_tests_loop011_r5.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_focused_tests_loop011_r7.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_focused_tests_r2.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_full_cpp_loop011_r3.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_full_cpp_loop011_r4.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_full_cpp_loop011_r5.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_full_cpp_r2.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_malformed_focused_r4.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_import_declaration_only_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_load_import_asset_declaration_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_load_import_asset_declaration_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_load_import_asset_declaration_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_load_import_asset_declaration_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_load_import_asset_declaration_full_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_load_import_asset_declaration_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_load_import_asset_declaration_unused_helper_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_load_import_malformed_asset_declaration_test.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_build_after_module_extract.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_build_after_module_extract_m1.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_build_after_module_extract_m1_retry2.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_build_after_module_extract_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_compiler_header_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_focused_edit_session_asset.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_gs_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_newton_review_fix_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_newton_review_fix_build_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_newton_review_fix_focused.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_public_compiler_include_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_review_fix_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_review_fix_build_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_review_fix_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_review_fix_focused.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_review_fix_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_review_fix_gs_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop008_review_fix_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_after_legacy_test_removal_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_after_legacy_test_removal_focused.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_build_gs_after_review_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_cli_main_import_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_full_cpp_after_review_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_full_cpp_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_review_fix_focused.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop010_review_fix_rebuild.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop011_diff_check_after_doc_update.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_after_legacy_guard.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_current.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_after_condition_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_after_condition_fix2.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_after_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_after_helper.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_after_helper_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_after_legacy_guard.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_after_sample_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_after_suffix_condition.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_build_gs_tests_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_diff_check_after_legacy_guard.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_diff_check_after_loop_update.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_diff_check_current.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_diff_check_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_focused_tests_after_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_focused_tests_after_legacy_guard.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_focused_tests_after_sample_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_focused_tests_after_suffix_condition.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_focused_tests_current.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_focused_tests_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_focused_tests_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_full_cpp_after_legacy_guard.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_full_cpp_current.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_full_cpp_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_import_parse_error_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_parse_error_scan_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_review_scan_current.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_scan_after_legacy_guard.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_scan_current.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_scan_final.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop012_scan_final2.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_focused_tests_after_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_full_cpp_after_loader_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_git_status.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_lint_htn_nodes_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_lint_levelscript_nodes_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_lint_task_nodes_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_lint_ue_blueprint_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_lint_ue_core_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_parse_htn_nodes_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_parse_levelscript_nodes_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_parse_task_nodes_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_parse_ue_blueprint_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_parse_ue_core_d_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_preset_legacy_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_rebuild_after_loader_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_rebuild_after_test_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_regression_after_loader_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_loop013_review_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_dependency_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_edit_missing_import_smoke.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_full_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_isolated_source_import_test.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_build_gs_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_build_gs_tests_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_diff_check_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_edit_preload_smoke.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_edit_smoke.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_failed_regression_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_fallback_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_focused_tests_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_full_cpp_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_main_import_loading_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_module_core_extract_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_module_core_extract_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_module_core_extract_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_module_core_extract_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_module_core_extract_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_module_core_extract_public_include_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_review_fix_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_review_fix_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_diag_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_diag_cli_guard_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_diag_old_dep_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_diag_old_dep_scan_after_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_diag_rebuild.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_diag_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_diag_tests_after_asset.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_diag_transition_build.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_build_gs_tests_after_reconfigure.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_build_gs_tests_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_full_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_include_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_post_review_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_public_include_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_token_include_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_core_type_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_build_gs.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_build_gs_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_build_gs_after_fallback_fix_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_build_gs_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_build_gs_tests_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_build_gs_tests_retry.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_diff_check.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_diff_check_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_full_cpp_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_regression_tests_after_fallback_fix.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_token_include_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_extract_type_definition_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_focused_tests.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_full_cpp.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_include_scan.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/evidence/phase5_source_range_reconfigure.log
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/goal.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-001.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-002.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-003.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-004.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-005.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-006.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-007.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-008.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-009.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-010.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-012.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/prd.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/references.md
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/research/
+?? .trellis/tasks/06-30-tree-sitter-gs-migration/subagents/
+?? build-codex-loop011/
+?? build-codex/
+?? docs/plans/json5-graph-asset-handoff.md
+?? docs/spec/legacy-graph-dsl-feature-inventory.md
+?? include/graphscript/core/module.h
+?? include/graphscript/core/source_range.h
+?? include/graphscript/parse/token_type.h

@@ -1,0 +1,139 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = Blueprint.*:DeepCycle.*:Parser.Asset*:QALoop.*:QAStress.*:EditSession.LoadPresetImportsUseAssetDeclarations
+[==========] Running 57 tests from 6 test suites.
+[----------] Global test environment set-up.
+[----------] 8 tests from Blueprint
+[ RUN      ] Blueprint.BP1_HealthSystem
+[       OK ] Blueprint.BP1_HealthSystem (12 ms)
+[ RUN      ] Blueprint.BP2_ItemPickup
+[       OK ] Blueprint.BP2_ItemPickup (6 ms)
+[ RUN      ] Blueprint.BP3_AIPatrol
+[       OK ] Blueprint.BP3_AIPatrol (7 ms)
+[ RUN      ] Blueprint.BP4_HUDManager
+[       OK ] Blueprint.BP4_HUDManager (4 ms)
+[ RUN      ] Blueprint.BP5_ProjectileSystem
+[       OK ] Blueprint.BP5_ProjectileSystem (4 ms)
+[ RUN      ] Blueprint.BP6_MeleeCombo_EditorPath
+[       OK ] Blueprint.BP6_MeleeCombo_EditorPath (5 ms)
+[ RUN      ] Blueprint.BP7_GameController_MultiGraph
+[       OK ] Blueprint.BP7_GameController_MultiGraph (4 ms)
+[ RUN      ] Blueprint.BP8_AllScenarios_StressRoundTrip
+[       OK ] Blueprint.BP8_AllScenarios_StressRoundTrip (5 ms)
+[----------] 8 tests from Blueprint (50 ms total)
+
+[----------] 1 test from EditSession
+[ RUN      ] EditSession.LoadPresetImportsUseAssetDeclarations
+[       OK ] EditSession.LoadPresetImportsUseAssetDeclarations (3 ms)
+[----------] 1 test from EditSession (3 ms total)
+
+[----------] 23 tests from DeepCycle
+[ RUN      ] DeepCycle.S1_ThreeLevelChain_Parse
+[       OK ] DeepCycle.S1_ThreeLevelChain_Parse (0 ms)
+[ RUN      ] DeepCycle.S1_ThreeLevelChain_GraphAsNodeDerivation
+[       OK ] DeepCycle.S1_ThreeLevelChain_GraphAsNodeDerivation (0 ms)
+[ RUN      ] DeepCycle.S1_ThreeLevelChain_EditBakeRoundTrip
+[       OK ] DeepCycle.S1_ThreeLevelChain_EditBakeRoundTrip (0 ms)
+[ RUN      ] DeepCycle.S2_HTNComplex_FullPipeline
+[       OK ] DeepCycle.S2_HTNComplex_FullPipeline (0 ms)
+[ RUN      ] DeepCycle.S2_HTNComplex_SchemaEnforcement
+[       OK ] DeepCycle.S2_HTNComplex_SchemaEnforcement (0 ms)
+[ RUN      ] DeepCycle.S2_HTNComplex_BakeAndRoundTrip
+[       OK ] DeepCycle.S2_HTNComplex_BakeAndRoundTrip (1 ms)
+[ RUN      ] DeepCycle.S3_TaskComplex_FullPipeline
+[       OK ] DeepCycle.S3_TaskComplex_FullPipeline (1 ms)
+[ RUN      ] DeepCycle.S3_TaskSchema_FanOutLimit
+[       OK ] DeepCycle.S3_TaskSchema_FanOutLimit (0 ms)
+[ RUN      ] DeepCycle.S4_LevelScriptComplex_FullPipeline
+[       OK ] DeepCycle.S4_LevelScriptComplex_FullPipeline (1 ms)
+[ RUN      ] DeepCycle.S5_MultiGraph_CrossReference
+[       OK ] DeepCycle.S5_MultiGraph_CrossReference (0 ms)
+[ RUN      ] DeepCycle.S6_EmptyGraphs_Parse
+[       OK ] DeepCycle.S6_EmptyGraphs_Parse (0 ms)
+[ RUN      ] DeepCycle.S6_EmptyGraphs_Derivation
+[       OK ] DeepCycle.S6_EmptyGraphs_Derivation (0 ms)
+[ RUN      ] DeepCycle.S6_EmptyGraphs_BakeAllValid
+[       OK ] DeepCycle.S6_EmptyGraphs_BakeAllValid (0 ms)
+[ RUN      ] DeepCycle.S6_EmptyGraphs_RoundTrip
+[       OK ] DeepCycle.S6_EmptyGraphs_RoundTrip (0 ms)
+[ RUN      ] DeepCycle.S7_AllFeatures_FullPipeline
+[       OK ] DeepCycle.S7_AllFeatures_FullPipeline (1 ms)
+[ RUN      ] DeepCycle.S8_MixedDeclarations_FullLoad
+[       OK ] DeepCycle.S8_MixedDeclarations_FullLoad (0 ms)
+[ RUN      ] DeepCycle.S9_Cinematic_FullPipeline
+[       OK ] DeepCycle.S9_Cinematic_FullPipeline (1 ms)
+[ RUN      ] DeepCycle.S9_CinematicSchema_FanOutLimit
+[       OK ] DeepCycle.S9_CinematicSchema_FanOutLimit (0 ms)
+[ RUN      ] DeepCycle.S10_AbilityBranching_FullPipeline
+[       OK ] DeepCycle.S10_AbilityBranching_FullPipeline (0 ms)
+[ RUN      ] DeepCycle.S10_AbilitySchema_NoFanIn
+[       OK ] DeepCycle.S10_AbilitySchema_NoFanIn (0 ms)
+[ RUN      ] DeepCycle.S11_ParamDefaults_FullPipeline
+[       OK ] DeepCycle.S11_ParamDefaults_FullPipeline (0 ms)
+[ RUN      ] DeepCycle.StressTest_AllFixturesParseCompile
+[       OK ] DeepCycle.StressTest_AllFixturesParseCompile (2 ms)
+[ RUN      ] DeepCycle.StressTest_BakeAll
+[       OK ] DeepCycle.StressTest_BakeAll (2 ms)
+[----------] 23 tests from DeepCycle (20 ms total)
+
+[----------] 4 tests from Parser
+[ RUN      ] Parser.AssetUeCorePreset
+[       OK ] Parser.AssetUeCorePreset (0 ms)
+[ RUN      ] Parser.AssetHtnNodesPreset
+[       OK ] Parser.AssetHtnNodesPreset (0 ms)
+[ RUN      ] Parser.AssetTaskNodesPreset
+[       OK ] Parser.AssetTaskNodesPreset (0 ms)
+[ RUN      ] Parser.AssetLevelScriptNodesPreset
+[       OK ] Parser.AssetLevelScriptNodesPreset (0 ms)
+[----------] 4 tests from Parser (0 ms total)
+
+[----------] 12 tests from QALoop
+[ RUN      ] QALoop.S1_BasicSingleNode
+[       OK ] QALoop.S1_BasicSingleNode (1 ms)
+[ RUN      ] QALoop.S2_MultiNodeChain
+[       OK ] QALoop.S2_MultiNodeChain (1 ms)
+[ RUN      ] QALoop.S3_DataLinkWeb
+[       OK ] QALoop.S3_DataLinkWeb (1 ms)
+[ RUN      ] QALoop.S4_MultiEventFunction
+[       OK ] QALoop.S4_MultiEventFunction (1 ms)
+[ RUN      ] QALoop.S5_AnnotatedGraph
+[       OK ] QALoop.S5_AnnotatedGraph (1 ms)
+[ RUN      ] QALoop.S6_InheritedGraph
+[       OK ] QALoop.S6_InheritedGraph (1 ms)
+[ RUN      ] QALoop.S7_MultiGraphModule
+[       OK ] QALoop.S7_MultiGraphModule (1 ms)
+[ RUN      ] QALoop.S8_ParameterVariants
+[       OK ] QALoop.S8_ParameterVariants (1 ms)
+[ RUN      ] QALoop.S9_HeavyMutation
+[       OK ] QALoop.S9_HeavyMutation (0 ms)
+[ RUN      ] QALoop.S10_UndoRedoCycle
+[       OK ] QALoop.S10_UndoRedoCycle (0 ms)
+[ RUN      ] QALoop.S11_SchemaEnforcement
+[       OK ] QALoop.S11_SchemaEnforcement (1 ms)
+[ RUN      ] QALoop.S12_KitchenSink
+[       OK ] QALoop.S12_KitchenSink (1 ms)
+[----------] 12 tests from QALoop (15 ms total)
+
+[----------] 9 tests from QAStress
+[ RUN      ] QAStress.S1_120Nodes_EditorBuild_RoundTrip
+[       OK ] QAStress.S1_120Nodes_EditorBuild_RoundTrip (5 ms)
+[ RUN      ] QAStress.S2_100Nodes_TextBuild_ThenEditorMutate
+[       OK ] QAStress.S2_100Nodes_TextBuild_ThenEditorMutate (3 ms)
+[ RUN      ] QAStress.S3_AlternatingCycles_5Rounds
+[       OK ] QAStress.S3_AlternatingCycles_5Rounds (8 ms)
+[ RUN      ] QAStress.S4_150Nodes_MultiGraph_DeleteCycle
+[       OK ] QAStress.S4_150Nodes_MultiGraph_DeleteCycle (4 ms)
+[ RUN      ] QAStress.S5_200Nodes_UndoRedo_DeepChain
+[       OK ] QAStress.S5_200Nodes_UndoRedo_DeepChain (10 ms)
+[ RUN      ] QAStress.S6_AnnotationChurn_100Nodes_4Cycles
+[       OK ] QAStress.S6_AnnotationChurn_100Nodes_4Cycles (2 ms)
+[ RUN      ] QAStress.S7_100Nodes_MixedBlockTypes
+[       OK ] QAStress.S7_100Nodes_MixedBlockTypes (3 ms)
+[ RUN      ] QAStress.S8_300Nodes_ParsePerformance
+[       OK ] QAStress.S8_300Nodes_ParsePerformance (3 ms)
+[ RUN      ] QAStress.S9_1000Nodes_RoundTripAndBakePerformanceBudget
+[       OK ] QAStress.S9_1000Nodes_RoundTripAndBakePerformanceBudget (6 ms)
+[----------] 9 tests from QAStress (48 ms total)
+
+[----------] Global test environment tear-down
+[==========] 57 tests from 6 test suites ran. (139 ms total)
+[  PASSED  ] 57 tests.

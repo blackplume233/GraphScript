@@ -1,0 +1,9 @@
+diff check passed
+preset legacy scan:
+no legacy preset declaration syntax remains
+remaining read_preset/do_compile coupling:
+tests\test_parser.cpp:23:static std::string read_preset(const std::string& filename) {
+tests\test_parser.cpp:128:    auto src = read_preset("ue_core.d.gs");
+tests\test_parser.cpp:138:    auto src = read_preset("htn_nodes.d.gs");
+tests\test_parser.cpp:148:    auto src = read_preset("task_nodes.d.gs");
+tests\test_parser.cpp:158:    auto src = read_preset("levelscript_nodes.d.gs");

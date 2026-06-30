@@ -1,0 +1,44 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = AssetLanguage.ParsesTypeBaseAndAllowsFieldPinNamePair:AssetLanguage.RejectsDuplicateFieldsWithSameRole:EditSession.LoadPresetImportsUseAssetDeclarations:Compiler.CompileDeclareTypes:Compiler.CompileDeclareNodes:Compiler.CompileDeclareSchemas:Emitter.EmitMinimal:Emitter.EmitWithBaseType
+[==========] Running 8 tests from 4 test suites.
+[----------] Global test environment set-up.
+[----------] 2 tests from AssetLanguage
+[ RUN      ] AssetLanguage.ParsesTypeBaseAndAllowsFieldPinNamePair
+[       OK ] AssetLanguage.ParsesTypeBaseAndAllowsFieldPinNamePair (0 ms)
+[ RUN      ] AssetLanguage.RejectsDuplicateFieldsWithSameRole
+[       OK ] AssetLanguage.RejectsDuplicateFieldsWithSameRole (0 ms)
+[----------] 2 tests from AssetLanguage (0 ms total)
+
+[----------] 3 tests from Compiler
+[ RUN      ] Compiler.CompileDeclareTypes
+[       OK ] Compiler.CompileDeclareTypes (0 ms)
+[ RUN      ] Compiler.CompileDeclareNodes
+[       OK ] Compiler.CompileDeclareNodes (0 ms)
+[ RUN      ] Compiler.CompileDeclareSchemas
+[       OK ] Compiler.CompileDeclareSchemas (0 ms)
+[----------] 3 tests from Compiler (0 ms total)
+
+[----------] 1 test from EditSession
+[ RUN      ] EditSession.LoadPresetImportsUseAssetDeclarations
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_edit_session.cpp(3032): error: Expected equality of these values:
+  print->fields[0].default_value
+    Which is: ""
+  "\"\""
+
+[  FAILED  ] EditSession.LoadPresetImportsUseAssetDeclarations (4 ms)
+[----------] 1 test from EditSession (4 ms total)
+
+[----------] 2 tests from Emitter
+[ RUN      ] Emitter.EmitMinimal
+[       OK ] Emitter.EmitMinimal (0 ms)
+[ RUN      ] Emitter.EmitWithBaseType
+[       OK ] Emitter.EmitWithBaseType (0 ms)
+[----------] 2 tests from Emitter (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 8 tests from 4 test suites ran. (4 ms total)
+[  PASSED  ] 7 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] EditSession.LoadPresetImportsUseAssetDeclarations
+
+ 1 FAILED TEST

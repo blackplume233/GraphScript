@@ -3,423 +3,640 @@
 //         Gameplay, UI, Spawning, Timer, Debug
 
 // ─── Additional Types ──────────────────────────────────────────────
-declare type FVector2D : constructible;
-declare type FLinearColor : constructible;
-declare type FTransform : constructible;
-declare type FHitResult;
-declare type UClass;
-declare type USceneComponent;
-declare type UStaticMeshComponent;
-declare type UWidgetComponent;
-declare type UUserWidget;
-declare type USoundBase;
-declare type UParticleSystem;
-declare type UAnimMontage;
-declare type UDamageType;
-declare type ACharacter;
-declare type APlayerController;
-declare type APawn;
-declare type AProjectile;
-declare type UPrimitiveComponent;
+export declare type FVector2D: constructible;
+export declare type FLinearColor: constructible;
+export declare type FTransform: constructible;
+export declare type FHitResult;
+export declare type UClass;
+export declare type USceneComponent;
+export declare type UStaticMeshComponent;
+export declare type UWidgetComponent;
+export declare type UUserWidget;
+export declare type USoundBase;
+export declare type UParticleSystem;
+export declare type UAnimMontage;
+export declare type UDamageType;
+export declare type ACharacter;
+export declare type APlayerController;
+export declare type APawn;
+export declare type AProjectile;
+export declare type UPrimitiveComponent;
 
 // ─── Math Nodes ────────────────────────────────────────────────────
-declare Node Add_Float {
-    data in A : float;
-    data in B : float;
-    data out Result : float;
+export declare object Add_Float {
+    @flow.input
+    A: float;
+    @flow.input
+    B: float;
+    @flow.output
+    Result: float;
 }
 
-declare Node Subtract_Float {
-    data in A : float;
-    data in B : float;
-    data out Result : float;
+export declare object Subtract_Float {
+    @flow.input
+    A: float;
+    @flow.input
+    B: float;
+    @flow.output
+    Result: float;
 }
 
-declare Node Multiply_Float {
-    data in A : float;
-    data in B : float;
-    data out Result : float;
+export declare object Multiply_Float {
+    @flow.input
+    A: float;
+    @flow.input
+    B: float;
+    @flow.output
+    Result: float;
 }
 
-declare Node Divide_Float {
-    data in A : float;
-    data in B : float;
-    data out Result : float;
+export declare object Divide_Float {
+    @flow.input
+    A: float;
+    @flow.input
+    B: float;
+    @flow.output
+    Result: float;
 }
 
-declare Node Clamp_Float {
-    data in Value : float;
-    data in Min : float;
-    data in Max : float;
-    data out Result : float;
+export declare object Clamp_Float {
+    @flow.input
+    Value: float;
+    @flow.input
+    Min: float;
+    @flow.input
+    Max: float;
+    @flow.output
+    Result: float;
 }
 
-declare Node Lerp_Float {
-    data in A : float;
-    data in B : float;
-    data in Alpha : float;
-    data out Result : float;
+export declare object Lerp_Float {
+    @flow.input
+    A: float;
+    @flow.input
+    B: float;
+    @flow.input
+    Alpha: float;
+    @flow.output
+    Result: float;
 }
 
-declare Node Add_Vector {
-    data in A : FVector;
-    data in B : FVector;
-    data out Result : FVector;
+export declare object Add_Vector {
+    @flow.input
+    A: FVector;
+    @flow.input
+    B: FVector;
+    @flow.output
+    Result: FVector;
 }
 
-declare Node Subtract_Vector {
-    data in A : FVector;
-    data in B : FVector;
-    data out Result : FVector;
+export declare object Subtract_Vector {
+    @flow.input
+    A: FVector;
+    @flow.input
+    B: FVector;
+    @flow.output
+    Result: FVector;
 }
 
-declare Node Multiply_VectorFloat {
-    data in Vec : FVector;
-    data in Scale : float;
-    data out Result : FVector;
+export declare object Multiply_VectorFloat {
+    @flow.input
+    Vec: FVector;
+    @flow.input
+    Scale: float;
+    @flow.output
+    Result: FVector;
 }
 
-declare Node VectorLength {
-    data in Vec : FVector;
-    data out Length : float;
+export declare object VectorLength {
+    @flow.input
+    Vec: FVector;
+    @flow.output
+    Length: float;
 }
 
-declare Node Normalize_Vector {
-    data in Vec : FVector;
-    data out Result : FVector;
+export declare object Normalize_Vector {
+    @flow.input
+    Vec: FVector;
+    @flow.output
+    Result: FVector;
 }
 
-declare Node MakeVector {
-    data in X : float;
-    data in Y : float;
-    data in Z : float;
-    data out Result : FVector;
+export declare object MakeVector {
+    @flow.input
+    X: float;
+    @flow.input
+    Y: float;
+    @flow.input
+    Z: float;
+    @flow.output
+    Result: FVector;
 }
 
-declare Node BreakVector {
-    data in Vec : FVector;
-    data out X : float;
-    data out Y : float;
-    data out Z : float;
+export declare object BreakVector {
+    @flow.input
+    Vec: FVector;
+    @flow.output
+    X: float;
+    @flow.output
+    Y: float;
+    @flow.output
+    Z: float;
 }
 
-declare Node RandomFloatInRange {
-    data in Min : float;
-    data in Max : float;
-    data out Result : float;
+export declare object RandomFloatInRange {
+    @flow.input
+    Min: float;
+    @flow.input
+    Max: float;
+    @flow.output
+    Result: float;
 }
 
 // ─── Comparison / Logic Nodes ──────────────────────────────────────
-declare Node Compare_Float {
-    data in A : float;
-    data in B : float;
-    data out IsGreater : bool;
-    data out IsEqual : bool;
-    data out IsLess : bool;
+export declare object Compare_Float {
+    @flow.input
+    A: float;
+    @flow.input
+    B: float;
+    @flow.output
+    IsGreater: bool;
+    @flow.output
+    IsEqual: bool;
+    @flow.output
+    IsLess: bool;
 }
 
-declare Node BoolAnd {
-    data in A : bool;
-    data in B : bool;
-    data out Result : bool;
+export declare object BoolAnd {
+    @flow.input
+    A: bool;
+    @flow.input
+    B: bool;
+    @flow.output
+    Result: bool;
 }
 
-declare Node BoolOr {
-    data in A : bool;
-    data in B : bool;
-    data out Result : bool;
+export declare object BoolOr {
+    @flow.input
+    A: bool;
+    @flow.input
+    B: bool;
+    @flow.output
+    Result: bool;
 }
 
-declare Node BoolNot {
-    data in Value : bool;
-    data out Result : bool;
+export declare object BoolNot {
+    @flow.input
+    Value: bool;
+    @flow.output
+    Result: bool;
 }
 
 // ─── Flow Control ──────────────────────────────────────────────────
-declare Node Branch {
-    exec in enter;
-    exec out onTrue;
-    exec out onFalse;
-    data in condition : bool;
+export declare object Branch {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    onTrue: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    onFalse: Exec;
+    @flow.input
+    condition: bool;
 }
 
-declare Node Sequence {
-    exec in enter;
-    exec out then0;
-    exec out then1;
-    exec out then2;
-    exec out then3;
+export declare object Sequence {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    then0: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    then1: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    then2: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    then3: Exec;
 }
 
-declare Node ForLoop {
-    exec in enter;
-    exec out loopBody;
-    exec out completed;
-    data in firstIndex : int;
-    data in lastIndex : int;
-    data out index : int;
+export declare object ForLoop {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    loopBody: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    completed: Exec;
+    @flow.input
+    firstIndex: int;
+    @flow.input
+    lastIndex: int;
+    @flow.output
+    index: int;
 }
 
-declare Node Gate {
-    exec in enter;
-    exec in open;
-    exec in close;
-    exec out exit;
+export declare object Gate {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "in")
+    open: Exec;
+    @flow.pin(kind = "exec", direction = "in")
+    close: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
 }
 
-declare Node DoOnce {
-    exec in enter;
-    exec in reset;
-    exec out completed;
+export declare object DoOnce {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "in")
+    reset: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    completed: Exec;
 }
 
-declare Node FlipFlop {
-    exec in enter;
-    exec out outA;
-    exec out outB;
-    data out isA : bool;
+export declare object FlipFlop {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    outA: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    outB: Exec;
+    @flow.output
+    isA: bool;
 }
 
-declare Node Select_Float {
-    data in condition : bool;
-    data in onTrue : float;
-    data in onFalse : float;
-    data out Result : float;
+export declare object Select_Float {
+    @flow.input
+    condition: bool;
+    @flow.input
+    onTrue: float;
+    @flow.input
+    onFalse: float;
+    @flow.output
+    Result: float;
 }
 
 // ─── Actor / Component ────────────────────────────────────────────
-declare Node GetActorRotation {
-    data in target : AActor;
-    data out rotation : FRotator;
+export declare object GetActorRotation {
+    @flow.input
+    target: AActor;
+    @flow.output
+    rotation: FRotator;
 }
 
-declare Node SetActorLocation {
-    exec in enter;
-    exec out exit;
-    data in target : AActor;
-    data in newLocation : FVector;
-    data in sweep : bool;
+export declare object SetActorLocation {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    target: AActor;
+    @flow.input
+    newLocation: FVector;
+    @flow.input
+    sweep: bool;
 }
 
-declare Node SetActorRotation {
-    exec in enter;
-    exec out exit;
-    data in target : AActor;
-    data in newRotation : FRotator;
+export declare object SetActorRotation {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    target: AActor;
+    @flow.input
+    newRotation: FRotator;
 }
 
-declare Node GetActorForwardVector {
-    data in target : AActor;
-    data out forward : FVector;
+export declare object GetActorForwardVector {
+    @flow.input
+    target: AActor;
+    @flow.output
+    forward: FVector;
 }
 
-declare Node GetDistanceTo {
-    data in from : AActor;
-    data in to : AActor;
-    data out distance : float;
+export declare object GetDistanceTo {
+    @flow.input
+    from: AActor;
+    @flow.input
+    to: AActor;
+    @flow.output
+    distance: float;
 }
 
-declare Node IsValid {
-    data in object : UObject;
-    data out valid : bool;
+export declare object IsValid {
+    @flow.input
+    object: UObject;
+    @flow.output
+    valid: bool;
 }
 
-declare Node DestroyActor {
-    exec in enter;
-    exec out exit;
-    data in target : AActor;
+export declare object DestroyActor {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    target: AActor;
 }
 
-declare Node GetPlayerCharacter {
-    data out character : ACharacter;
+export declare object GetPlayerCharacter {
+    @flow.output
+    character: ACharacter;
 }
 
-declare Node GetPlayerController {
-    data out controller : APlayerController;
+export declare object GetPlayerController {
+    @flow.output
+    controller: APlayerController;
 }
 
 // ─── Movement / Physics ───────────────────────────────────────────
-declare Node AddMovementInput {
-    exec in enter;
-    exec out exit;
-    data in target : ACharacter;
-    data in direction : FVector;
-    data in scale : float;
+export declare object AddMovementInput {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    target: ACharacter;
+    @flow.input
+    direction: FVector;
+    @flow.input
+    scale: float;
 }
 
-declare Node LaunchCharacter {
-    exec in enter;
-    exec out exit;
-    data in target : ACharacter;
-    data in velocity : FVector;
-    data in overrideXY : bool;
-    data in overrideZ : bool;
+export declare object LaunchCharacter {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    target: ACharacter;
+    @flow.input
+    velocity: FVector;
+    @flow.input
+    overrideXY: bool;
+    @flow.input
+    overrideZ: bool;
 }
 
-declare Node LineTraceByChannel {
-    exec in enter;
-    exec out hit;
-    exec out noHit;
-    data in start : FVector;
-    data in end : FVector;
-    data out hitResult : FHitResult;
-    data out hitLocation : FVector;
-    data out hitNormal : FVector;
+export declare object LineTraceByChannel {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    hit: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    noHit: Exec;
+    @flow.input
+    start: FVector;
+    @flow.input
+    end: FVector;
+    @flow.output
+    hitResult: FHitResult;
+    @flow.output
+    hitLocation: FVector;
+    @flow.output
+    hitNormal: FVector;
 }
 
-declare Node SphereOverlap {
-    exec in enter;
-    exec out exit;
-    data in center : FVector;
-    data in radius : float;
-    data out hitCount : int;
+export declare object SphereOverlap {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    center: FVector;
+    @flow.input
+    radius: float;
+    @flow.output
+    hitCount: int;
 }
 
 // ─── Damage / Health ──────────────────────────────────────────────
-declare Node ApplyDamage {
-    exec in enter;
-    exec out exit;
-    data in target : AActor;
-    data in damage : float;
-    data in instigator : APlayerController;
-    data in damageType : UDamageType;
+export declare object ApplyDamage {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    target: AActor;
+    @flow.input
+    damage: float;
+    @flow.input
+    instigator: APlayerController;
+    @flow.input
+    damageType: UDamageType;
 }
 
-declare Node ApplyRadialDamage {
-    exec in enter;
-    exec out exit;
-    data in origin : FVector;
-    data in radius : float;
-    data in baseDamage : float;
-    data in instigator : APlayerController;
+export declare object ApplyRadialDamage {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    origin: FVector;
+    @flow.input
+    radius: float;
+    @flow.input
+    baseDamage: float;
+    @flow.input
+    instigator: APlayerController;
 }
 
 // ─── Spawn / Destroy ──────────────────────────────────────────────
-declare Node SpawnActorFromClass {
-    exec in enter;
-    exec out exit;
-    data in actorClass : UClass;
-    data in location : FVector;
-    data in rotation : FRotator;
-    data out spawnedActor : AActor;
+export declare object SpawnActorFromClass {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    actorClass: UClass;
+    @flow.input
+    location: FVector;
+    @flow.input
+    rotation: FRotator;
+    @flow.output
+    spawnedActor: AActor;
 }
 
-declare Node SpawnEmitterAtLocation {
-    exec in enter;
-    exec out exit;
-    data in particle : UParticleSystem;
-    data in location : FVector;
-    data in rotation : FRotator;
+export declare object SpawnEmitterAtLocation {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    particle: UParticleSystem;
+    @flow.input
+    location: FVector;
+    @flow.input
+    rotation: FRotator;
 }
 
-declare Node PlaySoundAtLocation {
-    exec in enter;
-    exec out exit;
-    data in sound : USoundBase;
-    data in location : FVector;
-    data in volume : float;
+export declare object PlaySoundAtLocation {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    sound: USoundBase;
+    @flow.input
+    location: FVector;
+    @flow.input
+    volume: float;
 }
 
 // ─── Timer ────────────────────────────────────────────────────────
-declare Node SetTimer {
-    exec in enter;
-    exec out exit;
-    exec out onTimer;
-    data in time : float;
-    data in looping : bool;
+export declare object SetTimer {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    onTimer: Exec;
+    @flow.input
+    time: float;
+    @flow.input
+    looping: bool;
 }
 
-declare Node ClearTimer {
-    exec in enter;
-    exec out exit;
+export declare object ClearTimer {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
 }
 
 // ─── Animation ────────────────────────────────────────────────────
-declare Node PlayAnimMontage {
-    exec in enter;
-    exec out exit;
-    exec out onCompleted;
-    exec out onInterrupted;
-    data in target : ACharacter;
-    data in montage : UAnimMontage;
-    data in playRate : float;
+export declare object PlayAnimMontage {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    onCompleted: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    onInterrupted: Exec;
+    @flow.input
+    target: ACharacter;
+    @flow.input
+    montage: UAnimMontage;
+    @flow.input
+    playRate: float;
 }
 
 // ─── UI ───────────────────────────────────────────────────────────
-declare Node CreateWidget {
-    exec in enter;
-    exec out exit;
-    data in widgetClass : UClass;
-    data in owner : APlayerController;
-    data out widget : UUserWidget;
+export declare object CreateWidget {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    widgetClass: UClass;
+    @flow.input
+    owner: APlayerController;
+    @flow.output
+    widget: UUserWidget;
 }
 
-declare Node AddToViewport {
-    exec in enter;
-    exec out exit;
-    data in widget : UUserWidget;
-    data in zOrder : int;
+export declare object AddToViewport {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    widget: UUserWidget;
+    @flow.input
+    zOrder: int;
 }
 
-declare Node RemoveFromParent {
-    exec in enter;
-    exec out exit;
-    data in widget : UUserWidget;
+export declare object RemoveFromParent {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    widget: UUserWidget;
 }
 
-declare Node SetTextBlock {
-    exec in enter;
-    exec out exit;
-    data in widget : UUserWidget;
-    data in text : FString;
+export declare object SetTextBlock {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    widget: UUserWidget;
+    @flow.input
+    text: FString;
 }
 
-declare Node SetProgressBar {
-    exec in enter;
-    exec out exit;
-    data in widget : UUserWidget;
-    data in percent : float;
+export declare object SetProgressBar {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    widget: UUserWidget;
+    @flow.input
+    percent: float;
 }
 
-declare Node SetVisibility {
-    exec in enter;
-    exec out exit;
-    data in widget : UUserWidget;
-    data in visible : bool;
+export declare object SetVisibility {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    widget: UUserWidget;
+    @flow.input
+    visible: bool;
 }
 
 // ─── Debug ────────────────────────────────────────────────────────
-declare Node DrawDebugLine {
-    exec in enter;
-    exec out exit;
-    data in start : FVector;
-    data in end : FVector;
-    field duration : float = 0.0;
-    data in duration : float;
+export declare object DrawDebugLine {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    start: FVector;
+    @flow.input
+    end: FVector;
+    duration: float = 0.0;
+    @flow.input
+    duration: float;
 }
 
-declare Node DrawDebugSphere {
-    exec in enter;
-    exec out exit;
-    data in center : FVector;
-    data in radius : float;
-    field duration : float = 0.0;
-    data in duration : float;
+export declare object DrawDebugSphere {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    center: FVector;
+    @flow.input
+    radius: float;
+    duration: float = 0.0;
+    @flow.input
+    duration: float;
 }
 
 // ─── Conversion ───────────────────────────────────────────────────
-declare Node FloatToString {
-    data in value : float;
-    data out result : FString;
+export declare object FloatToString {
+    @flow.input
+    value: float;
+    @flow.output
+    result: FString;
 }
 
-declare Node IntToString {
-    data in value : int;
-    data out result : FString;
+export declare object IntToString {
+    @flow.input
+    value: int;
+    @flow.output
+    result: FString;
 }
 
-declare Node AppendStrings {
-    data in A : FString;
-    data in B : FString;
-    data out Result : FString;
+export declare object AppendStrings {
+    @flow.input
+    A: FString;
+    @flow.input
+    B: FString;
+    @flow.output
+    Result: FString;
 }

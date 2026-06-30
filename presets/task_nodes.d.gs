@@ -1,21 +1,28 @@
 // Task editor node declarations
-declare Node TaskStart {
-    exec out begin;
+export declare object TaskStart {
+    @flow.pin(kind = "exec", direction = "out")
+    begin: Exec;
 }
 
-declare Node TaskComplete {
-    exec in finish;
-    data in result : bool;
+export declare object TaskComplete {
+    @flow.pin(kind = "exec", direction = "in")
+    finish: Exec;
+    @flow.input
+    result: bool;
 }
 
-declare Node ShowDialogue {
-    exec in enter;
-    exec out exit;
-    data in text : FString;
-    data in speaker : FName;
+export declare object ShowDialogue {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    exit: Exec;
+    @flow.input
+    text: FString;
+    @flow.input
+    speaker: FName;
 }
 
-declare Schema TaskGraph {
+export declare schema TaskGraph: FlowGraphSchema {
     max_exec_fan_out: 1;
     allow_exec_fan_in: true;
     strict_type_match: false;

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "graphscript/core/result.h"
+#include "graphscript/core/source_range.h"
 #include "graphscript/diagnostic/diagnostic.h"
 
 namespace gs::asset {
@@ -116,6 +117,7 @@ struct Directive {
     std::string name;
     std::vector<Expression> args;
     std::vector<ParameterDecl> parameters;
+    std::vector<Attribute> attributes;
     TextSpan span;
 };
 
@@ -128,7 +130,7 @@ struct ObjectDecl {
     TextSpan span;
 };
 
-struct ScopeKindDecl {
+struct BlockKindDecl {
     std::string name;
     std::string base_type;
     std::vector<Property> properties;
@@ -164,8 +166,10 @@ struct LintDecl {
 struct SymbolDecl {
     std::string kind;
     std::string name;
+    std::string base_type;
     bool exported = false;
     TextSpan span;
+    TextSpan name_span;
 };
 
 struct Property {
@@ -191,7 +195,7 @@ struct ConstObject {
     size_t body_end_offset = 0;
 };
 
-struct Scope;
+struct Block;
 
 struct ItemContainer {
     std::vector<Property> properties;
@@ -199,10 +203,10 @@ struct ItemContainer {
     std::vector<CommandCall> calls;
     std::vector<Assignment> assignments;
     std::vector<Directive> directives;
-    std::vector<std::unique_ptr<Scope>> scopes;
+    std::vector<std::unique_ptr<Block>> blocks;
 };
 
-struct Scope {
+struct Block {
     std::string kind;
     std::string name;
     std::string type;
@@ -221,7 +225,7 @@ struct Module {
     std::vector<ModuleDecl> modules;
     std::vector<EnumDecl> enums;
     std::vector<ObjectDecl> objects;
-    std::vector<ScopeKindDecl> scope_kinds;
+    std::vector<BlockKindDecl> block_kinds;
     std::vector<CommandDecl> commands;
     std::vector<SchemaDecl> schemas;
     std::vector<LintDecl> lints;
@@ -289,9 +293,9 @@ public:
                                                    const std::string& alias,
                                                    const std::string& type,
                                                    const std::string& body = "");
-    static Result<TextPatch, std::string> add_scope(const std::string& source,
+    static Result<TextPatch, std::string> add_block(const std::string& source,
                                                     const Module& module,
-                                                    const std::string& parent_scope_name,
+                                                    const std::string& parent_block_name,
                                                     const std::string& kind,
                                                     const std::string& name,
                                                     const std::string& type = "");
@@ -314,7 +318,7 @@ public:
                                                       const std::string& graph_name,
                                                       const std::string& old_alias,
                                                       const std::string& new_alias);
-    static Result<TextPatch, std::string> rename_scope(const std::string& source,
+    static Result<TextPatch, std::string> rename_block(const std::string& source,
                                                        const Module& module,
                                                        const std::string& old_name,
                                                        const std::string& new_name);
@@ -336,6 +340,16 @@ struct FlowNode {
     TextSpan span;
 };
 
+struct GraphParameter {
+    std::string name;
+    std::string type;
+    std::string direction;
+    Expression default_value;
+    bool has_default = false;
+    std::vector<Attribute> attributes;
+    TextSpan span;
+};
+
 struct FlowEdge {
     std::string from;
     std::string to;
@@ -343,11 +357,31 @@ struct FlowEdge {
     TextSpan span;
 };
 
+struct FlowDataEdge {
+    std::string source;
+    std::string target;
+    bool valid = true;
+    TextSpan span;
+};
+
+struct FlowBlock {
+    std::string kind;
+    std::string name;
+    std::vector<FlowEdge> edges;
+    std::vector<FlowDataEdge> data_edges;
+    TextSpan span;
+};
+
 struct FlowGraph {
     std::string name;
     std::string schema;
+    std::vector<GraphParameter> parameters;
     std::vector<FlowNode> nodes;
+    // Canonical flattened edges for whole-graph consumers. FlowBlock keeps the
+    // same source edges grouped by event/function/entry block for editor views.
     std::vector<FlowEdge> edges;
+    std::vector<FlowDataEdge> data_edges;
+    std::vector<FlowBlock> blocks;
     std::vector<Diagnostic> diagnostics;
 };
 
