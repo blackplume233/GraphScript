@@ -10,8 +10,6 @@ module.exports = grammar({
   word: $ => $.identifier,
 
   conflicts: $ => [
-    [$.property_declaration, $.directive_statement],
-    [$.call_statement, $.directive_statement],
     [$.qualified_name, $.member_expression],
   ],
 
@@ -22,7 +20,7 @@ module.exports = grammar({
       $.import_declaration,
       $.export_declaration,
       $.declaration,
-      $.scope_declaration,
+      $.block_declaration,
       $.const_declaration,
       $.property_declaration,
       $.call_statement,
@@ -60,8 +58,9 @@ module.exports = grammar({
         $.module_declaration,
         $.type_declaration,
         $.enum_declaration,
+        $.kind_declaration,
         $.object_declaration,
-        $.scope_kind_declaration,
+        $.block_kind_declaration,
         $.command_declaration,
         $.schema_declaration,
         $.lint_declaration,
@@ -75,6 +74,7 @@ module.exports = grammar({
     ),
 
     type_declaration: $ => prec.right(seq(
+      repeat(field('attributes', $.attribute)),
       'type',
       field('name', $.identifier),
       optional(seq(':', field('type', $.type_ref))),
@@ -96,9 +96,16 @@ module.exports = grammar({
       optional(';'),
     )),
 
+    kind_declaration: $ => prec.right(seq(
+      'kind',
+      field('family', $.identifier),
+      field('name', $.identifier),
+      optional(';'),
+    )),
+
     object_declaration: $ => seq(
       repeat(field('attributes', $.attribute)),
-      'object',
+      choice('object', 'node'),
       field('name', $.identifier),
       optional(seq(':', field('type', $.type_ref))),
       field('body', $.object_declaration_body),
@@ -115,10 +122,9 @@ module.exports = grammar({
       optional(';'),
     )),
 
-    scope_kind_declaration: $ => seq(
-      'scope',
+    block_kind_declaration: $ => seq(
+      'block',
       field('name', $.identifier),
-      optional(seq(':', field('type', $.type_ref))),
       field('body', $.declaration_body),
     ),
 
@@ -131,6 +137,7 @@ module.exports = grammar({
     )),
 
     schema_declaration: $ => seq(
+      repeat(field('attributes', $.attribute)),
       'schema',
       field('name', $.identifier),
       optional(seq(':', field('type', $.type_ref))),
@@ -151,17 +158,14 @@ module.exports = grammar({
       '}',
     ),
 
-    scope_declaration: $ => seq(
+    block_declaration: $ => seq(
       repeat(field('attributes', $.attribute)),
-      'scope',
       field('kind', $.identifier),
       field('name', $.identifier),
-      optional(seq(':', field('type', $.type_ref))),
-      optional(field('parameters', $.parameter_list)),
-      field('body', $.scope_body),
+      field('body', $.block_body),
     ),
 
-    scope_body: $ => seq('{', repeat($._item), '}'),
+    block_body: $ => seq('{', repeat($._item), '}'),
 
     const_declaration: $ => prec.right(seq(
       repeat(field('attributes', $.attribute)),
@@ -203,10 +207,10 @@ module.exports = grammar({
       optional(';'),
     )),
 
-    call_expression: $ => seq(
-      field('callee', $.member_expression),
+    call_expression: $ => prec(1, seq(
+      field('callee', choice($.member_expression, $.identifier)),
       field('arguments', $.argument_list),
-    ),
+    )),
 
     assignment_statement: $ => prec.right(seq(
       field('target', choice($.member_expression, $.qualified_name)),
@@ -216,6 +220,7 @@ module.exports = grammar({
     )),
 
     directive_statement: $ => prec.right(seq(
+      repeat(field('attributes', $.attribute)),
       field('name', $.identifier),
       optional(choice(
         $.directive_param_declaration,
@@ -226,7 +231,7 @@ module.exports = grammar({
     )),
 
     directive_argument_list: $ => prec.right(repeat1(choice(
-      $.identifier,
+      $.type_ref,
       $.string_literal,
       $.int_literal,
       $.float_literal,
@@ -280,6 +285,7 @@ module.exports = grammar({
     ),
 
     _expression: $ => choice(
+      $.call_expression,
       $.asset_ref_expression,
       $.ref_expression,
       $.array_expression,

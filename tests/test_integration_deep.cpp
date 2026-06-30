@@ -74,7 +74,10 @@ static void load_level(Environment& env) {
 }
 
 static void load_mixed(Environment& env) {
-    do_compile(read_fixture("mixed_declarations.d.gs"), env, "mixed_declarations.d.gs");
+    EditSession session(env);
+    const std::string path = std::string(GS_TEST_FIXTURES_DIR) + "/mixed_declarations.d.gs";
+    auto loaded = session.load_import(path);
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
 }
 
 // Verifies emit → re-parse → re-compile structural equivalence.

@@ -3282,12 +3282,40 @@ static std::string asset_attr_arg(const asset::Attribute& attr, const std::strin
     return "";
 }
 
+static Annotation asset_annotation(const asset::Attribute& attr) {
+    Annotation annotation;
+    annotation.name = attr.name;
+    annotation.source_range = attr.span.range;
+    annotation.name_range = attr.span.range;
+    for (const auto& arg : attr.args) {
+        AnnotationArg converted;
+        converted.name = arg.name;
+        converted.value = arg.value.text;
+        converted.source_range = arg.span.range;
+        converted.value_range = arg.value.span.range;
+        converted.value_constructor_range = arg.value.span.range;
+        converted.value_constructor_type_range = arg.value.span.range;
+        converted.value_constructor_arg_range = arg.value.span.range;
+        annotation.args.push_back(std::move(converted));
+    }
+    return annotation;
+}
+
+static std::vector<Annotation> asset_annotations(const std::vector<asset::Attribute>& attributes) {
+    std::vector<Annotation> result;
+    for (const auto& attr : attributes) {
+        if (attr.name == "flow.pin" || attr.name == "flow.input" || attr.name == "flow.output") continue;
+        result.push_back(asset_annotation(attr));
+    }
+    return result;
+}
+
 static bool asset_field_pin(const asset::FieldDecl& field, PinDefinition& pin) {
     pin.name = field.name;
     pin.type_name = field.type;
     pin.source_range = field.span.range;
     pin.name_range = field.name_span.range;
-    pin.type_name_range = field.span.range;
+    pin.type_name_range = field.type_span.range;
     for (const auto& attr : field.attributes) {
         if (attr.name == "flow.pin") {
             pin.kind = asset_attr_arg(attr, "kind") == "exec" ? PinKind::Exec : PinKind::Data;
@@ -3364,6 +3392,7 @@ static Result<void, std::string> register_asset_declarations(Environment& env,
         TypeInfo info;
         info.name = symbol.name;
         info.constructible = symbol.base_type == "constructible";
+        info.annotations = asset_annotations(symbol.attributes);
         info.source_range = symbol.span.range;
         info.name_range = symbol.name_span.range;
         info.source_file = source_name;
@@ -3374,12 +3403,14 @@ static Result<void, std::string> register_asset_declarations(Environment& env,
         NodeDefinition def;
         def.type_name = object.name;
         def.is_native = true;
+        def.annotations = asset_annotations(object.attributes);
         def.source_range = object.span.range;
-        def.name_range = object.span.range;
+        def.name_range = object.name_span.range;
         def.source_file = source_name;
         for (const auto& field : object.fields) {
             PinDefinition pin;
             if (asset_field_pin(field, pin)) {
+                pin.annotations = asset_annotations(field.attributes);
                 pin.source_file = source_name;
                 def.pins.push_back(std::move(pin));
                 continue;
@@ -3388,9 +3419,10 @@ static Result<void, std::string> register_asset_declarations(Environment& env,
             node_field.name = field.name;
             node_field.type_name = field.type;
             node_field.default_value = field.has_default ? field.default_value.text : "";
+            node_field.annotations = asset_annotations(field.attributes);
             node_field.source_range = field.span.range;
             node_field.name_range = field.name_span.range;
-            node_field.type_name_range = field.span.range;
+            node_field.type_name_range = field.type_span.range;
             node_field.default_value_range = field.default_value.span.range;
             node_field.source_file = source_name;
             def.fields.push_back(std::move(node_field));
@@ -3401,16 +3433,25 @@ static Result<void, std::string> register_asset_declarations(Environment& env,
     for (const auto& schema_decl : module.schemas) {
         GraphSchema schema;
         schema.name = schema_decl.name;
+        schema.annotations = asset_annotations(schema_decl.attributes);
         schema.source_range = schema_decl.span.range;
-        schema.name_range = schema_decl.span.range;
+        schema.name_range = schema_decl.name_span.range;
         schema.source_file = source_name;
         for (const auto& property : schema_decl.properties) {
             GraphSchemaField field;
             field.name = property.path;
             field.value = property.value.text;
+            field.annotations = asset_annotations(property.attributes);
             field.source_range = property.span.range;
             field.name_range = property.name_span.range;
             field.value_range = property.value_span.range;
+            if (property.value.kind == asset::ExprKind::Call) {
+                field.value_constructor_range = property.value.span.range;
+                field.value_constructor_type_range = property.value.callee_span.range;
+                if (!property.value.elements.empty()) {
+                    field.value_constructor_arg_range = property.value.elements.front().span.range;
+                }
+            }
             field.source_file = source_name;
             schema.fields.push_back(field);
             if (field.name == "max_exec_fan_out") {

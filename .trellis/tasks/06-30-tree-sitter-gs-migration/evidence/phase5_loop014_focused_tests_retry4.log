@@ -1,0 +1,60 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = EditSession.StateJsonExportsDeclarationSourceRanges:EditSession.DeclarationAnnotationsExportPersistentIds:DeepCycle.S8_MixedDeclarations_FullLoad:DeepCycle.S9_Cinematic_FullPipeline:DeepCycle.S10_AbilityBranching_FullPipeline:AssetLanguage.*
+[==========] Running 22 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 17 tests from AssetLanguage
+[ RUN      ] AssetLanguage.ParsesDeclarationModuleAndObjectPins
+[       OK ] AssetLanguage.ParsesDeclarationModuleAndObjectPins (0 ms)
+[ RUN      ] AssetLanguage.BuildsModuleGraphAndExports
+[       OK ] AssetLanguage.BuildsModuleGraphAndExports (0 ms)
+[ RUN      ] AssetLanguage.ParsesTypeBaseAndAllowsFieldPinNamePair
+[       OK ] AssetLanguage.ParsesTypeBaseAndAllowsFieldPinNamePair (0 ms)
+[ RUN      ] AssetLanguage.RejectsDuplicateFieldsWithSameRole
+[       OK ] AssetLanguage.RejectsDuplicateFieldsWithSameRole (0 ms)
+[ RUN      ] AssetLanguage.ParsesGraphBlockNodeObjectsAndCalls
+[       OK ] AssetLanguage.ParsesGraphBlockNodeObjectsAndCalls (0 ms)
+[ RUN      ] AssetLanguage.ProjectsFlowGraphWithPinsAndEdges
+[       OK ] AssetLanguage.ProjectsFlowGraphWithPinsAndEdges (0 ms)
+[ RUN      ] AssetLanguage.ReportsInvalidDataEdgeButKeepsProjection
+[       OK ] AssetLanguage.ReportsInvalidDataEdgeButKeepsProjection (0 ms)
+[ RUN      ] AssetLanguage.ReportsInvalidDataTargetButKeepsProjection
+[       OK ] AssetLanguage.ReportsInvalidDataTargetButKeepsProjection (0 ms)
+[ RUN      ] AssetLanguage.ReportsInvalidFlowEdgeButKeepsProjection
+[       OK ] AssetLanguage.ReportsInvalidFlowEdgeButKeepsProjection (0 ms)
+[ RUN      ] AssetLanguage.FunctionBlockCannotReferenceGraphNodeAlias
+[       OK ] AssetLanguage.FunctionBlockCannotReferenceGraphNodeAlias (0 ms)
+[ RUN      ] AssetLanguage.ReportsConflictingGraphParameterDirectionAttributes
+[       OK ] AssetLanguage.ReportsConflictingGraphParameterDirectionAttributes (0 ms)
+[ RUN      ] AssetLanguage.LinterReportsDuplicateNodeBlockAlias
+[       OK ] AssetLanguage.LinterReportsDuplicateNodeBlockAlias (0 ms)
+[ RUN      ] AssetLanguage.ProjectorDoesNotTreatMemberConnectAsCanonicalEdge
+[       OK ] AssetLanguage.ProjectorDoesNotTreatMemberConnectAsCanonicalEdge (0 ms)
+[ RUN      ] AssetLanguage.ParsesQualifiedSchemaAndNodeTypeCommands
+[       OK ] AssetLanguage.ParsesQualifiedSchemaAndNodeTypeCommands (0 ms)
+[ RUN      ] AssetLanguage.PatcherAppliesImportNodeConnectAndPropertyEdits
+[       OK ] AssetLanguage.PatcherAppliesImportNodeConnectAndPropertyEdits (0 ms)
+[ RUN      ] AssetLanguage.PatcherAppliesBlockAttributeAndBlockRenameEdits
+[       OK ] AssetLanguage.PatcherAppliesBlockAttributeAndBlockRenameEdits (0 ms)
+[ RUN      ] AssetLanguage.RecoversBrokenTextWithDiagnosticsAndPartialAst
+[       OK ] AssetLanguage.RecoversBrokenTextWithDiagnosticsAndPartialAst (0 ms)
+[----------] 17 tests from AssetLanguage (1 ms total)
+
+[----------] 2 tests from EditSession
+[ RUN      ] EditSession.StateJsonExportsDeclarationSourceRanges
+[       OK ] EditSession.StateJsonExportsDeclarationSourceRanges (1 ms)
+[ RUN      ] EditSession.DeclarationAnnotationsExportPersistentIds
+[       OK ] EditSession.DeclarationAnnotationsExportPersistentIds (1 ms)
+[----------] 2 tests from EditSession (2 ms total)
+
+[----------] 3 tests from DeepCycle
+[ RUN      ] DeepCycle.S8_MixedDeclarations_FullLoad
+[       OK ] DeepCycle.S8_MixedDeclarations_FullLoad (0 ms)
+[ RUN      ] DeepCycle.S9_Cinematic_FullPipeline
+[       OK ] DeepCycle.S9_Cinematic_FullPipeline (1 ms)
+[ RUN      ] DeepCycle.S10_AbilityBranching_FullPipeline
+[       OK ] DeepCycle.S10_AbilityBranching_FullPipeline (1 ms)
+[----------] 3 tests from DeepCycle (4 ms total)
+
+[----------] Global test environment tear-down
+[==========] 22 tests from 3 test suites ran. (8 ms total)
+[  PASSED  ] 22 tests.

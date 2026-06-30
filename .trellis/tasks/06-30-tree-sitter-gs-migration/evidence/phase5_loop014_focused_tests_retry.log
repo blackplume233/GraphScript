@@ -1,0 +1,38 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = EditSession.StateJsonExportsDeclarationSourceRanges:EditSession.DeclarationAnnotationsExportPersistentIds:DeepCycle.S8_MixedDeclarations_FullLoad:DeepCycle.S9_Cinematic_FullPipeline:DeepCycle.S10_AbilityBranching_FullPipeline
+[==========] Running 5 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 2 tests from EditSession
+[ RUN      ] EditSession.StateJsonExportsDeclarationSourceRanges
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_edit_session.cpp(1823): error: Value of: loaded.is_ok()
+  Actual: false
+Expected: true
+Asset parse error in: C:\Users\black\AppData\Local\Temp\graphscript_decl_source_ranges_090.d.gs: Syntax error
+
+[  FAILED  ] EditSession.StateJsonExportsDeclarationSourceRanges (1 ms)
+[ RUN      ] EditSession.DeclarationAnnotationsExportPersistentIds
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_edit_session.cpp(1949): error: Value of: loaded.is_ok()
+  Actual: false
+Expected: true
+Parse error in: C:\Users\black\AppData\Local\Temp\graphscript_decl_annotations_110.d.gs
+
+[  FAILED  ] EditSession.DeclarationAnnotationsExportPersistentIds (0 ms)
+[----------] 2 tests from EditSession (1 ms total)
+
+[----------] 3 tests from DeepCycle
+[ RUN      ] DeepCycle.S8_MixedDeclarations_FullLoad
+[       OK ] DeepCycle.S8_MixedDeclarations_FullLoad (1 ms)
+[ RUN      ] DeepCycle.S9_Cinematic_FullPipeline
+[       OK ] DeepCycle.S9_Cinematic_FullPipeline (2 ms)
+[ RUN      ] DeepCycle.S10_AbilityBranching_FullPipeline
+[       OK ] DeepCycle.S10_AbilityBranching_FullPipeline (1 ms)
+[----------] 3 tests from DeepCycle (5 ms total)
+
+[----------] Global test environment tear-down
+[==========] 5 tests from 2 test suites ran. (7 ms total)
+[  PASSED  ] 3 tests.
+[  FAILED  ] 2 tests, listed below:
+[  FAILED  ] EditSession.StateJsonExportsDeclarationSourceRanges
+[  FAILED  ] EditSession.DeclarationAnnotationsExportPersistentIds
+
+ 2 FAILED TESTS

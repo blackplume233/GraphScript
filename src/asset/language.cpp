@@ -33,6 +33,16 @@ TextSpan span_of(TSNode node) {
     return span;
 }
 
+TextSpan span_from_start_to_end(TSNode start_node, TSNode end_node) {
+    TextSpan span;
+    if (ts_node_is_null(start_node) || ts_node_is_null(end_node)) return span;
+    span.offset = ts_node_start_byte(start_node);
+    const size_t end = ts_node_end_byte(end_node);
+    span.length = end > span.offset ? end - span.offset : 0;
+    span.range = range_from_points(ts_node_start_point(start_node), ts_node_end_point(end_node));
+    return span;
+}
+
 bool null_node(TSNode node) {
     return ts_node_is_null(node);
 }
@@ -211,6 +221,15 @@ Expression parse_expression(const std::string& source, TSNode node) {
         expr.kind = ExprKind::AssetRef;
         TSNode path = child_by_field(node, "path");
         expr.text = unquote(slice(source, path));
+    } else if (type == "call_expression") {
+        expr.kind = ExprKind::Call;
+        TSNode callee = child_by_field(node, "callee");
+        expr.callee = slice(source, callee);
+        expr.callee_span = span_of(callee);
+        TSNode args = child_by_field(node, "arguments");
+        for (TSNode child : named_children(args)) {
+            expr.elements.push_back(parse_expression(source, child));
+        }
     } else if (type == "array_expression") {
         expr.kind = ExprKind::Array;
         for (TSNode child : named_children(node)) {
@@ -368,24 +387,31 @@ std::unique_ptr<Block> parse_block(const std::string& source, TSNode node) {
     return block;
 }
 
-ObjectDecl parse_object_decl(const std::string& source, TSNode node, bool exported) {
+ObjectDecl parse_object_decl(const std::string& source,
+                             TSNode node,
+                             bool exported,
+                             const TextSpan* span_override = nullptr) {
     ObjectDecl object;
-    object.span = span_of(node);
+    object.span = span_override ? *span_override : span_of(node);
     object.exported = exported;
     object.attributes = parse_attributes(source, node);
-    object.name = slice(source, child_by_field(node, "name"));
+    TSNode object_name = child_by_field(node, "name");
+    object.name = slice(source, object_name);
+    object.name_span = span_of(object_name);
     object.base_type = slice(source, child_by_field(node, "type"));
     TSNode body = child_by_field(node, "body");
     const auto children = null_node(body) ? named_children(node) : named_children(body);
     for (TSNode child : children) {
         if (!is_type(child, "field_declaration")) continue;
         FieldDecl field;
-        field.span = span_of(child);
         field.attributes = parse_attributes(source, child);
         TSNode name = child_by_field(child, "name");
+        field.span = span_from_start_to_end(name, child);
         field.name = slice(source, name);
         field.name_span = span_of(name);
-        field.type = slice(source, child_by_field(child, "type"));
+        TSNode type = child_by_field(child, "type");
+        field.type = slice(source, type);
+        field.type_span = span_of(type);
         TSNode def = child_by_field(child, "default_value");
         if (!null_node(def)) {
             field.default_value = parse_expression(source, def);
@@ -455,11 +481,17 @@ CommandDecl parse_command_decl(const std::string& source, TSNode node, bool expo
     return decl;
 }
 
-SchemaDecl parse_schema_decl(const std::string& source, TSNode node, bool exported) {
+SchemaDecl parse_schema_decl(const std::string& source,
+                             TSNode node,
+                             bool exported,
+                             const TextSpan* span_override = nullptr) {
     SchemaDecl decl;
-    decl.span = span_of(node);
+    decl.span = span_override ? *span_override : span_of(node);
     decl.exported = exported;
-    decl.name = slice(source, child_by_field(node, "name"));
+    decl.attributes = parse_attributes(source, node);
+    TSNode name = child_by_field(node, "name");
+    decl.name = slice(source, name);
+    decl.name_span = span_of(name);
     decl.base_type = slice(source, child_by_field(node, "type"));
     TSNode body = child_by_field(node, "body");
     for (TSNode child : named_children(body)) {
@@ -490,21 +522,27 @@ SymbolDecl make_symbol(const std::string& kind,
                        bool exported,
                        TextSpan span,
                        std::string base_type = {},
-                       TextSpan name_span = {}) {
+                       TextSpan name_span = {},
+                       std::vector<Attribute> attributes = {}) {
     SymbolDecl symbol;
     symbol.kind = kind;
     symbol.name = name;
     symbol.base_type = std::move(base_type);
+    symbol.attributes = std::move(attributes);
     symbol.exported = exported;
     symbol.span = span;
     symbol.name_span = name_span;
     return symbol;
 }
 
-void parse_declaration_into(const std::string& source, TSNode node, bool exported, Module& module) {
+void parse_declaration_into(const std::string& source,
+                            TSNode node,
+                            bool exported,
+                            Module& module,
+                            const TextSpan* span_override = nullptr) {
     if (is_type(node, "declaration")) {
         for (TSNode child : named_children(node)) {
-            parse_declaration_into(source, child, exported, module);
+            parse_declaration_into(source, child, exported, module, span_override);
         }
         return;
     }
@@ -517,9 +555,10 @@ void parse_declaration_into(const std::string& source, TSNode node, bool exporte
             "type",
             slice(source, name),
             exported,
-            span_of(node),
+            span_override ? *span_override : span_of(node),
             slice(source, child_by_field(node, "type")),
-            span_of(name)));
+            span_of(name),
+            parse_attributes(source, node)));
     } else if (type == "enum_declaration") {
         auto decl = parse_enum_decl(source, node, exported);
         module.symbols.push_back(make_symbol("enum", decl.name, exported, decl.span));
@@ -529,7 +568,7 @@ void parse_declaration_into(const std::string& source, TSNode node, bool exporte
         const std::string name = slice(source, child_by_field(node, "name"));
         module.symbols.push_back(make_symbol("kind " + family, name, exported, span_of(node)));
     } else if (type == "object_declaration") {
-        auto decl = parse_object_decl(source, node, exported);
+        auto decl = parse_object_decl(source, node, exported, span_override);
         module.symbols.push_back(make_symbol("object", decl.name, exported, decl.span));
         module.objects.push_back(std::move(decl));
     } else if (type == "block_kind_declaration") {
@@ -541,7 +580,7 @@ void parse_declaration_into(const std::string& source, TSNode node, bool exporte
         module.symbols.push_back(make_symbol("command", decl.name, exported, decl.span));
         module.commands.push_back(std::move(decl));
     } else if (type == "schema_declaration") {
-        auto decl = parse_schema_decl(source, node, exported);
+        auto decl = parse_schema_decl(source, node, exported, span_override);
         module.symbols.push_back(make_symbol("schema", decl.name, exported, decl.span));
         module.schemas.push_back(std::move(decl));
     } else if (type == "lint_declaration") {
@@ -554,7 +593,8 @@ void parse_declaration_into(const std::string& source, TSNode node, bool exporte
 void parse_export_into(const std::string& source, TSNode node, Module& module) {
     TSNode decl = child_by_field(node, "declaration");
     if (!null_node(decl)) {
-        parse_declaration_into(source, decl, true, module);
+        const TextSpan export_span = span_of(node);
+        parse_declaration_into(source, decl, true, module, &export_span);
         return;
     }
     TSNode names = child_by_field(node, "names");

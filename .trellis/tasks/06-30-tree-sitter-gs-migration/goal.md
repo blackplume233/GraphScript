@@ -4,9 +4,9 @@ updated_at: 2026-06-30
 artifact_language: zh-CN
 execution_mode: native-codex-goal
 native_goal_id: codex_019f188c-0800-7041-9d48-9a868ddcb496
-current_loop: loops/loop-014.md
-next_sub_goal: Loop 014：Phase 5 迁移剩余 load_import 旧声明测试/临时 fixture 到 asset declaration，并拆除 EditSession::load_import 旧 parser/compiler fallback
-last_verified_loop: loops/loop-013.md
+current_loop: loops/loop-015.md
+next_sub_goal: Loop 015：迁移 CLI import node/schema/type rename 命令与测试到 asset declaration patch/parse path，并删除 EditSession::load_import 旧 parser/compiler fallback
+last_verified_loop: loops/loop-014.md
 references: references.md
 ---
 

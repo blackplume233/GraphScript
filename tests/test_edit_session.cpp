@@ -1797,13 +1797,16 @@ TEST(EditSession, StateJsonExportsDeclarationSourceRanges) {
     EditSession s(env);
 
     const std::string source =
-        "declare type DeclValue : constructible;\n"
-        "declare Node SpanDeclaredNode {\n"
-        "    exec in enter;\n"
-        "    data in value : DeclValue;\n"
-        "    exec out done;\n"
+        "export declare type DeclValue: constructible;\n"
+        "export declare object SpanDeclaredNode {\n"
+        "    @flow.pin(kind = \"exec\", direction = \"in\")\n"
+        "    enter: Exec;\n"
+        "    @flow.input\n"
+        "    value: DeclValue;\n"
+        "    @flow.pin(kind = \"exec\", direction = \"out\")\n"
+        "    done: Exec;\n"
         "}\n"
-        "declare Schema SpanDeclaredSchema {\n"
+        "export declare schema SpanDeclaredSchema: FlowGraphSchema {\n"
         "    max_exec_fan_out: 1;\n"
         "    allow_exec_fan_in: true;\n"
         "    strict_type_match: false;\n"
@@ -1824,7 +1827,7 @@ TEST(EditSession, StateJsonExportsDeclarationSourceRanges) {
     EXPECT_EQ(type->source_range.start.line, 1u);
     EXPECT_EQ(type->source_range.start.column, 1u);
     EXPECT_EQ(type->name_range.start.line, 1u);
-    EXPECT_EQ(type->name_range.start.column, 14u);
+    EXPECT_EQ(type->name_range.start.column, 21u);
     EXPECT_EQ(type->source_file, path.string());
 
     auto* node = env.nodes().find("SpanDeclaredNode");
@@ -1832,45 +1835,45 @@ TEST(EditSession, StateJsonExportsDeclarationSourceRanges) {
     EXPECT_EQ(node->source_range.start.line, 2u);
     EXPECT_EQ(node->source_range.start.column, 1u);
     EXPECT_EQ(node->name_range.start.line, 2u);
-    EXPECT_EQ(node->name_range.start.column, 14u);
+    EXPECT_EQ(node->name_range.start.column, 23u);
     EXPECT_EQ(node->source_file, path.string());
     ASSERT_EQ(node->pins.size(), 3u);
-    EXPECT_EQ(node->pins[0].source_range.start.line, 3u);
+    EXPECT_EQ(node->pins[0].source_range.start.line, 4u);
     EXPECT_EQ(node->pins[0].source_range.start.column, 5u);
-    EXPECT_EQ(node->pins[0].name_range.start.line, 3u);
-    EXPECT_EQ(node->pins[0].name_range.start.column, 13u);
+    EXPECT_EQ(node->pins[0].name_range.start.line, 4u);
+    EXPECT_EQ(node->pins[0].name_range.start.column, 5u);
     EXPECT_EQ(node->pins[0].source_file, path.string());
-    EXPECT_EQ(node->pins[1].source_range.start.line, 4u);
+    EXPECT_EQ(node->pins[1].source_range.start.line, 6u);
     EXPECT_EQ(node->pins[1].source_range.start.column, 5u);
-    EXPECT_EQ(node->pins[1].name_range.start.line, 4u);
-    EXPECT_EQ(node->pins[1].name_range.start.column, 13u);
-    EXPECT_EQ(node->pins[1].type_name_range.start.line, 4u);
-    EXPECT_EQ(node->pins[1].type_name_range.start.column, 21u);
+    EXPECT_EQ(node->pins[1].name_range.start.line, 6u);
+    EXPECT_EQ(node->pins[1].name_range.start.column, 5u);
+    EXPECT_EQ(node->pins[1].type_name_range.start.line, 6u);
+    EXPECT_EQ(node->pins[1].type_name_range.start.column, 12u);
 
     auto* schema = env.schemas().find("SpanDeclaredSchema");
     ASSERT_NE(schema, nullptr);
-    EXPECT_EQ(schema->source_range.start.line, 7u);
+    EXPECT_EQ(schema->source_range.start.line, 10u);
     EXPECT_EQ(schema->source_range.start.column, 1u);
-    EXPECT_EQ(schema->name_range.start.line, 7u);
-    EXPECT_EQ(schema->name_range.start.column, 16u);
+    EXPECT_EQ(schema->name_range.start.line, 10u);
+    EXPECT_EQ(schema->name_range.start.column, 23u);
     EXPECT_EQ(schema->source_file, path.string());
     ASSERT_EQ(schema->fields.size(), 4u);
     EXPECT_EQ(schema->fields[0].name, "max_exec_fan_out");
     EXPECT_EQ(schema->fields[0].value, "1");
-    EXPECT_EQ(schema->fields[0].source_range.start.line, 8u);
+    EXPECT_EQ(schema->fields[0].source_range.start.line, 11u);
     EXPECT_EQ(schema->fields[0].source_range.start.column, 5u);
-    EXPECT_EQ(schema->fields[0].name_range.start.line, 8u);
+    EXPECT_EQ(schema->fields[0].name_range.start.line, 11u);
     EXPECT_EQ(schema->fields[0].name_range.start.column, 5u);
-    EXPECT_EQ(schema->fields[0].value_range.start.line, 8u);
+    EXPECT_EQ(schema->fields[0].value_range.start.line, 11u);
     EXPECT_EQ(schema->fields[0].value_range.start.column, 23u);
     EXPECT_EQ(schema->fields[0].source_file, path.string());
     EXPECT_EQ(schema->fields[3].name, "default_payload");
     EXPECT_EQ(schema->fields[3].value, "DeclValue(\"schema\")");
-    EXPECT_EQ(schema->fields[3].value_constructor_range.start.line, 11u);
+    EXPECT_EQ(schema->fields[3].value_constructor_range.start.line, 14u);
     EXPECT_EQ(schema->fields[3].value_constructor_range.start.column, 22u);
-    EXPECT_EQ(schema->fields[3].value_constructor_type_range.start.line, 11u);
+    EXPECT_EQ(schema->fields[3].value_constructor_type_range.start.line, 14u);
     EXPECT_EQ(schema->fields[3].value_constructor_type_range.start.column, 22u);
-    EXPECT_EQ(schema->fields[3].value_constructor_arg_range.start.line, 11u);
+    EXPECT_EQ(schema->fields[3].value_constructor_arg_range.start.line, 14u);
     EXPECT_EQ(schema->fields[3].value_constructor_arg_range.start.column, 32u);
 
     std::string json = s.state_to_json();
@@ -1880,35 +1883,35 @@ TEST(EditSession, StateJsonExportsDeclarationSourceRanges) {
     EXPECT_NE(json.find(path.filename().string()), std::string::npos);
     EXPECT_NE(json.find("\"name\":\"DeclValue\""), std::string::npos);
     EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":1,\"column\":1}"), std::string::npos);
-    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":1,\"column\":14}"), std::string::npos);
+    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":1,\"column\":21}"), std::string::npos);
     EXPECT_NE(json.find("\"constructible\":true"), std::string::npos);
     EXPECT_NE(json.find("\"value\":\"DeclValue(\\\"schema\\\")\""), std::string::npos);
-    EXPECT_NE(json.find("\"value_constructor_source_range\":{\"start\":{\"line\":11,\"column\":22}"), std::string::npos);
-    EXPECT_NE(json.find("\"value_constructor_type_source_range\":{\"start\":{\"line\":11,\"column\":22}"), std::string::npos);
-    EXPECT_NE(json.find("\"value_constructor_arg_source_range\":{\"start\":{\"line\":11,\"column\":32}"), std::string::npos);
+    EXPECT_NE(json.find("\"value_constructor_source_range\":{\"start\":{\"line\":14,\"column\":22}"), std::string::npos);
+    EXPECT_NE(json.find("\"value_constructor_type_source_range\":{\"start\":{\"line\":14,\"column\":22}"), std::string::npos);
+    EXPECT_NE(json.find("\"value_constructor_arg_source_range\":{\"start\":{\"line\":14,\"column\":32}"), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"decl-node:SpanDeclaredNode\""), std::string::npos);
     EXPECT_NE(json.find("\"type_name\":\"SpanDeclaredNode\""), std::string::npos);
     EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":2,\"column\":1}"), std::string::npos);
-    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":2,\"column\":14}"), std::string::npos);
+    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":2,\"column\":23}"), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"decl-pin:SpanDeclaredNode/enter\""), std::string::npos);
     EXPECT_NE(json.find("\"name\":\"enter\""), std::string::npos);
-    EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":3,\"column\":5}"), std::string::npos);
-    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":3,\"column\":13}"), std::string::npos);
+    EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":4,\"column\":5}"), std::string::npos);
+    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":4,\"column\":5}"), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"decl-pin:SpanDeclaredNode/value\""), std::string::npos);
     EXPECT_NE(json.find("\"name\":\"value\""), std::string::npos);
-    EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":4,\"column\":5}"), std::string::npos);
-    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":4,\"column\":13}"), std::string::npos);
-    EXPECT_NE(json.find("\"type_source_range\":{\"start\":{\"line\":4,\"column\":21}"), std::string::npos);
+    EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":6,\"column\":5}"), std::string::npos);
+    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":6,\"column\":5}"), std::string::npos);
+    EXPECT_NE(json.find("\"type_source_range\":{\"start\":{\"line\":6,\"column\":12}"), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"decl-schema:SpanDeclaredSchema\""), std::string::npos);
     EXPECT_NE(json.find("\"name\":\"SpanDeclaredSchema\""), std::string::npos);
-    EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":7,\"column\":1}"), std::string::npos);
-    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":7,\"column\":16}"), std::string::npos);
+    EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":10,\"column\":1}"), std::string::npos);
+    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":10,\"column\":23}"), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"decl-schema-field:SpanDeclaredSchema/max_exec_fan_out\""), std::string::npos);
     EXPECT_NE(json.find("\"name\":\"max_exec_fan_out\""), std::string::npos);
     EXPECT_NE(json.find("\"value\":\"1\""), std::string::npos);
-    EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":8,\"column\":5}"), std::string::npos);
-    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":8,\"column\":5}"), std::string::npos);
-    EXPECT_NE(json.find("\"value_source_range\":{\"start\":{\"line\":8,\"column\":23}"), std::string::npos);
+    EXPECT_NE(json.find("\"source_range\":{\"start\":{\"line\":11,\"column\":5}"), std::string::npos);
+    EXPECT_NE(json.find("\"name_source_range\":{\"start\":{\"line\":11,\"column\":5}"), std::string::npos);
+    EXPECT_NE(json.find("\"value_source_range\":{\"start\":{\"line\":11,\"column\":23}"), std::string::npos);
 
     std::filesystem::remove(path);
 }
@@ -1918,18 +1921,17 @@ TEST(EditSession, DeclarationAnnotationsExportPersistentIds) {
     EditSession s(env);
 
     const std::string source =
-        "[Id(\"type-decl\")]\n"
-        "declare type DeclValue : constructible;\n"
-        "[PersistentId(\"node-decl\")]\n"
-        "declare Node AnnotatedDeclaredNode {\n"
-        "    [Id(\"pin-enter\")]\n"
-        "    exec in enter;\n"
-        "    [PersistentId(\"pin-value\")]\n"
-        "    data in value : DeclValue;\n"
+        "export declare @Id(\"type-decl\") type DeclValue: constructible;\n"
+        "export declare @PersistentId(\"node-decl\") object AnnotatedDeclaredNode {\n"
+        "    @Id(\"pin-enter\")\n"
+        "    @flow.pin(kind = \"exec\", direction = \"in\")\n"
+        "    enter: Exec;\n"
+        "    @PersistentId(\"pin-value\")\n"
+        "    @flow.input\n"
+        "    value: DeclValue;\n"
         "}\n"
-        "[Id(\"schema-decl\")]\n"
-        "declare Schema AnnotatedDeclaredSchema {\n"
-        "    [PersistentId(\"field-fanout\")]\n"
+        "export declare @Id(\"schema-decl\") schema AnnotatedDeclaredSchema: FlowGraphSchema {\n"
+        "    @PersistentId(\"field-fanout\")\n"
         "    max_exec_fan_out: 1;\n"
         "    allow_exec_fan_in: true;\n"
         "}\n";

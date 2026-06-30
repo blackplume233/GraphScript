@@ -1,53 +1,74 @@
 // Scenario 8: Complex .d.gs with many declarations of mixed types
 
-declare type GameplayTag;
-declare type FTransform : constructible;
-declare type FLinearColor : constructible;
-declare type UAnimMontage;
-declare type USoundBase;
-declare type UParticleSystem;
+export declare type GameplayTag;
+export declare type FTransform: constructible;
+export declare type FLinearColor: constructible;
+export declare type UAnimMontage;
+export declare type USoundBase;
+export declare type UParticleSystem;
 
-declare Node PlayMontage {
-    exec in play;
-    exec out completed;
-    exec out interrupted;
-    data in target : AActor;
-    data in montage : UAnimMontage;
-    data in playRate : float;
+export declare object PlayMontage {
+    @flow.pin(kind = "exec", direction = "in")
+    play: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    completed: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    interrupted: Exec;
+    @flow.input
+    target: AActor;
+    @flow.input
+    montage: UAnimMontage;
+    @flow.input
+    playRate: float;
 }
 
-declare Node PlaySound {
-    exec in play;
-    exec out finished;
-    data in sound : USoundBase;
-    data in location : FVector;
-    data in volume : float;
+export declare object PlaySound {
+    @flow.pin(kind = "exec", direction = "in")
+    play: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    finished: Exec;
+    @flow.input
+    sound: USoundBase;
+    @flow.input
+    location: FVector;
+    @flow.input
+    volume: float;
 }
 
-declare Node SpawnParticle {
-    exec in spawn;
-    exec out done;
-    data in particle : UParticleSystem;
-    data in transform : FTransform;
-    data in color : FLinearColor;
+export declare object SpawnParticle {
+    @flow.pin(kind = "exec", direction = "in")
+    spawn: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    done: Exec;
+    @flow.input
+    particle: UParticleSystem;
+    @flow.input
+    transform: FTransform;
+    @flow.input
+    color: FLinearColor;
 }
 
-declare Node BranchOnTag {
-    exec in enter;
-    exec out matched;
-    exec out notMatched;
-    data in tag : GameplayTag;
-    data in target : AActor;
+export declare object BranchOnTag {
+    @flow.pin(kind = "exec", direction = "in")
+    enter: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    matched: Exec;
+    @flow.pin(kind = "exec", direction = "out")
+    notMatched: Exec;
+    @flow.input
+    tag: GameplayTag;
+    @flow.input
+    target: AActor;
 }
 
-declare Schema CinematicGraph {
+export declare schema CinematicGraph: FlowGraphSchema {
     max_exec_fan_out: 1;
     allow_exec_fan_in: true;
     strict_type_match: true;
     allowed_node_tags: ["cinematic", "common"];
 }
 
-declare Schema AbilityGraph {
+export declare schema AbilityGraph: FlowGraphSchema {
     max_exec_fan_out: unlimited;
     allow_exec_fan_in: false;
     strict_type_match: false;

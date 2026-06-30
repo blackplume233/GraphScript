@@ -1,0 +1,130 @@
+src/edit/edit_session.cpp:3682:Result<void, std::string> EditSession::load_import(const std::string& path) {
+cli/editor.cpp:1991:    auto r = session_.load_import(args[1]);
+cli/editor.cpp:3937:    Lexer declaration_lexer(patched_declaration.value());
+cli/editor.cpp:3946:    Compiler dry_import_compiler(dry_import_env);
+cli/editor.cpp:3947:    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+cli/editor.cpp:3996:    Compiler real_import_compiler(session_.env());
+cli/editor.cpp:3997:    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+cli/editor.cpp:4069:    Lexer declaration_lexer(patched_declaration.value());
+cli/editor.cpp:4078:    Compiler dry_import_compiler(dry_import_env);
+cli/editor.cpp:4079:    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+cli/editor.cpp:4130:    Compiler real_import_compiler(session_.env());
+cli/editor.cpp:4131:    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+cli/editor.cpp:4195:    Lexer declaration_lexer(patched_declaration.value());
+cli/editor.cpp:4204:    Compiler dry_import_compiler(dry_import_env);
+cli/editor.cpp:4205:    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+cli/editor.cpp:4256:    Compiler real_import_compiler(session_.env());
+cli/editor.cpp:4257:    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+cli/editor.cpp:4333:    Lexer declaration_lexer(patched_declaration.value());
+cli/editor.cpp:4342:    Compiler dry_import_compiler(dry_import_env);
+cli/editor.cpp:4343:    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+cli/editor.cpp:4365:    Compiler real_import_compiler(session_.env());
+cli/editor.cpp:4366:    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+cli/editor.cpp:4422:    Lexer declaration_lexer(patched_declaration.value());
+cli/editor.cpp:4431:    Compiler dry_import_compiler(dry_import_env);
+cli/editor.cpp:4432:    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+cli/editor.cpp:4485:    Compiler real_import_compiler(session_.env());
+cli/editor.cpp:4486:    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+tests/test_cli_editor.cpp:14:    auto r = s.load_import(path);
+tests/test_cli_editor.cpp:105:    EXPECT_NE(text.find("[Id(\"import-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:106:    EXPECT_NE(text.find("[PersistentId(\"let-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:112:    EXPECT_EQ(session.emit().find("[Id(\"import-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:113:    EXPECT_EQ(session.emit().find("[PersistentId(\"let-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:544:    EXPECT_NE(text.find("[Id(\"event-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:545:    EXPECT_NE(text.find("[PersistentId(\"function-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:546:    EXPECT_NE(text.find("[Id(\"flow-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:547:    EXPECT_NE(text.find("[PersistentId(\"link-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:554:    EXPECT_EQ(session.emit().find("[Id(\"event-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:557:    EXPECT_EQ(session.emit().find("[Id(\"flow-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:560:    EXPECT_EQ(session.emit().find("[PersistentId(\"link-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:591:    EXPECT_NE(text.find("[Id(\"gen-comment-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:592:    EXPECT_NE(text.find("[PersistentId(\"gen-meta-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:602:    EXPECT_NE(text.find("[Id(\"gen-comment-cli-2\")]"), std::string::npos);
+tests/test_cli_editor.cpp:649:    EXPECT_EQ(session.emit().find("[PersistentId(\"gen-meta-cli\")]"), std::string::npos);
+tests/test_cli_editor.cpp:1559:                   "declare type FString;\n"
+tests/test_cli_editor.cpp:1560:                   "declare Node OldNode {\n"
+tests/test_cli_editor.cpp:1561:                   "    data in message : FString;\n"
+tests/test_cli_editor.cpp:1563:                   "declare Node NewNode {\n"
+tests/test_cli_editor.cpp:1564:                   "    data in message : FString;\n"
+tests/test_cli_editor.cpp:1569:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:1617:                   "declare type OldType : constructible;\n"
+tests/test_cli_editor.cpp:1618:                   "declare type NewType : constructible;\n"
+tests/test_cli_editor.cpp:1619:                   "declare Node Holder {\n"
+tests/test_cli_editor.cpp:1620:                   "    data in value : OldType;\n"
+tests/test_cli_editor.cpp:1625:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:1682:                   "declare type FString;\n"
+tests/test_cli_editor.cpp:1683:                   "declare Node OldNode {\n"
+tests/test_cli_editor.cpp:1684:                   "    data in message : FString;\n"
+tests/test_cli_editor.cpp:1689:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:1709:        EXPECT_NE(contents.str().find("declare Node OldNode"), std::string::npos);
+tests/test_cli_editor.cpp:1728:    EXPECT_NE(contents.str().find("declare Node NewNode"), std::string::npos);
+tests/test_cli_editor.cpp:1729:    EXPECT_EQ(contents.str().find("declare Node OldNode"), std::string::npos);
+tests/test_cli_editor.cpp:1741:                   "declare type FString;\n"
+tests/test_cli_editor.cpp:1742:                   "declare Node OldNode {\n"
+tests/test_cli_editor.cpp:1743:                   "    data in message : FString;\n"
+tests/test_cli_editor.cpp:1745:                   "declare Node NewNode {\n"
+tests/test_cli_editor.cpp:1746:                   "    data in message : FString;\n"
+tests/test_cli_editor.cpp:1764:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:1822:                   "declare type FString;\n"
+tests/test_cli_editor.cpp:1823:                   "declare Node Worker {\n"
+tests/test_cli_editor.cpp:1824:                   "    exec in enter;\n"
+tests/test_cli_editor.cpp:1825:                   "    exec in begin;\n"
+tests/test_cli_editor.cpp:1828:                   "    data in message : FString;\n"
+tests/test_cli_editor.cpp:1829:                   "    data in body : FString;\n"
+tests/test_cli_editor.cpp:1833:                   "declare Node SinkNode {\n"
+tests/test_cli_editor.cpp:1834:                   "    data in value : FString;\n"
+tests/test_cli_editor.cpp:1839:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:1910:                   "declare type FString;\n"
+tests/test_cli_editor.cpp:1911:                   "declare Node OldNode {\n"
+tests/test_cli_editor.cpp:1912:                   "    exec in enter;\n"
+tests/test_cli_editor.cpp:1914:                   "    data in message : FString;\n"
+tests/test_cli_editor.cpp:1917:                   "declare Node SinkNode {\n"
+tests/test_cli_editor.cpp:1918:                   "    data in value : FString;\n"
+tests/test_cli_editor.cpp:1923:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:1974:    EXPECT_NE(contents.str().find("exec in begin;"), std::string::npos);
+tests/test_cli_editor.cpp:1976:    EXPECT_NE(contents.str().find("data in body : FString;"), std::string::npos);
+tests/test_cli_editor.cpp:1978:    EXPECT_EQ(contents.str().find("exec in enter;"), std::string::npos);
+tests/test_cli_editor.cpp:1980:    EXPECT_EQ(contents.str().find("data in message"), std::string::npos);
+tests/test_cli_editor.cpp:2002:                   "declare type FString;\n"
+tests/test_cli_editor.cpp:2003:                   "declare Node Worker {\n"
+tests/test_cli_editor.cpp:2004:                   "    exec in enter;\n"
+tests/test_cli_editor.cpp:2005:                   "    exec in begin;\n"
+tests/test_cli_editor.cpp:2008:                   "    data in message : FString;\n"
+tests/test_cli_editor.cpp:2009:                   "    data in body : FString;\n"
+tests/test_cli_editor.cpp:2013:                   "declare Node SinkNode {\n"
+tests/test_cli_editor.cpp:2014:                   "    data in value : FString;\n"
+tests/test_cli_editor.cpp:2043:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:2118:                   "declare Schema OldSchema {\n"
+tests/test_cli_editor.cpp:2121:                   "declare Schema NewSchema {\n"
+tests/test_cli_editor.cpp:2127:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:2171:                   "declare Schema OldSchema {\n"
+tests/test_cli_editor.cpp:2174:                   "declare Schema ExistingSchema {\n"
+tests/test_cli_editor.cpp:2180:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:2200:        EXPECT_NE(contents.str().find("declare Schema OldSchema"), std::string::npos);
+tests/test_cli_editor.cpp:2221:    EXPECT_NE(contents.str().find("declare Schema NewSchema"), std::string::npos);
+tests/test_cli_editor.cpp:2222:    EXPECT_EQ(contents.str().find("declare Schema OldSchema"), std::string::npos);
+tests/test_cli_editor.cpp:2232:                   "declare type PayloadType : constructible;\n"
+tests/test_cli_editor.cpp:2233:                   "declare Schema PreviewSchema {\n"
+tests/test_cli_editor.cpp:2241:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:2298:                   "declare Schema OldSchema {\n"
+tests/test_cli_editor.cpp:2301:                   "declare Schema NewSchema {\n"
+tests/test_cli_editor.cpp:2319:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:2380:                   "declare type OldType : constructible;\n"
+tests/test_cli_editor.cpp:2381:                   "declare type NewType : constructible;\n"
+tests/test_cli_editor.cpp:2382:                   "declare Node Holder {\n"
+tests/test_cli_editor.cpp:2383:                   "    data in value : OldType;\n"
+tests/test_cli_editor.cpp:2412:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:2499:                   "declare type OldType : constructible;\n"
+tests/test_cli_editor.cpp:2500:                   "declare type ExistingType;\n"
+tests/test_cli_editor.cpp:2502:                   "declare Node Passthrough {\n"
+tests/test_cli_editor.cpp:2504:                   "    data in input : OldType;\n"
+tests/test_cli_editor.cpp:2508:                   "declare Schema PreviewSchema {\n"
+tests/test_cli_editor.cpp:2515:    auto imported = session.load_import(declarations.string());
+tests/test_cli_editor.cpp:2539:        EXPECT_NE(contents.str().find("declare type OldType"), std::string::npos);
+tests/test_cli_editor.cpp:2570:    EXPECT_NE(contents.str().find("declare type NewType : constructible;"), std::string::npos);
+tests/test_cli_editor.cpp:2571:    EXPECT_NE(contents.str().find("data in input : NewType;"), std::string::npos);
+tests/test_cli_editor.cpp:2575:    EXPECT_EQ(contents.str().find("declare type OldType"), std::string::npos);
+tests/test_cli_editor.cpp:2597:                   "export declare type Exec;\n"
+tests/test_cli_editor.cpp:2598:                   "export declare type FString;\n"
+tests/test_cli_editor.cpp:2656:                   "export declare type Exec;\n"
+tests/test_cli_editor.cpp:2657:                   "export declare type FString;\n");

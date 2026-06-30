@@ -21,6 +21,7 @@ enum class ExprKind {
     Null,
     Ref,
     AssetRef,
+    Call,
     Array,
     InlineObject,
     Raw
@@ -38,9 +39,11 @@ struct Property;
 struct Expression {
     ExprKind kind = ExprKind::Missing;
     std::string text;
+    std::string callee;
     std::vector<Expression> elements;
     std::vector<Property> properties;
     TextSpan span;
+    TextSpan callee_span;
 };
 
 struct AttributeArg {
@@ -98,6 +101,7 @@ struct FieldDecl {
     std::vector<Attribute> attributes;
     TextSpan span;
     TextSpan name_span;
+    TextSpan type_span;
 };
 
 struct CommandCall {
@@ -128,6 +132,7 @@ struct ObjectDecl {
     std::vector<Attribute> attributes;
     bool exported = false;
     TextSpan span;
+    TextSpan name_span;
 };
 
 struct BlockKindDecl {
@@ -152,8 +157,10 @@ struct SchemaDecl {
     std::string base_type;
     std::vector<Property> properties;
     std::vector<std::string> directives;
+    std::vector<Attribute> attributes;
     bool exported = false;
     TextSpan span;
+    TextSpan name_span;
 };
 
 struct LintDecl {
@@ -167,6 +174,7 @@ struct SymbolDecl {
     std::string kind;
     std::string name;
     std::string base_type;
+    std::vector<Attribute> attributes;
     bool exported = false;
     TextSpan span;
     TextSpan name_span;
