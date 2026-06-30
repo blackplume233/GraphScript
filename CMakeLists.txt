@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(GraphScript VERSION 0.1.0 LANGUAGES CXX)
+project(GraphScript VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,6 +9,30 @@ option(GS_BUILD_TESTS "Build GraphScript unit tests" ON)
 option(GS_BUILD_CLI   "Build gs CLI tool"            ON)
 
 include(FetchContent)
+
+# ─── Tree-sitter runtime and AI Native asset grammar ────────────────
+FetchContent_Declare(
+    tree_sitter_runtime
+    URL https://registry.npmjs.org/tree-sitter/-/tree-sitter-0.21.1.tgz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(tree_sitter_runtime)
+
+add_library(tree_sitter_runtime STATIC
+    ${tree_sitter_runtime_SOURCE_DIR}/vendor/tree-sitter/lib/src/lib.c
+)
+target_include_directories(tree_sitter_runtime PUBLIC
+    ${tree_sitter_runtime_SOURCE_DIR}/vendor/tree-sitter/lib/include
+    ${tree_sitter_runtime_SOURCE_DIR}/vendor/tree-sitter/lib/src
+)
+
+add_library(tree_sitter_graphscript_asset STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools/tree-sitter-graphscript-asset/src/parser.c
+)
+target_include_directories(tree_sitter_graphscript_asset PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools/tree-sitter-graphscript-asset/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools/tree-sitter-graphscript-asset/bindings/c
+)
 
 # ─── Core Library ───────────────────────────────────────────────────
 file(GLOB_RECURSE GS_CORE_SOURCES src/*.cpp)
@@ -22,6 +46,7 @@ target_include_directories(graphscript_core PUBLIC
 )
 
 target_compile_features(graphscript_core PUBLIC cxx_std_17)
+target_link_libraries(graphscript_core PUBLIC tree_sitter_runtime tree_sitter_graphscript_asset)
 
 if(MSVC)
     target_compile_options(graphscript_core PRIVATE /W4 /utf-8)

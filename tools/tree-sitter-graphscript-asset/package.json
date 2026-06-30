@@ -1,0 +1,47 @@
+{
+  "name": "tree-sitter-graphscript-asset",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tree-sitter grammar for GraphScript AI Native .sc/.d.sc assets",
+  "license": "UNLICENSED",
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "test": "tree-sitter test",
+    "install": "node-gyp-build",
+    "prebuildify": "prebuildify --napi --strip"
+  },
+  "devDependencies": {
+    "prebuildify": "^6.0.0",
+    "tree-sitter-cli": "^0.22.6"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.graphscript-asset",
+      "file-types": [
+        "sc",
+        "d.sc"
+      ],
+      "highlights": "queries/highlights.scm"
+    }
+  ],
+  "dependencies": {
+    "node-gyp-build": "^4.8.0"
+  },
+  "peerDependencies": {
+    "tree-sitter": "^0.21.1"
+  },
+  "peerDependenciesMeta": {
+    "tree_sitter": {
+      "optional": true
+    }
+  },
+  "types": "bindings/node",
+  "files": [
+    "grammar.js",
+    "binding.gyp",
+    "prebuilds/**",
+    "bindings/node/*",
+    "queries/*",
+    "src/**"
+  ]
+}

@@ -12,6 +12,7 @@
 #include "graphscript/edit/edit_session.h"
 #include "graphscript/runtime/runtime_graph.h"
 #include "graphscript/registry/environment.h"
+#include "graphscript/asset/language.h"
 #include "editor.h"
 #include "server.h"
 
@@ -31,6 +32,21 @@ struct CLIOptions {
     std::string output_file;
     std::string format = "json";
     std::vector<std::string> import_files;
+    std::string patch_op;
+    std::string graph_name;
+    std::string alias;
+    std::string type_name;
+    std::string from_ref;
+    std::string to_ref;
+    std::string property_path;
+    std::string value;
+    std::string new_alias;
+    std::string add_import_path;
+    std::string parent_scope_name;
+    std::string scope_kind;
+    std::string scope_name;
+    std::string target_name;
+    std::string attribute_source;
     int port = 8080;
 };
 
@@ -45,6 +61,21 @@ static CLIOptions parse_args(int argc, char* argv[]) {
         else if ((arg == "-f" || arg == "--format") && i + 1 < argc) opts.format = argv[++i];
         else if ((arg == "-I" || arg == "--import") && i + 1 < argc) opts.import_files.push_back(argv[++i]);
         else if ((arg == "-p" || arg == "--port") && i + 1 < argc) opts.port = std::atoi(argv[++i]);
+        else if (arg == "--op" && i + 1 < argc) opts.patch_op = argv[++i];
+        else if (arg == "--graph" && i + 1 < argc) opts.graph_name = argv[++i];
+        else if (arg == "--alias" && i + 1 < argc) opts.alias = argv[++i];
+        else if (arg == "--type" && i + 1 < argc) opts.type_name = argv[++i];
+        else if (arg == "--from" && i + 1 < argc) opts.from_ref = argv[++i];
+        else if (arg == "--to" && i + 1 < argc) opts.to_ref = argv[++i];
+        else if (arg == "--property" && i + 1 < argc) opts.property_path = argv[++i];
+        else if (arg == "--value" && i + 1 < argc) opts.value = argv[++i];
+        else if (arg == "--new-alias" && i + 1 < argc) opts.new_alias = argv[++i];
+        else if (arg == "--add-import" && i + 1 < argc) opts.add_import_path = argv[++i];
+        else if (arg == "--parent-scope" && i + 1 < argc) opts.parent_scope_name = argv[++i];
+        else if (arg == "--scope-kind" && i + 1 < argc) opts.scope_kind = argv[++i];
+        else if (arg == "--scope-name" && i + 1 < argc) opts.scope_name = argv[++i];
+        else if (arg == "--target" && i + 1 < argc) opts.target_name = argv[++i];
+        else if (arg == "--attribute" && i + 1 < argc) opts.attribute_source = argv[++i];
     }
     return opts;
 }
@@ -93,6 +124,161 @@ static std::vector<std::string> default_preset_imports() {
 static std::vector<std::string> serve_imports(const CLIOptions& opts) {
     if (!opts.import_files.empty()) return opts.import_files;
     return default_preset_imports();
+}
+
+static std::string json_escape(const std::string& value) {
+    std::string out;
+    for (char c : value) {
+        switch (c) {
+            case '\\': out += "\\\\"; break;
+            case '"': out += "\\\""; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default: out += c; break;
+        }
+    }
+    return out;
+}
+
+static gs::asset::ParseResult parse_asset_source(const std::string& source, const std::string& source_name) {
+    gs::asset::Parser parser(source, source_name);
+    return parser.parse();
+}
+
+static void merge_asset_declarations(gs::asset::Module& target, gs::asset::Module&& source) {
+    for (auto& module : source.modules) target.modules.push_back(std::move(module));
+    for (auto& symbol : source.symbols) target.symbols.push_back(std::move(symbol));
+    for (auto& object : source.objects) target.objects.push_back(std::move(object));
+}
+
+static int cmd_sc_parse(const CLIOptions& opts) {
+    auto source = read_file(opts.input_file);
+    if (source.empty()) { std::cerr << "Error: Cannot read '" << opts.input_file << "'\n"; return 1; }
+    auto parsed = parse_asset_source(source, opts.input_file);
+    std::cout << "{\n";
+    std::cout << "  \"imports\": " << parsed.module.imports.size() << ",\n";
+    std::cout << "  \"modules\": " << parsed.module.modules.size() << ",\n";
+    std::cout << "  \"enums\": " << parsed.module.enums.size() << ",\n";
+    std::cout << "  \"objects\": " << parsed.module.objects.size() << ",\n";
+    std::cout << "  \"scope_kinds\": " << parsed.module.scope_kinds.size() << ",\n";
+    std::cout << "  \"commands\": " << parsed.module.commands.size() << ",\n";
+    std::cout << "  \"schemas\": " << parsed.module.schemas.size() << ",\n";
+    std::cout << "  \"lints\": " << parsed.module.lints.size() << ",\n";
+    std::cout << "  \"symbols\": " << parsed.module.symbols.size() << ",\n";
+    std::cout << "  \"scopes\": " << parsed.module.items.scopes.size() << ",\n";
+    std::cout << "  \"directives\": " << parsed.module.items.directives.size() << ",\n";
+    std::cout << "  \"assignments\": " << parsed.module.items.assignments.size() << ",\n";
+    std::cout << "  \"diagnostics\": " << parsed.diagnostics.size() << "\n";
+    std::cout << "}\n";
+    return parsed.diagnostics.empty() ? 0 : 1;
+}
+
+static int cmd_sc_lint(const CLIOptions& opts) {
+    auto source = read_file(opts.input_file);
+    if (source.empty()) { std::cerr << "Error: Cannot read '" << opts.input_file << "'\n"; return 1; }
+    auto parsed = parse_asset_source(source, opts.input_file);
+    gs::asset::ModuleGraph graph;
+    auto diagnostics = gs::asset::Linter::lint(parsed.module, &graph);
+    diagnostics.insert(diagnostics.begin(), parsed.diagnostics.begin(), parsed.diagnostics.end());
+    std::cout << "{\n";
+    std::cout << "  \"module_id\": \"" << json_escape(graph.module_id) << "\",\n";
+    std::cout << "  \"module_id_inferred\": " << (graph.module_id_inferred ? "true" : "false") << ",\n";
+    std::cout << "  \"imports\": " << graph.imports.size() << ",\n";
+    std::cout << "  \"exports\": " << graph.exports.size() << ",\n";
+    std::cout << "  \"diagnostics\": [";
+    for (size_t i = 0; i < diagnostics.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << "{\"code\":\"" << json_escape(diagnostics[i].code)
+                  << "\",\"message\":\"" << json_escape(diagnostics[i].message) << "\"}";
+    }
+    std::cout << "]\n}\n";
+    return diagnostics.empty() ? 0 : 1;
+}
+
+static int cmd_sc_project(const CLIOptions& opts) {
+    auto source = read_file(opts.input_file);
+    if (source.empty()) { std::cerr << "Error: Cannot read '" << opts.input_file << "'\n"; return 1; }
+    auto parsed = parse_asset_source(source, opts.input_file);
+    for (const auto& import_path : opts.import_files) {
+        auto import_source = read_file(import_path);
+        if (import_source.empty()) { std::cerr << "Warning: Cannot read import file '" << import_path << "'\n"; continue; }
+        auto import_parsed = parse_asset_source(import_source, import_path);
+        merge_asset_declarations(parsed.module, std::move(import_parsed.module));
+    }
+    auto projected = gs::asset::FlowGraphProjector::project(parsed.module, opts.graph_name);
+    if (projected.is_err()) {
+        std::cerr << "Projection error: " << projected.error() << "\n";
+        return 1;
+    }
+    const auto& graph = projected.value();
+    std::cout << "{\n";
+    std::cout << "  \"name\": \"" << json_escape(graph.name) << "\",\n";
+    std::cout << "  \"schema\": \"" << json_escape(graph.schema) << "\",\n";
+    std::cout << "  \"nodes\": " << graph.nodes.size() << ",\n";
+    std::cout << "  \"edges\": " << graph.edges.size() << ",\n";
+    std::cout << "  \"diagnostics\": " << graph.diagnostics.size() << "\n";
+    std::cout << "}\n";
+    return graph.diagnostics.empty() ? 0 : 1;
+}
+
+static int cmd_sc_patch(const CLIOptions& opts) {
+    auto source = read_file(opts.input_file);
+    if (source.empty()) { std::cerr << "Error: Cannot read '" << opts.input_file << "'\n"; return 1; }
+    auto parsed = parse_asset_source(source, opts.input_file);
+
+    gs::asset::TextPatch patch;
+    if (opts.patch_op == "add-import") {
+        if (opts.add_import_path.empty()) { std::cerr << "Error: --add-import required\n"; return 1; }
+        patch = gs::asset::Patcher::add_import(source, opts.add_import_path);
+    } else if (opts.patch_op == "add-node") {
+        auto result = gs::asset::Patcher::add_node(source, parsed.module, opts.graph_name, opts.alias, opts.type_name);
+        if (result.is_err()) { std::cerr << "Patch error: " << result.error() << "\n"; return 1; }
+        patch = result.value();
+    } else if (opts.patch_op == "add-scope") {
+        auto result = gs::asset::Patcher::add_scope(source, parsed.module, opts.parent_scope_name, opts.scope_kind, opts.scope_name, opts.type_name);
+        if (result.is_err()) { std::cerr << "Patch error: " << result.error() << "\n"; return 1; }
+        patch = result.value();
+    } else if (opts.patch_op == "add-attribute") {
+        auto result = gs::asset::Patcher::add_attribute(source, parsed.module, opts.target_name, opts.attribute_source);
+        if (result.is_err()) { std::cerr << "Patch error: " << result.error() << "\n"; return 1; }
+        patch = result.value();
+    } else if (opts.patch_op == "connect") {
+        auto result = gs::asset::Patcher::connect(source, parsed.module, opts.graph_name, opts.from_ref, opts.to_ref);
+        if (result.is_err()) { std::cerr << "Patch error: " << result.error() << "\n"; return 1; }
+        patch = result.value();
+    } else if (opts.patch_op == "disconnect") {
+        auto result = gs::asset::Patcher::disconnect(source, parsed.module, opts.graph_name, opts.from_ref, opts.to_ref);
+        if (result.is_err()) { std::cerr << "Patch error: " << result.error() << "\n"; return 1; }
+        patch = result.value();
+    } else if (opts.patch_op == "rename-node") {
+        auto result = gs::asset::Patcher::rename_node(source, parsed.module, opts.graph_name, opts.alias, opts.new_alias);
+        if (result.is_err()) { std::cerr << "Patch error: " << result.error() << "\n"; return 1; }
+        patch = result.value();
+    } else if (opts.patch_op == "rename-scope") {
+        auto result = gs::asset::Patcher::rename_scope(source, parsed.module, opts.scope_name, opts.new_alias);
+        if (result.is_err()) { std::cerr << "Patch error: " << result.error() << "\n"; return 1; }
+        patch = result.value();
+    } else if (opts.patch_op == "set-property") {
+        auto result = gs::asset::Patcher::set_property(source, parsed.module, opts.alias, opts.property_path, opts.value);
+        if (result.is_err()) { std::cerr << "Patch error: " << result.error() << "\n"; return 1; }
+        patch = result.value();
+    } else {
+        std::cerr << "Error: --op add-import|add-node|add-scope|add-attribute|connect|disconnect|rename-node|rename-scope|set-property required\n";
+        return 1;
+    }
+
+    auto applied = gs::asset::Patcher::apply(source, patch);
+    if (applied.is_err()) { std::cerr << "Patch error: " << applied.error() << "\n"; return 1; }
+    if (opts.output_file.empty()) {
+        std::cout << applied.value();
+    } else {
+        std::ofstream out(opts.output_file);
+        if (!out.is_open()) { std::cerr << "Error: Cannot write '" << opts.output_file << "'\n"; return 1; }
+        out << applied.value();
+        std::cout << "Patched: " << opts.output_file << "\n";
+    }
+    return 0;
 }
 
 static int cmd_parse(const CLIOptions& opts) {
@@ -311,12 +497,28 @@ int main(int argc, char* argv[]) {
                   << "  bake      Bake EditGraph into RuntimeGraph\n"
                   << "  info      Show type/node/schema registry info\n"
                   << "  schema    List registered schemas\n\n"
+                  << "  sc-parse  Parse .sc/.d.sc and output syntax summary\n"
+                  << "  sc-lint   Lint .sc/.d.sc and output diagnostics JSON\n"
+                  << "  sc-project Project .sc graph scope into FlowGraph JSON summary\n"
+                  << "  sc-patch  Apply .sc text patch operation\n\n"
                   << "Options:\n"
                   << "  -i, --input   Input file\n"
                   << "  -o, --output  Output file\n"
                   << "  -I, --import  Import .d.gs file (can repeat)\n"
                   << "  -f, --format  Output format (json|summary)\n"
-                  << "  -p, --port    HTTP port for serve (default: 8080)\n";
+                  << "  -p, --port    HTTP port for serve (default: 8080)\n"
+                  << "  --op          sc-patch op: add-import|add-node|add-scope|add-attribute|connect|disconnect|rename-node|rename-scope|set-property\n"
+                  << "  --graph       Scope graph name for sc-project/sc-patch\n"
+                  << "  --alias       Node alias for sc-patch\n"
+                  << "  --new-alias   New node alias for rename-node\n"
+                  << "  --parent-scope Parent scope name for add-scope\n"
+                  << "  --scope-kind  Scope kind for add-scope\n"
+                  << "  --scope-name  Scope name for add-scope/rename-scope\n"
+                  << "  --target      Target scope/object name for add-attribute\n"
+                  << "  --attribute   Attribute source for add-attribute\n"
+                  << "  --from/--to   Connection endpoints for connect/disconnect\n"
+                  << "  --property    Property path for set-property\n"
+                  << "  --value       Replacement value for set-property\n";
         return 0;
     }
 
@@ -357,6 +559,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    if (opts.command == "sc-parse")   return cmd_sc_parse(opts);
+    if (opts.command == "sc-lint")    return cmd_sc_lint(opts);
+    if (opts.command == "sc-project") return cmd_sc_project(opts);
+    if (opts.command == "sc-patch")   return cmd_sc_patch(opts);
     if (opts.command == "parse")    return cmd_parse(opts);
     if (opts.command == "compile")  return cmd_compile(opts);
     if (opts.command == "validate") return cmd_validate(opts);

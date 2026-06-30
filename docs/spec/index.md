@@ -19,6 +19,8 @@ GraphScript is a **standalone C++17 library + CLI**. It provides a full pipeline
 | [Architecture](./architecture.md) | Data model, compilation pipeline, layer boundaries | Filled |
 | [DSL Reference](./dsl-reference.md) | `.gs` and `.d.gs` syntax, file types, grammar | Filled |
 | [Scope Rules](./scope-rules.md) | Block-level scope isolation for flow/link references | Filled |
+| [AI Native 资产格式](./ai-native-asset-format.md) | Roslyn-like 文本资产、通用 AST、领域投影和 lint 的目标模型草案 | Draft |
+| [AI Native 资产语法](./ai-native-syntax.md) | 通用 scope/object/property/call 语法草案与可逆作者子集 | Draft |
 | [Development Guide](./development-guide.md) | Build, test, extend, common patterns and anti-patterns | Filled |
 
 ---
