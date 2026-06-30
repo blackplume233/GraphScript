@@ -29,3 +29,4 @@ build/
 
 # Local smoke-test scratch output
 output.gs
+.artifact
