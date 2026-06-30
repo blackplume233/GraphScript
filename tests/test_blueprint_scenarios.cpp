@@ -110,8 +110,9 @@ TEST(Blueprint, AssetRuntimeBakeUsesBlueprintPresets) {
     ASSERT_TRUE(parsed.diagnostics.empty());
     auto projected = asset::FlowGraphProjector::project(parsed.module, "RuntimeBlueprint");
     ASSERT_TRUE(projected.is_ok()) << projected.error();
-    auto runtime = GraphRuntimeIR::bake(projected.value());
+    auto runtime = GraphRuntimeIR::bake(projected.value(), env);
     EXPECT_EQ(runtime.node_count(), 2u);
+    EXPECT_EQ(runtime.pins().size(), 6u);
     EXPECT_EQ(runtime.flow_edge_count(), 1u);
 }
 

@@ -352,7 +352,7 @@ export interface UndoRedoResponse {
 
 export interface DiagnosticsResponse {
   ok: boolean
-  stage: 'session' | 'parser' | 'compiler' | 'resolver'
+  stage: 'session' | 'parser' | 'asset' | 'resolver'
   diagnostics: Diagnostic[]
   environment?: SourceDiagnosticsEnvironment
 }

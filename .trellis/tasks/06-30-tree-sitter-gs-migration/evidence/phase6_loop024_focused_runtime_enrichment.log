@@ -1,0 +1,76 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = GraphRuntimeIR.*:SourceDiagnostics.*:Blueprint.AssetRuntimeBakeUsesBlueprintPresets:DeepCycle.GraphRuntimeIRBakeFromAssetProjection:QAStress.GraphRuntimeIRBakeLargeAssetProjection
+[==========] Running 27 tests from 5 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from Blueprint
+[ RUN      ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets
+[       OK ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets (2 ms)
+[----------] 1 test from Blueprint (2 ms total)
+
+[----------] 13 tests from GraphRuntimeIR
+[ RUN      ] GraphRuntimeIR.BakeEmpty
+[       OK ] GraphRuntimeIR.BakeEmpty (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeWithNodes
+[       OK ] GraphRuntimeIR.BakeWithNodes (0 ms)
+[ RUN      ] GraphRuntimeIR.BakePreservesNodeData
+[       OK ] GraphRuntimeIR.BakePreservesNodeData (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeFlowEdges
+[       OK ] GraphRuntimeIR.BakeFlowEdges (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeDataEdges
+[       OK ] GraphRuntimeIR.BakeDataEdges (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeWithSchema
+[       OK ] GraphRuntimeIR.BakeWithSchema (0 ms)
+[ RUN      ] GraphRuntimeIR.FindNode
+[       OK ] GraphRuntimeIR.FindNode (0 ms)
+[ RUN      ] GraphRuntimeIR.FindPinIndex
+[       OK ] GraphRuntimeIR.FindPinIndex (0 ms)
+[ RUN      ] GraphRuntimeIR.PinData
+[       OK ] GraphRuntimeIR.PinData (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeFillsMissingPinsFromEnvironment
+[       OK ] GraphRuntimeIR.BakeFillsMissingPinsFromEnvironment (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeMergesPartialProjectedPinsFromEnvironment
+[       OK ] GraphRuntimeIR.BakeMergesPartialProjectedPinsFromEnvironment (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeSkipsEdgesWithUnresolvedPins
+[       OK ] GraphRuntimeIR.BakeSkipsEdgesWithUnresolvedPins (0 ms)
+[ RUN      ] GraphRuntimeIR.DebugDumpUsesRuntimeIRTerminology
+[       OK ] GraphRuntimeIR.DebugDumpUsesRuntimeIRTerminology (0 ms)
+[----------] 13 tests from GraphRuntimeIR (0 ms total)
+
+[----------] 1 test from DeepCycle
+[ RUN      ] DeepCycle.GraphRuntimeIRBakeFromAssetProjection
+[       OK ] DeepCycle.GraphRuntimeIRBakeFromAssetProjection (0 ms)
+[----------] 1 test from DeepCycle (0 ms total)
+
+[----------] 1 test from QAStress
+[ RUN      ] QAStress.GraphRuntimeIRBakeLargeAssetProjection
+[       OK ] QAStress.GraphRuntimeIRBakeLargeAssetProjection (3 ms)
+[----------] 1 test from QAStress (3 ms total)
+
+[----------] 11 tests from SourceDiagnostics
+[ RUN      ] SourceDiagnostics.ResolveImportsLoadsDeclarationInDryRunEnvironment
+[       OK ] SourceDiagnostics.ResolveImportsLoadsDeclarationInDryRunEnvironment (2 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsLoadsNestedDeclarations
+[       OK ] SourceDiagnostics.ResolveImportsLoadsNestedDeclarations (3 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsDetectsCycles
+[       OK ] SourceDiagnostics.ResolveImportsDetectsCycles (3 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsEnforcesMaxDepth
+[       OK ] SourceDiagnostics.ResolveImportsEnforcesMaxDepth (3 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsRejectsPathEscape
+[       OK ] SourceDiagnostics.ResolveImportsRejectsPathEscape (1 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsRejectsNonDeclarationImport
+[       OK ] SourceDiagnostics.ResolveImportsRejectsNonDeclarationImport (1 ms)
+[ RUN      ] SourceDiagnostics.ResolvedImportsParticipateInAssetDiagnostics
+[       OK ] SourceDiagnostics.ResolvedImportsParticipateInAssetDiagnostics (1 ms)
+[ RUN      ] SourceDiagnostics.DefaultDiagnosticsDoNotIncludeResolverMetadata
+[       OK ] SourceDiagnostics.DefaultDiagnosticsDoNotIncludeResolverMetadata (0 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsDoesNotHideSourceParseErrors
+[       OK ] SourceDiagnostics.ResolveImportsDoesNotHideSourceParseErrors (2 ms)
+[ RUN      ] SourceDiagnostics.EnvironmentHashChangesWhenResolvedDeclarationChanges
+[       OK ] SourceDiagnostics.EnvironmentHashChangesWhenResolvedDeclarationChanges (2 ms)
+[ RUN      ] SourceDiagnostics.EnvironmentHashFailsWhenResolverHasDiagnostics
+[       OK ] SourceDiagnostics.EnvironmentHashFailsWhenResolverHasDiagnostics (0 ms)
+[----------] 11 tests from SourceDiagnostics (23 ms total)
+
+[----------] Global test environment tear-down
+[==========] 27 tests from 5 test suites ran. (31 ms total)
+[  PASSED  ] 27 tests.

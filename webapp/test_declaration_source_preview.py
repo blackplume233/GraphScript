@@ -972,7 +972,7 @@ def main():
                 content_type="application/json",
                 body=json.dumps({
                     "ok": True,
-                    "stage": "compiler",
+                    "stage": "asset",
                     "diagnostics": [],
                     "environment": RESOLVED_ENVIRONMENT,
                 }),

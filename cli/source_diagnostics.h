@@ -18,8 +18,8 @@ struct SourceDiagnosticsOptions {
     size_t max_total_bytes = 4 * 1024 * 1024;
 };
 
-/// Parses and compiles source into JSON diagnostics, optionally resolving `.d.gs`
-/// imports into a temporary Environment without mutating the session Environment.
+/// Parses and lints source into JSON diagnostics, optionally resolving `.d.gs`
+/// imports into a dry-run asset environment without mutating the session Environment.
 std::string source_diagnostics_to_json(const std::string& source,
                                        const Environment& session_env,
                                        const SourceDiagnosticsOptions& options = {});

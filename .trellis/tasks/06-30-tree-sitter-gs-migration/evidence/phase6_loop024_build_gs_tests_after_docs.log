@@ -1,0 +1,10 @@
+适用于 .NET Framework MSBuild 版本 18.7.8+1ac568fee
+
+  tree_sitter_graphscript_asset.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\tree_sitter_graphscript_asset.lib
+  tree_sitter_runtime.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\tree_sitter_runtime.lib
+  graphscript_core.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\graphscript_core.lib
+  gtest.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\lib\Release\gtest.lib
+  gtest_main.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\lib\Release\gtest_main.lib
+  test_debug_diagram.cpp
+    正在创建库 G:/Workspace/PluginDevelop/Plugins/GraphScript/build-codex/Release/gs_tests.lib 和对象 G:/Workspace/PluginDevelop/Plugins/GraphScript/build-codex/Release/gs_tests.exp
+  gs_tests.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\gs_tests.exe

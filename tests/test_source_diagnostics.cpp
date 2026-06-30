@@ -28,11 +28,15 @@ void write_text(const std::filesystem::path& path, const std::string& text) {
 TEST(SourceDiagnostics, ResolveImportsLoadsDeclarationInDryRunEnvironment) {
     auto dir = make_temp_dir("source_diag_loads");
     write_text(dir / "custom.d.gs",
-               "declare type FString;\n"
-               "declare Node CustomPrint {\n"
-               "    exec in enter;\n"
-               "    exec out exit;\n"
-               "    data in message : FString;\n"
+               "export declare type Exec;\n"
+               "export declare type FString;\n"
+               "export declare node CustomPrint {\n"
+               "    @flow.input\n"
+               "    enter: Exec;\n"
+               "    @flow.output\n"
+               "    exit: Exec;\n"
+               "    @flow.input\n"
+               "    message: FString;\n"
                "}\n");
 
     Environment env;
@@ -42,8 +46,10 @@ TEST(SourceDiagnostics, ResolveImportsLoadsDeclarationInDryRunEnvironment) {
 
     std::string source =
         "import \"custom.d.gs\";\n"
-        "Graph Demo {\n"
-        "    CustomPrint printer{};\n"
+        "graph Demo {\n"
+        "    node printer {\n"
+        "        type CustomPrint;\n"
+        "    }\n"
         "}\n";
 
     auto json = source_diagnostics_to_json(source, env, options);
@@ -62,12 +68,12 @@ TEST(SourceDiagnostics, ResolveImportsLoadsDeclarationInDryRunEnvironment) {
 TEST(SourceDiagnostics, ResolveImportsLoadsNestedDeclarations) {
     auto dir = make_temp_dir("source_diag_nested");
     write_text(dir / "types.d.gs",
-               "declare type FString;\n");
+               "export declare type FString;\n");
     write_text(dir / "nodes.d.gs",
                "import \"types.d.gs\";\n"
-               "declare Node CustomPrint {\n"
-               "    exec in enter;\n"
-               "    data in message : FString;\n"
+               "export declare node CustomPrint {\n"
+               "    @flow.input\n"
+               "    message: FString;\n"
                "}\n");
 
     Environment env;
@@ -77,8 +83,10 @@ TEST(SourceDiagnostics, ResolveImportsLoadsNestedDeclarations) {
 
     std::string source =
         "import \"nodes.d.gs\";\n"
-        "Graph Demo {\n"
-        "    CustomPrint printer{};\n"
+        "graph Demo {\n"
+        "    node printer {\n"
+        "        type CustomPrint;\n"
+        "    }\n"
         "}\n";
 
     auto json = source_diagnostics_to_json(source, env, options);
@@ -102,10 +110,10 @@ TEST(SourceDiagnostics, ResolveImportsDetectsCycles) {
     auto dir = make_temp_dir("source_diag_cycle");
     write_text(dir / "a.d.gs",
                "import \"b.d.gs\";\n"
-               "declare type A;\n");
+               "export declare type A;\n");
     write_text(dir / "b.d.gs",
                "import \"a.d.gs\";\n"
-               "declare type B;\n");
+               "export declare type B;\n");
 
     Environment env;
     SourceDiagnosticsOptions options;
@@ -114,7 +122,7 @@ TEST(SourceDiagnostics, ResolveImportsDetectsCycles) {
 
     std::string source =
         "import \"a.d.gs\";\n"
-        "Graph Demo {}\n";
+        "graph Demo {}\n";
 
     auto json = source_diagnostics_to_json(source, env, options);
     auto hash = source_diagnostics_environment_hash(source, env, options);
@@ -133,9 +141,9 @@ TEST(SourceDiagnostics, ResolveImportsEnforcesMaxDepth) {
     auto dir = make_temp_dir("source_diag_depth");
     write_text(dir / "a.d.gs",
                "import \"b.d.gs\";\n"
-               "declare type A;\n");
+               "export declare type A;\n");
     write_text(dir / "b.d.gs",
-               "declare type B;\n");
+               "export declare type B;\n");
 
     Environment env;
     SourceDiagnosticsOptions options;
@@ -145,7 +153,7 @@ TEST(SourceDiagnostics, ResolveImportsEnforcesMaxDepth) {
 
     std::string source =
         "import \"a.d.gs\";\n"
-        "Graph Demo {}\n";
+        "graph Demo {}\n";
 
     auto json = source_diagnostics_to_json(source, env, options);
 
@@ -159,7 +167,7 @@ TEST(SourceDiagnostics, ResolveImportsEnforcesMaxDepth) {
 TEST(SourceDiagnostics, ResolveImportsRejectsPathEscape) {
     auto root = make_temp_dir("source_diag_root");
     auto outside = root.parent_path() / "outside_graphscript_decl.d.gs";
-    write_text(outside, "declare type FString;\n");
+    write_text(outside, "export declare type FString;\n");
 
     Environment env;
     SourceDiagnosticsOptions options;
@@ -168,7 +176,7 @@ TEST(SourceDiagnostics, ResolveImportsRejectsPathEscape) {
 
     std::string source =
         "import \"../outside_graphscript_decl.d.gs\";\n"
-        "Graph Demo {}\n";
+        "graph Demo {}\n";
 
     auto json = source_diagnostics_to_json(source, env, options);
 
@@ -181,7 +189,7 @@ TEST(SourceDiagnostics, ResolveImportsRejectsPathEscape) {
 
 TEST(SourceDiagnostics, ResolveImportsRejectsNonDeclarationImport) {
     auto dir = make_temp_dir("source_diag_unsupported");
-    write_text(dir / "other.gs", "Graph Other {}\n");
+    write_text(dir / "other.gs", "graph Other {}\n");
 
     Environment env;
     SourceDiagnosticsOptions options;
@@ -190,7 +198,7 @@ TEST(SourceDiagnostics, ResolveImportsRejectsNonDeclarationImport) {
 
     std::string source =
         "import \"other.gs\";\n"
-        "Graph Demo {}\n";
+        "graph Demo {}\n";
 
     auto json = source_diagnostics_to_json(source, env, options);
 
@@ -201,9 +209,31 @@ TEST(SourceDiagnostics, ResolveImportsRejectsNonDeclarationImport) {
     EXPECT_EQ(env.nodes().all().size(), 0u);
 }
 
+TEST(SourceDiagnostics, ResolvedImportsParticipateInAssetDiagnostics) {
+    auto dir = make_temp_dir("source_diag_imported_symbols");
+    write_text(dir / "types.d.gs",
+               "export declare type FString;\n");
+
+    Environment env;
+    SourceDiagnosticsOptions options;
+    options.resolve_imports = true;
+    options.base_dir = dir.string();
+
+    std::string source =
+        "import \"types.d.gs\";\n"
+        "export declare type FString;\n";
+
+    auto json = source_diagnostics_to_json(source, env, options);
+
+    EXPECT_NE(json.find("\"ok\":false"), std::string::npos);
+    EXPECT_NE(json.find("\"stage\":\"asset\""), std::string::npos);
+    EXPECT_NE(json.find("\"code\":\"GS-LINT-001\""), std::string::npos);
+    EXPECT_NE(json.find("\"status\":\"loaded\""), std::string::npos);
+}
+
 TEST(SourceDiagnostics, DefaultDiagnosticsDoNotIncludeResolverMetadata) {
     Environment env;
-    std::string source = "Graph Demo {}\n";
+    std::string source = "graph Demo {}\n";
 
     auto json = source_diagnostics_to_json(source, env);
 
@@ -211,13 +241,44 @@ TEST(SourceDiagnostics, DefaultDiagnosticsDoNotIncludeResolverMetadata) {
     EXPECT_EQ(json.find("\"environment\""), std::string::npos);
 }
 
+TEST(SourceDiagnostics, ResolveImportsDoesNotHideSourceParseErrors) {
+    auto dir = make_temp_dir("source_diag_parse_error");
+    write_text(dir / "custom.d.gs", "export declare type FString;\n");
+
+    Environment env;
+    SourceDiagnosticsOptions options;
+    options.resolve_imports = true;
+    options.base_dir = dir.string();
+
+    std::string source =
+        "import \"custom.d.gs\";\n"
+        "graph Demo {\n"
+        "    node printer {\n"
+        "        type CustomPrint;\n"
+        "        message:\n"
+        "    }\n"
+        "    event Start {\n"
+        "        connect(context.start, printer.enter\n"
+        "    }\n"
+        "}\n";
+
+    auto json = source_diagnostics_to_json(source, env, options);
+
+    EXPECT_NE(json.find("\"ok\":false"), std::string::npos);
+    EXPECT_NE(json.find("\"stage\":\"parser\""), std::string::npos);
+    EXPECT_NE(json.find("\"code\":\"GS-SYN-001\""), std::string::npos);
+    EXPECT_NE(json.find("\"mode\":\"resolved\""), std::string::npos);
+}
+
 TEST(SourceDiagnostics, EnvironmentHashChangesWhenResolvedDeclarationChanges) {
     auto dir = make_temp_dir("source_diag_hash");
     auto declaration = dir / "custom.d.gs";
     write_text(declaration,
-               "declare type FString;\n"
-               "declare Node CustomPrint {\n"
-               "    exec in enter;\n"
+               "export declare type FString;\n"
+               "export declare type Exec;\n"
+               "export declare node CustomPrint {\n"
+               "    @flow.input\n"
+               "    enter: Exec;\n"
                "}\n");
 
     Environment env;
@@ -227,18 +288,23 @@ TEST(SourceDiagnostics, EnvironmentHashChangesWhenResolvedDeclarationChanges) {
 
     std::string source =
         "import \"custom.d.gs\";\n"
-        "Graph Demo {\n"
-        "    CustomPrint printer{};\n"
+        "graph Demo {\n"
+        "    node printer {\n"
+        "        type CustomPrint;\n"
+        "    }\n"
         "}\n";
 
     auto first = source_diagnostics_environment_hash(source, env, options);
     ASSERT_TRUE(first.is_ok());
 
     write_text(declaration,
-               "declare type FString;\n"
-               "declare Node CustomPrint {\n"
-               "    exec in enter;\n"
-               "    exec out exit;\n"
+               "export declare type FString;\n"
+               "export declare type Exec;\n"
+               "export declare node CustomPrint {\n"
+               "    @flow.input\n"
+               "    enter: Exec;\n"
+               "    @flow.output\n"
+               "    exit: Exec;\n"
                "}\n");
     auto second = source_diagnostics_environment_hash(source, env, options);
     ASSERT_TRUE(second.is_ok());
@@ -256,7 +322,7 @@ TEST(SourceDiagnostics, EnvironmentHashFailsWhenResolverHasDiagnostics) {
 
     std::string source =
         "import \"../blocked.d.gs\";\n"
-        "Graph Demo {}\n";
+        "graph Demo {}\n";
 
     auto hash = source_diagnostics_environment_hash(source, env, options);
 

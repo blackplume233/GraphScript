@@ -51,7 +51,7 @@ cmake --build build --config Release --target gs
 
 ```bash
 ./build/Release/gs_tests.exe                           # All tests
-./build/Release/gs_tests.exe --gtest_filter="Compiler*" # Specific suite
+./build/Release/gs_tests.exe --gtest_filter="Asset*"    # Specific suite
 ```
 
 ### Test Organization (179 tests)
@@ -85,7 +85,7 @@ Location: `tests/fixtures/`
 | `levelscript_nodes.d.gs` | LevelScript domain nodes + schema |
 | `mixed_declarations.d.gs` | Multi-domain declarations (Cinematic, Ability, etc.) |
 | `minimal.gs` | Simplest valid graph |
-| `round_trip.gs` | Emit → reparse equivalence |
+| `round_trip.gs` | Asset emission → reparse equivalence |
 | `all_features.gs` | Exercises every language feature |
 | `deep_chain.gs` | 3-level Graph-as-Node chain |
 | `multi_graph_file.gs` | Multiple graphs with cross-references |
@@ -95,7 +95,7 @@ Location: `tests/fixtures/`
 
 1. Create `tests/fixtures/your_fixture.gs`
 2. Ensure all references respect [Scope Rules](./scope-rules.md)
-3. Add compile test in `test_integration_deep.cpp` (stress test list)
+3. Add projection/integration test in `test_integration_deep.cpp` (stress test list)
 4. Add round-trip test if the fixture exercises new syntax
 5. Run full test suite
 
@@ -107,14 +107,13 @@ Location: `tests/fixtures/`
 
 Follow this checklist in order:
 
-1. **Lexer** — Add new token types if needed (`parse/lexer.h`, `parse/token.h`)
-2. **AST** — Add new AST node types (`parse/ast.h`)
-3. **Parser** — Add parsing rules (`parse/parser.cpp`)
-4. **Compiler** — Add compilation logic (`compile/compiler.cpp`)
-5. **Emitter** — Add text generation (`emit/emitter.cpp`)
-6. **EditSession** — Add editing operations if applicable
-7. **Tests** — Add unit tests for each layer + round-trip test
-8. **Fixtures** — Add `.gs` fixture exercising the feature
+1. **Grammar / parser** — Update tree-sitter asset grammar and `asset::Parser` lowering.
+2. **Asset model** — Add or extend `asset::Module` / Block / Property / Command / Expr structures.
+3. **Projection / lint** — Add semantic projection or lint rules for graph-facing behavior.
+4. **Source emission / patch** — Add formatter, source emission, or patch support when text output changes.
+5. **EditSession** — Add editing operations if applicable.
+6. **Tests** — Add unit tests for each layer + round-trip test.
+7. **Fixtures** — Add `.gs` fixture exercising the feature.
 
 ### Adding a New CLI Command
 
@@ -243,11 +242,11 @@ Functions are self-contained. They can only use `context` and graph parameters. 
 
 ## Common Mistakes
 
-### Mistake: Forgetting to Update Emitter After Parser Change
+### Mistake: Forgetting to Update Source Emission After Parser Change
 
-**Symptom**: New syntax parses and compiles, but round-trip test fails — emitted text doesn't contain the new feature.
+**Symptom**: New syntax parses and projects, but round-trip test fails — emitted or patched text doesn't contain the new feature.
 
-**Fix**: Every Parser change must have a corresponding Emitter change in `emitter.cpp`.
+**Fix**: Every parser/model change that affects persisted syntax must update asset source emission or patch support.
 
 ### Mistake: `Result<void, std::string>::ok({})` Instead of `::ok()`
 

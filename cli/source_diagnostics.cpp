@@ -1,9 +1,7 @@
 #include "source_diagnostics.h"
 
-#include "graphscript/compile/compiler.h"
+#include "graphscript/asset/language.h"
 #include "graphscript/diagnostic/diagnostic.h"
-#include "graphscript/parse/lexer.h"
-#include "graphscript/parse/parser.h"
 
 #include <algorithm>
 #include <cctype>
@@ -11,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <iterator>
 #include <optional>
 #include <sstream>
 #include <unordered_map>
@@ -33,7 +32,7 @@ struct ResolvedDeclaration {
 };
 
 struct ResolvedEnvironment {
-    Environment env;
+    asset::Module module;
     std::vector<ResolvedDeclaration> declarations;
     std::vector<Diagnostic> diagnostics;
 };
@@ -191,6 +190,69 @@ std::string command_arg(const std::string& value) {
     return quoted;
 }
 
+SourceLocation location_for_offset(const std::string& source, size_t offset) {
+    SourceLocation location;
+    for (size_t i = 0; i < offset && i < source.size(); ++i) {
+        if (source[i] == '\n') {
+            ++location.line;
+            location.column = 1;
+        } else {
+            ++location.column;
+        }
+    }
+    return location;
+}
+
+SourceRange range_for_offsets(const std::string& source, size_t start, size_t end) {
+    SourceRange range;
+    range.start = location_for_offset(source, start);
+    range.end = location_for_offset(source, end);
+    return range;
+}
+
+std::vector<asset::ImportDecl> extract_imports_for_transition(const std::string& source) {
+    std::vector<asset::ImportDecl> imports;
+    size_t pos = 0;
+    while ((pos = source.find("import", pos)) != std::string::npos) {
+        const bool left_boundary = pos == 0 || !std::isalnum(static_cast<unsigned char>(source[pos - 1]));
+        const size_t after_keyword = pos + 6;
+        const bool right_boundary = after_keyword >= source.size() ||
+            !std::isalnum(static_cast<unsigned char>(source[after_keyword]));
+        if (!left_boundary || !right_boundary) {
+            pos = after_keyword;
+            continue;
+        }
+
+        const size_t first_quote = source.find('"', after_keyword);
+        if (first_quote == std::string::npos) break;
+        const size_t second_quote = source.find('"', first_quote + 1);
+        if (second_quote == std::string::npos) break;
+
+        asset::ImportDecl import;
+        import.path = source.substr(first_quote + 1, second_quote - first_quote - 1);
+        import.span.range = range_for_offsets(source, pos, second_quote + 1);
+        import.path_span.range = range_for_offsets(source, first_quote + 1, second_quote);
+        imports.push_back(std::move(import));
+        pos = second_quote + 1;
+    }
+    return imports;
+}
+
+asset::ParseResult parse_asset_or_imports(const std::string& source,
+                                          const std::string& source_name,
+                                          bool allow_import_only_fallback) {
+    asset::Parser parser(source, source_name);
+    auto parsed = parser.parse();
+    if (parsed.diagnostics.empty() || !allow_import_only_fallback) return parsed;
+
+    asset::ParseResult fallback;
+    fallback.module.source_name = source_name;
+    fallback.module.imports = parsed.module.imports.empty()
+        ? extract_imports_for_transition(source)
+        : parsed.module.imports;
+    return fallback;
+}
+
 Diagnostic import_diagnostic(const std::string& message,
                              const std::string& context,
                              const std::string& code,
@@ -295,11 +357,15 @@ std::optional<std::string> read_limited_file(const std::filesystem::path& path,
 }
 
 std::string environment_hash(const Environment& env,
+                             const asset::Module& module,
                              const std::vector<ResolvedDeclaration>& declarations) {
     std::string material =
         "types=" + std::to_string(env.types().all().size()) +
         ";nodes=" + std::to_string(env.nodes().all().size()) +
-        ";schemas=" + std::to_string(env.schemas().all().size());
+        ";schemas=" + std::to_string(env.schemas().all().size()) +
+        ";asset_symbols=" + std::to_string(module.symbols.size()) +
+        ";asset_objects=" + std::to_string(module.objects.size()) +
+        ";asset_schemas=" + std::to_string(module.schemas.size());
     for (const auto& declaration : declarations) {
         material += ";" + declaration.status + ":" +
                     declaration.normalized_path + ":" + declaration.content_hash;
@@ -309,14 +375,21 @@ std::string environment_hash(const Environment& env,
 
 std::string environment_json(const std::string& mode,
                              const Environment& env,
+                             const asset::Module& module,
                              const std::vector<ResolvedDeclaration>& declarations,
                              const SourceDiagnosticsOptions& options) {
+    size_t type_count = env.types().all().size();
+    for (const auto& symbol : module.symbols) {
+        if (symbol.kind == "type") ++type_count;
+    }
+    const size_t node_type_count = env.nodes().all().size() + module.objects.size();
+    const size_t schema_count = env.schemas().all().size() + module.schemas.size();
     return "{\"mode\":" + json_str(mode) +
            ",\"declarations\":" + json_declarations(declarations) +
-           ",\"environment_hash\":" + json_str(environment_hash(env, declarations)) +
-           ",\"type_count\":" + std::to_string(env.types().all().size()) +
-           ",\"node_type_count\":" + std::to_string(env.nodes().all().size()) +
-           ",\"schema_count\":" + std::to_string(env.schemas().all().size()) +
+           ",\"environment_hash\":" + json_str(environment_hash(env, module, declarations)) +
+           ",\"type_count\":" + std::to_string(type_count) +
+           ",\"node_type_count\":" + std::to_string(node_type_count) +
+           ",\"schema_count\":" + std::to_string(schema_count) +
            ",\"limits\":{\"max_imports\":" + std::to_string(options.max_imports) +
            ",\"max_import_depth\":" + std::to_string(options.max_import_depth) +
            ",\"max_file_bytes\":" + std::to_string(options.max_file_bytes) +
@@ -335,19 +408,77 @@ std::string diagnostics_response(bool ok,
     return json;
 }
 
-std::string compile_with_environment_to_json(const ModuleNode& ast,
-                                             Environment& env,
-                                             const std::string& environment = "") {
-    Compiler compiler(env);
-    auto compiled = compiler.compile(ast);
-    if (compiled.is_err()) {
-        return diagnostics_response(false, "compiler", compiler.diagnostics(), environment);
+void merge_asset_declarations(asset::Module& target, asset::Module&& source) {
+    for (auto& module : source.modules) target.modules.push_back(std::move(module));
+    for (auto& symbol : source.symbols) target.symbols.push_back(std::move(symbol));
+    for (auto& item : source.enums) target.enums.push_back(std::move(item));
+    for (auto& item : source.objects) target.objects.push_back(std::move(item));
+    for (auto& item : source.block_kinds) target.block_kinds.push_back(std::move(item));
+    for (auto& item : source.commands) target.commands.push_back(std::move(item));
+    for (auto& item : source.schemas) target.schemas.push_back(std::move(item));
+    for (auto& item : source.lints) target.lints.push_back(std::move(item));
+}
+
+void collect_top_level_graph_names(const asset::ItemContainer& items, std::vector<std::string>& graph_names) {
+    for (const auto& block : items.blocks) {
+        if (block->kind == "graph") graph_names.push_back(block->name);
     }
-    return diagnostics_response(true, "compiler", {}, environment);
+}
+
+std::vector<Diagnostic> asset_semantic_diagnostics(const asset::Module& module) {
+    asset::ModuleGraph graph;
+    auto diagnostics = asset::Linter::lint(module, &graph);
+    std::vector<std::string> graph_names;
+    collect_top_level_graph_names(module.items, graph_names);
+    for (const auto& graph_name : graph_names) {
+        auto projected = asset::FlowGraphProjector::project(module, graph_name);
+        if (projected.is_ok()) {
+            auto graph_diagnostics = projected.value().diagnostics;
+            diagnostics.insert(diagnostics.end(),
+                               std::make_move_iterator(graph_diagnostics.begin()),
+                               std::make_move_iterator(graph_diagnostics.end()));
+        }
+    }
+    return diagnostics;
+}
+
+std::vector<Diagnostic> imported_declaration_diagnostics(const asset::Module& module,
+                                                         const asset::Module& imported_module) {
+    std::unordered_map<std::string, const asset::SymbolDecl*> imported;
+    for (const auto& symbol : imported_module.symbols) {
+        imported.emplace(symbol.kind + ":" + symbol.name, &symbol);
+    }
+
+    std::vector<Diagnostic> diagnostics;
+    for (const auto& symbol : module.symbols) {
+        if (imported.find(symbol.kind + ":" + symbol.name) == imported.end()) continue;
+        Diagnostic diag;
+        diag.severity = Severity::Error;
+        diag.message = "Duplicate declaration";
+        diag.context = symbol.name;
+        diag.code = "GS-LINT-001";
+        diag.range = symbol.span.range;
+        diag.hint = "Rename or remove the declaration that duplicates an imported symbol.";
+        diagnostics.push_back(std::move(diag));
+    }
+    return diagnostics;
+}
+
+std::string lint_asset_module_to_json(const asset::Module& module,
+                                      const std::string& environment = "",
+                                      const asset::Module* imported_module = nullptr) {
+    auto diagnostics = asset_semantic_diagnostics(module);
+    if (imported_module) {
+        auto imported_diagnostics = imported_declaration_diagnostics(module, *imported_module);
+        diagnostics.insert(diagnostics.end(),
+                           std::make_move_iterator(imported_diagnostics.begin()),
+                           std::make_move_iterator(imported_diagnostics.end()));
+    }
+    return diagnostics_response(diagnostics.empty(), "asset", diagnostics, environment);
 }
 
 bool declaration_limit_reached(ResolvedEnvironment& resolved,
-                               const ImportNode& import,
+                               const asset::ImportDecl& import,
                                const SourceDiagnosticsOptions& options,
                                SourceRange report_range) {
     if (resolved.declarations.size() < options.max_imports) return false;
@@ -370,8 +501,7 @@ std::string readable_import_chain(const std::vector<std::string>& chain,
     return result;
 }
 
-void resolve_import_node(const ImportNode& import,
-                         Environment& env,
+void resolve_import_node(const asset::ImportDecl& import,
                          const std::filesystem::path& root,
                          const std::filesystem::path& current_dir,
                          const SourceDiagnosticsOptions& options,
@@ -383,7 +513,8 @@ void resolve_import_node(const ImportNode& import,
                          const std::string& parent_path,
                          const std::string& parent_normalized_path,
                          size_t depth,
-                         SourceRange report_range) {
+                         SourceRange report_range,
+                         bool allow_transition_fallback) {
     if (declaration_limit_reached(resolved, import, options, report_range)) return;
 
     ResolvedDeclaration declaration;
@@ -495,10 +626,8 @@ void resolve_import_node(const ImportNode& import,
     }
 
     declaration.content_hash = source_hash(*declaration_source);
-    Lexer lexer(*declaration_source);
-    Parser parser(lexer.tokenize());
-    auto parsed_import = parser.parse();
-    if (parsed_import.is_err()) {
+    auto parsed_import = parse_asset_or_imports(*declaration_source, candidate.string(), allow_transition_fallback);
+    if (!parsed_import.diagnostics.empty()) {
         finish_with_diagnostic(
             "parse_error",
             "Parse error in source import '" + import.path + "'",
@@ -510,9 +639,8 @@ void resolve_import_node(const ImportNode& import,
     active_stack.push_back(candidate_key);
     chain.push_back(import.path);
     size_t diagnostics_before_nested = resolved.diagnostics.size();
-    for (const auto& nested_import : parsed_import.value()->imports) {
-        resolve_import_node(*nested_import,
-                            env,
+    for (const auto& nested_import : parsed_import.module.imports) {
+        resolve_import_node(nested_import,
                             root,
                             candidate.parent_path(),
                             options,
@@ -524,7 +652,8 @@ void resolve_import_node(const ImportNode& import,
                             import.path,
                             declaration.normalized_path,
                             depth + 1,
-                            report_range);
+                            report_range,
+                            allow_transition_fallback);
     }
     chain.pop_back();
     active_stack.pop_back();
@@ -536,15 +665,14 @@ void resolve_import_node(const ImportNode& import,
         return;
     }
 
-    Compiler compiler(env);
-    auto compiled_import = compiler.compile(*parsed_import.value(), candidate.string());
-    if (compiled_import.is_err()) {
-        declaration.status = "compile_error";
-        declaration.message = compiled_import.error();
+    auto import_diagnostics = asset_semantic_diagnostics(parsed_import.module);
+    if (!import_diagnostics.empty()) {
+        declaration.status = "semantic_error";
+        declaration.message = import_diagnostics.front().message;
         resolved.diagnostics.push_back(import_diagnostic(
-            "Compile error in source import '" + import.path + "'",
+            "Asset semantic error in source import '" + import.path + "'",
             import.path,
-            "GS_IMPORT_COMPILE_ERROR",
+            "GS_IMPORT_SEMANTIC_ERROR",
             report_range,
             "Fix the imported declaration file before using import-aware diagnostics."));
         resolved.declarations.push_back(std::move(declaration));
@@ -555,23 +683,24 @@ void resolve_import_node(const ImportNode& import,
     declaration.message = "Loaded declaration into dry-run environment";
     declaration.command = "import " + command_arg(declaration.normalized_path);
     resolved_keys.push_back(candidate_key);
+    merge_asset_declarations(resolved.module, std::move(parsed_import.module));
     resolved.declarations.push_back(std::move(declaration));
 }
 
-ResolvedEnvironment resolve_imports(const ModuleNode& ast,
+ResolvedEnvironment resolve_imports(const asset::Module& module,
                                     const Environment& session_env,
-                                    const SourceDiagnosticsOptions& options) {
+                                    const SourceDiagnosticsOptions& options,
+                                    bool allow_transition_fallback) {
     ResolvedEnvironment resolved;
-    resolved.env = session_env;
+    (void)session_env;
     std::filesystem::path root = normalized_root(options.base_dir);
     size_t total_bytes = 0;
     std::vector<std::string> resolved_keys;
     std::vector<std::string> active_stack;
     std::vector<std::string> chain;
 
-    for (const auto& import : ast.imports) {
-        resolve_import_node(*import,
-                            resolved.env,
+    for (const auto& import : module.imports) {
+        resolve_import_node(import,
                             root,
                             root,
                             options,
@@ -583,21 +712,22 @@ ResolvedEnvironment resolve_imports(const ModuleNode& ast,
                             "",
                             "",
                             1,
-                            import->range);
+                            import.span.range,
+                            allow_transition_fallback);
     }
 
     return resolved;
 }
 
-std::string resolve_imports_and_compile_to_json(const ModuleNode& ast,
+std::string resolve_imports_and_lint_to_json(const asset::Module& module,
                                                 const Environment& session_env,
                                                 const SourceDiagnosticsOptions& options) {
-    auto resolved = resolve_imports(ast, session_env, options);
-    auto env_json = environment_json("resolved", resolved.env, resolved.declarations, options);
+    auto resolved = resolve_imports(module, session_env, options, false);
+    auto env_json = environment_json("resolved", session_env, resolved.module, resolved.declarations, options);
     if (!resolved.diagnostics.empty()) {
         return diagnostics_response(false, "resolver", resolved.diagnostics, env_json);
     }
-    return compile_with_environment_to_json(ast, resolved.env, env_json);
+    return lint_asset_module_to_json(module, env_json, &resolved.module);
 }
 
 } // namespace
@@ -605,47 +735,41 @@ std::string resolve_imports_and_compile_to_json(const ModuleNode& ast,
 std::string source_diagnostics_to_json(const std::string& source,
                                        const Environment& session_env,
                                        const SourceDiagnosticsOptions& options) {
-    Lexer lexer(source);
-    Parser parser(lexer.tokenize());
-    auto parsed = parser.parse();
-    if (parsed.is_err()) {
+    auto parsed = parse_asset_or_imports(source, "source.gs", false);
+    if (!parsed.diagnostics.empty()) {
         std::string env_json;
         if (options.resolve_imports) {
-            env_json = environment_json("resolved", session_env, {}, options);
+            env_json = environment_json("resolved", session_env, {}, {}, options);
         }
-        return diagnostics_response(false, "parser", parser.diagnostics(), env_json);
+        return diagnostics_response(false, "parser", parsed.diagnostics, env_json);
     }
 
     if (options.resolve_imports) {
-        return resolve_imports_and_compile_to_json(*parsed.value(), session_env, options);
+        return resolve_imports_and_lint_to_json(parsed.module, session_env, options);
     }
 
-    Environment session_copy = session_env;
-    return compile_with_environment_to_json(*parsed.value(), session_copy);
+    return lint_asset_module_to_json(parsed.module);
 }
 
 Result<std::string, std::string> source_diagnostics_environment_hash(
     const std::string& source,
     const Environment& session_env,
     const SourceDiagnosticsOptions& options) {
-    Lexer lexer(source);
-    Parser parser(lexer.tokenize());
-    auto parsed = parser.parse();
-    if (parsed.is_err()) {
+    auto parsed = parse_asset_or_imports(source, "source.gs", options.resolve_imports);
+    if (!parsed.diagnostics.empty()) {
         return Result<std::string, std::string>::err("Parse error in source");
     }
 
     if (options.resolve_imports) {
-        auto resolved = resolve_imports(*parsed.value(), session_env, options);
+        auto resolved = resolve_imports(parsed.module, session_env, options, true);
         if (!resolved.diagnostics.empty()) {
             return Result<std::string, std::string>::err(resolved.diagnostics.front().message);
         }
         return Result<std::string, std::string>::ok(
-            environment_hash(resolved.env, resolved.declarations));
+            environment_hash(session_env, resolved.module, resolved.declarations));
     }
 
-    Environment session_copy = session_env;
-    return Result<std::string, std::string>::ok(environment_hash(session_copy, {}));
+    return Result<std::string, std::string>::ok(environment_hash(session_env, parsed.module, {}));
 }
 
 } // namespace gs

@@ -3162,7 +3162,7 @@ void CLIEditor::cmd_bake() {
     auto projected = asset::FlowGraphProjector::project(parsed.module, active_graph->name);
     if (projected.is_err()) { print_error(projected.error()); return; }
 
-    auto rt = GraphRuntimeIR::bake(projected.value());
+    auto rt = GraphRuntimeIR::bake(projected.value(), session_.env());
     std::cout << "  GraphRuntimeIR '" << rt.name() << "'\n";
     if (!rt.domain_name().empty()) std::cout << "  Domain: " << rt.domain_name() << "\n";
     std::cout << "  Nodes: " << rt.node_count() << "\n";

@@ -190,7 +190,7 @@ function importStatusClasses(status: string): string {
     case 'cycle':
     case 'dependency_error':
     case 'parse_error':
-    case 'compile_error':
+    case 'semantic_error':
       return 'border-destructive/30 bg-destructive/10 text-destructive'
     default:
       return 'border-warning/30 bg-warning/10 text-warning'

@@ -77,11 +77,11 @@ Graph MyGraph {
 
 The scope rules are enforced at **three levels**:
 
-### 1. Compiler (compile-time, authoritative)
+### 1. Asset semantic projection / lint (authoritative)
 
-File: `src/compile/compiler.cpp` — inside `Compiler::compile()`
+Files: `src/asset/language.cpp` and the graph projection / edit adapter path.
 
-After compiling each graph, the compiler builds allowed-name sets and validates every flow/data-assignment reference:
+After projecting each graph, semantic validation builds allowed-name sets and validates every flow/data-assignment reference:
 
 ```
 param_names = {"context"} ∪ {p.name for p in graph.parameters}

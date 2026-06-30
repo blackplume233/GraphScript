@@ -4,9 +4,9 @@ updated_at: 2026-06-30
 artifact_language: zh-CN
 execution_mode: native-codex-goal
 native_goal_id: codex_019f188c-0800-7041-9d48-9a868ddcb496
-current_loop: loops/loop-024.md
-next_sub_goal: Loop 024：补齐 GraphRuntimeIR bake 的 imported declaration / Environment pin enrichment，并清理剩余当前文档与前后端合约中的旧 compile/emit 命名噪声
-last_verified_loop: loops/loop-023.md
+current_loop: loops/loop-025.md
+next_sub_goal: Loop 025：最终完成审计；按 goal.md 完成证据运行全量残留扫描、CLI/Web/测试门禁，修正发现的最后迁移缺口并在证据满足后标记 complete
+last_verified_loop: loops/loop-024.md
 references: references.md
 ---
 

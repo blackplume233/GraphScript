@@ -38,7 +38,7 @@ import "ue_core.d.gs";
 import "htn_nodes.d.gs";
 ```
 
-Loads another file's declarations into the environment. The Compiler processes imports to register types/nodes/schemas.
+Loads another file's declarations into the environment. The asset declaration loader processes imports to register types/nodes/schemas.
 
 ### let
 

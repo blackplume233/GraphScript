@@ -6,7 +6,7 @@
 
 using namespace gs;
 
-TEST(DebugDiagram, EmitsMermaidFromGraphWithoutLegacyEmitter) {
+TEST(DebugDiagram, EmitsMermaidFromEditSessionGraph) {
     Environment env;
     EditSession session(env);
 

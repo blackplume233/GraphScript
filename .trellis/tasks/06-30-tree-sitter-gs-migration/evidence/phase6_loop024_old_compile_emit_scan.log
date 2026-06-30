@@ -1,0 +1,16 @@
+docs/spec\architecture.md:41:  Lexer         → vector<Token>         (parse/lexer.h)
+docs/spec\architecture.md:44:  Parser        → ModuleNode (AST)      (parse/parser.h)
+docs/spec\architecture.md:47:  Compiler      → Module (IR)           (core/module.h)
+docs/spec\architecture.md:63:  Emitter       → .gs source text       (emit/emitter.h)
+docs/spec\architecture.md:208:All three are populated by the Compiler when processing `declare type`, `declare Node`, and `declare Schema` statements in `.d.gs` files.
+docs/spec\scope-rules.md:80:### 1. Compiler (compile-time, authoritative)
+docs/spec\scope-rules.md:82:File: `src/compile/compiler.cpp` — inside `Compiler::compile()`
+docs/spec\dsl-reference.md:41:Loads another file's declarations into the environment. The Compiler processes imports to register types/nodes/schemas.
+docs/spec\development-guide.md:54:./build/Release/gs_tests.exe --gtest_filter="Compiler*" # Specific suite
+docs/spec\development-guide.md:110:1. **Lexer** — Add new token types if needed (`parse/lexer.h`, `parse/token.h`)
+docs/spec\development-guide.md:112:3. **Parser** — Add parsing rules (`parse/parser.cpp`)
+docs/spec\development-guide.md:113:4. **Compiler** — Add compilation logic (`compile/compiler.cpp`)
+docs/spec\development-guide.md:114:5. **Emitter** — Add text generation (`emit/emitter.cpp`)
+docs/spec\development-guide.md:246:### Mistake: Forgetting to Update Emitter After Parser Change
+docs/spec\development-guide.md:250:**Fix**: Every Parser change must have a corresponding Emitter change in `emitter.cpp`.
+tests\test_debug_diagram.cpp:9:TEST(DebugDiagram, EmitsMermaidFromGraphWithoutLegacyEmitter) {

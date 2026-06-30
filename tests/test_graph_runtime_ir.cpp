@@ -3,6 +3,7 @@
 #include "graphscript/asset/language.h"
 #include "graphscript/debug/dump.h"
 #include "graphscript/graph/runtime_ir.h"
+#include "graphscript/registry/environment.h"
 
 using namespace gs;
 
@@ -164,10 +165,10 @@ TEST(GraphRuntimeIR, FindPinIndex) {
     uint32_t idx = static_cast<uint32_t>(rn - &rt.value().nodes()[0]);
 
     auto enter_idx = rt.value().find_pin_index(idx, "enter");
-    EXPECT_NE(enter_idx, 0xFF);
+    EXPECT_NE(enter_idx, GraphRuntimeIR::invalid_pin_index);
 
     auto bad_idx = rt.value().find_pin_index(idx, "nonexistent");
-    EXPECT_EQ(bad_idx, 0xFF);
+    EXPECT_EQ(bad_idx, GraphRuntimeIR::invalid_pin_index);
 }
 
 TEST(GraphRuntimeIR, PinData) {
@@ -187,6 +188,79 @@ TEST(GraphRuntimeIR, PinData) {
     EXPECT_EQ(pins[1].direction, 1);
     EXPECT_EQ(pins[2].name, "message");
     EXPECT_EQ(pins[2].kind, 1);
+}
+
+TEST(GraphRuntimeIR, BakeFillsMissingPinsFromEnvironment) {
+    Environment env;
+    NodeDefinition print_string;
+    print_string.type_name = "PrintString";
+    print_string.pins = {
+        {"enter", PinKind::Exec, PinDirection::Input, ""},
+        {"exit", PinKind::Exec, PinDirection::Output, ""},
+        {"message", PinKind::Data, PinDirection::Input, "FString"},
+    };
+    env.nodes().register_node(std::move(print_string));
+
+    asset::Parser parser(R"(graph ImportedRuntime {
+    node printer {
+        type PrintString;
+    }
+}
+)", "runtime_ir_imported.gs");
+    auto parsed = parser.parse();
+    ASSERT_TRUE(parsed.diagnostics.empty());
+
+    auto projected = asset::FlowGraphProjector::project(parsed.module, "ImportedRuntime");
+    ASSERT_TRUE(projected.is_ok()) << projected.error();
+    ASSERT_EQ(projected.value().nodes.size(), 1u);
+    EXPECT_TRUE(projected.value().nodes[0].pins.empty());
+
+    auto runtime = GraphRuntimeIR::bake(projected.value(), env);
+    ASSERT_EQ(runtime.node_count(), 1u);
+    ASSERT_EQ(runtime.pins().size(), 3u);
+    EXPECT_NE(runtime.find_pin_index(0, "enter"), GraphRuntimeIR::invalid_pin_index);
+    EXPECT_NE(runtime.find_pin_index(0, "exit"), GraphRuntimeIR::invalid_pin_index);
+    EXPECT_NE(runtime.find_pin_index(0, "message"), GraphRuntimeIR::invalid_pin_index);
+    EXPECT_EQ(runtime.pins()[2].type_name, "FString");
+}
+
+TEST(GraphRuntimeIR, BakeMergesPartialProjectedPinsFromEnvironment) {
+    Environment env;
+    NodeDefinition print_string;
+    print_string.type_name = "PrintString";
+    print_string.pins = {
+        {"enter", PinKind::Exec, PinDirection::Input, ""},
+        {"exit", PinKind::Exec, PinDirection::Output, ""},
+        {"message", PinKind::Data, PinDirection::Input, "FString"},
+    };
+    env.nodes().register_node(std::move(print_string));
+
+    asset::FlowGraph graph;
+    graph.name = "PartialRuntime";
+    asset::FlowNode node;
+    node.alias = "printer";
+    node.type = "PrintString";
+    node.pins.push_back({"enter", "exec", "in", {}, {}});
+    graph.nodes.push_back(std::move(node));
+
+    auto runtime = GraphRuntimeIR::bake(graph, env);
+    ASSERT_EQ(runtime.node_count(), 1u);
+    ASSERT_EQ(runtime.pins().size(), 3u);
+    EXPECT_EQ(runtime.pins()[0].name, "enter");
+    EXPECT_EQ(runtime.pins()[1].name, "exit");
+    EXPECT_EQ(runtime.pins()[2].name, "message");
+}
+
+TEST(GraphRuntimeIR, BakeSkipsEdgesWithUnresolvedPins) {
+    asset::FlowGraph graph;
+    graph.name = "InvalidPins";
+    graph.nodes.push_back({"a", "Unknown", {}, {}, {}, {}, {}, {}});
+    graph.nodes.push_back({"b", "Unknown", {}, {}, {}, {}, {}, {}});
+    graph.edges.push_back({"a.out", "b.in", true, {}, {}, {}, {}});
+
+    auto runtime = GraphRuntimeIR::bake(graph);
+    EXPECT_EQ(runtime.node_count(), 2u);
+    EXPECT_EQ(runtime.flow_edge_count(), 0u);
 }
 
 TEST(GraphRuntimeIR, DebugDumpUsesRuntimeIRTerminology) {

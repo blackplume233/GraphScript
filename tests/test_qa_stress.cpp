@@ -107,8 +107,9 @@ TEST(QAStress, GraphRuntimeIRBakeLargeAssetProjection) {
     ASSERT_TRUE(parsed.diagnostics.empty());
     auto projected = asset::FlowGraphProjector::project(parsed.module, "Thousand");
     ASSERT_TRUE(projected.is_ok()) << projected.error();
-    auto runtime = GraphRuntimeIR::bake(projected.value());
+    auto runtime = GraphRuntimeIR::bake(projected.value(), env);
     EXPECT_EQ(runtime.node_count(), 80u);
+    EXPECT_EQ(runtime.pins().size(), 240u);
     EXPECT_EQ(runtime.flow_edge_count(), 79u);
     // Runtime IR bake only materializes node-to-node data links; bare
     // parameter links remain covered by asset projection and Module round-trip.

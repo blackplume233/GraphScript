@@ -38,32 +38,32 @@
 Source (.gs)
     │
     ▼
-  Lexer         → vector<Token>         (parse/lexer.h)
+  tree-sitter asset parser
     │
     ▼
-  Parser        → ModuleNode (AST)      (parse/parser.h)
-    │
-    ▼
-  Compiler      → Module (IR)           (core/module.h)
+  asset::Module                    (asset/language.h)
     │               │
-    │               ├── Module.graphs[]    → Graph objects
-    │               ├── Module.imports[]   → ImportDecl
-    │               └── Module.top_level_lets[] → LetDecl
+    │               ├── imports / declarations
+    │               ├── block/property/command/expr items
+    │               └── graph blocks
     │
     ▼
-  Environment   ← types, nodes, schemas registered
+  asset lint + FlowGraphProjector
+    │
+    ▼
+  FlowGraph / EditSession adapter / Environment declarations
 ```
 
 ### Graph → Text (Round-trip)
 
 ```
-Module/Graph
+asset source
     │
     ▼
-  Emitter       → .gs source text       (emit/emitter.h)
+  source patch / asset source emission
     │
     ▼
-  Re-parse + Re-compile → structurally equivalent Module
+  Re-parse + re-project → structurally equivalent asset graph
 ```
 
 ### Graph → Editor
@@ -205,7 +205,7 @@ Stateful editing context wrapping a `Module`. Provides:
 | `NodeRegistry` | Node definitions (native from `.d.gs` + derived from Graph-as-Node) |
 | `SchemaRegistry` | GraphSchema definitions with ConnectionPolicy |
 
-All three are populated by the Compiler when processing `declare type`, `declare Node`, and `declare Schema` statements in `.d.gs` files.
+All three are populated by the asset declaration loading path when processing `.d.gs` declaration files.
 
 ---
 

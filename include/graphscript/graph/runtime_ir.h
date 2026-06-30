@@ -8,10 +8,12 @@
 
 namespace gs {
 
+class Environment;
+
 /// Runtime pin descriptor; indices refer into nodes_ and pins_ arrays.
 struct RuntimeIRPin {
     uint32_t    node_index;
-    uint8_t     pin_index;
+    uint32_t    pin_index;
     uint8_t     kind;       // 0=Exec, 1=Data
     uint8_t     direction;  // 0=Input, 1=Output
     std::string name;
@@ -29,17 +31,17 @@ struct RuntimeIRNode {
 /// Exec flow edge (control flow between nodes).
 struct RuntimeIRFlowEdge {
     uint32_t from_node;
-    uint8_t  from_pin;
+    uint32_t from_pin;
     uint32_t to_node;
-    uint8_t  to_pin;
+    uint32_t to_pin;
 };
 
 /// Data dependency edge.
 struct RuntimeIRDataEdge {
     uint32_t source_node;
-    uint8_t  source_pin;
+    uint32_t source_pin;
     uint32_t target_node;
-    uint8_t  target_pin;
+    uint32_t target_pin;
 };
 
 /// Immutable graph runtime IR: flat arrays for fast traversal.
@@ -60,12 +62,17 @@ public:
     /// Returns node by instance name, or nullptr if not found.
     const RuntimeIRNode* find_node(const std::string& instance_name) const;
     /// Returns pin index within node, or invalid index if not found.
-    uint8_t find_pin_index(uint32_t node_index, const std::string& pin_name) const;
+    static constexpr uint32_t invalid_pin_index = UINT32_MAX;
+    uint32_t find_pin_index(uint32_t node_index, const std::string& pin_name) const;
 
     /// Builds runtime IR from an asset graph projection.
     static GraphRuntimeIR bake(const asset::FlowGraph& graph);
+    /// Builds runtime IR and fills missing projected pins from an environment.
+    static GraphRuntimeIR bake(const asset::FlowGraph& graph, const Environment& env);
 
 private:
+    static GraphRuntimeIR bake_impl(const asset::FlowGraph& graph, const Environment* env);
+
     std::string                         name_;
     std::string                         domain_name_;
     std::vector<RuntimeIRNode>          nodes_;

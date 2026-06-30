@@ -572,7 +572,7 @@ def main():
                         content_type="application/json",
                         body=json.dumps({
                             "ok": True,
-                            "stage": "compiler",
+                            "stage": "asset",
                             "diagnostics": [],
                             "environment": environment,
                         }),
@@ -584,7 +584,7 @@ def main():
                         content_type="application/json",
                         body=json.dumps({
                             "ok": True,
-                            "stage": "compiler",
+                            "stage": "asset",
                             "diagnostics": [],
                             "environment": FAILING_REPLAY_IMPORT_ENVIRONMENT,
                         }),
@@ -596,7 +596,7 @@ def main():
                         content_type="application/json",
                         body=json.dumps({
                             "ok": True,
-                            "stage": "compiler",
+                            "stage": "asset",
                             "diagnostics": [],
                             "environment": SLOW_REPLAY_IMPORT_ENVIRONMENT,
                         }),
@@ -608,7 +608,7 @@ def main():
                         content_type="application/json",
                         body=json.dumps({
                             "ok": True,
-                            "stage": "compiler",
+                            "stage": "asset",
                             "diagnostics": [],
                             "environment": DISCONNECTED_REPLAY_IMPORT_ENVIRONMENT,
                         }),
@@ -620,7 +620,7 @@ def main():
                     content_type="application/json",
                     body=json.dumps({
                         "ok": ok,
-                        "stage": "compiler" if ok else "parser",
+                        "stage": "asset" if ok else "parser",
                         "diagnostics": [] if ok else [SOURCE_DIAGNOSTIC],
                     }),
                 )

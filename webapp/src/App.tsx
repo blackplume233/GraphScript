@@ -349,7 +349,7 @@ function sourceEnvironmentNotice(source: string, state: GSState | null, resolver
   const typeCount = state?.types.length ?? 0
   const schemaCount = state?.schemas.length ?? 0
   const sessionImportCount = state?.module.imports.filter(importDef => importDef.loaded).length ?? 0
-  const base = `Source diagnostics and Apply compile against the current session Environment (${typeCount} node types, ${schemaCount} schemas).`
+  const base = `Source diagnostics and Apply use the current session Environment (${typeCount} node types, ${schemaCount} schemas).`
   if (importCount > 0) {
     return `${base} ${importCount} source import${importCount === 1 ? '' : 's'} parsed here; import files are not loaded by this editor check. Session has ${sessionImportCount} loaded import${sessionImportCount === 1 ? '' : 's'}.`
   }
