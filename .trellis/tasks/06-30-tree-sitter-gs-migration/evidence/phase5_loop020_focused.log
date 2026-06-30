@@ -1,0 +1,51 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = DeepCycle.*:Blueprint.*:QALoop.*:QAStress.*
+[==========] Running 16 tests from 4 test suites.
+[----------] Global test environment set-up.
+[----------] 4 tests from Blueprint
+[ RUN      ] Blueprint.AssetGameplayEventRoundTrip
+[       OK ] Blueprint.AssetGameplayEventRoundTrip (4 ms)
+[ RUN      ] Blueprint.AssetMathBranchProjection
+[       OK ] Blueprint.AssetMathBranchProjection (0 ms)
+[ RUN      ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets
+[       OK ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets (2 ms)
+[ RUN      ] Blueprint.AssetMultiGraphBlueprintRoundTrip
+[       OK ] Blueprint.AssetMultiGraphBlueprintRoundTrip (4 ms)
+[----------] 4 tests from Blueprint (11 ms total)
+
+[----------] 5 tests from DeepCycle
+[ RUN      ] DeepCycle.AssetThreeGraphChainProjectsAndDerivesNodes
+[       OK ] DeepCycle.AssetThreeGraphChainProjectsAndDerivesNodes (0 ms)
+[ RUN      ] DeepCycle.AssetFlowGraphProjectionKeepsFlowAndDataEdges
+[       OK ] DeepCycle.AssetFlowGraphProjectionKeepsFlowAndDataEdges (0 ms)
+[ RUN      ] DeepCycle.EditGraphAndRuntimeBakeFromAssetSession
+[       OK ] DeepCycle.EditGraphAndRuntimeBakeFromAssetSession (0 ms)
+[ RUN      ] DeepCycle.AssetGenerateAndAnnotationsRoundTrip
+[       OK ] DeepCycle.AssetGenerateAndAnnotationsRoundTrip (0 ms)
+[ RUN      ] DeepCycle.AssetSchemaDefaultsAndMultipleBlocksRoundTrip
+[       OK ] DeepCycle.AssetSchemaDefaultsAndMultipleBlocksRoundTrip (0 ms)
+[----------] 5 tests from DeepCycle (2 ms total)
+
+[----------] 4 tests from QALoop
+[ RUN      ] QALoop.EditSessionMutationLoopRoundTripsAssetSource
+[       OK ] QALoop.EditSessionMutationLoopRoundTripsAssetSource (0 ms)
+[ RUN      ] QALoop.UndoRedoPreservesAssetRoundTrip
+[       OK ] QALoop.UndoRedoPreservesAssetRoundTrip (0 ms)
+[ RUN      ] QALoop.SourceReloadAfterRepeatedEdits
+[       OK ] QALoop.SourceReloadAfterRepeatedEdits (1 ms)
+[ RUN      ] QALoop.MultiGraphMultiBlockUndoRedoRoundTrips
+[       OK ] QALoop.MultiGraphMultiBlockUndoRedoRoundTrips (1 ms)
+[----------] 4 tests from QALoop (4 ms total)
+
+[----------] 3 tests from QAStress
+[ RUN      ] QAStress.AssetParserProjectsLargeGraphWithinBudget
+[       OK ] QAStress.AssetParserProjectsLargeGraphWithinBudget (6 ms)
+[ RUN      ] QAStress.EditSessionLoadsEmitsAndReloadsLargeAssetGraph
+[       OK ] QAStress.EditSessionLoadsEmitsAndReloadsLargeAssetGraph (5 ms)
+[ RUN      ] QAStress.RuntimeBakeLargeAssetSession
+[       OK ] QAStress.RuntimeBakeLargeAssetSession (1 ms)
+[----------] 3 tests from QAStress (13 ms total)
+
+[----------] Global test environment tear-down
+[==========] 16 tests from 4 test suites ran. (31 ms total)
+[  PASSED  ] 16 tests.

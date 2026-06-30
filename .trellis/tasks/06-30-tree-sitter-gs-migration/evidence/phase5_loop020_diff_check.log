@@ -1,0 +1,4 @@
+warning: in the working copy of 'tests/test_blueprint_scenarios.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_integration_deep.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_qa_loop.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_qa_stress.cpp', LF will be replaced by CRLF the next time Git touches it

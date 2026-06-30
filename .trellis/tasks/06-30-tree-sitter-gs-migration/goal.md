@@ -4,9 +4,9 @@ updated_at: 2026-06-30
 artifact_language: zh-CN
 execution_mode: native-codex-goal
 native_goal_id: codex_019f188c-0800-7041-9d48-9a868ddcb496
-current_loop: loops/loop-020.md
-next_sub_goal: Loop 020：继续 Phase 5，迁移 test_blueprint_scenarios.cpp、test_integration_deep.cpp、test_qa_loop.cpp、test_qa_stress.cpp 中旧 parse/compiler/emitter round-trip 依赖，优先拆出与 RuntimeGraph 强耦合较低的 asset fixture 回归
-last_verified_loop: loops/loop-019.md
+current_loop: loops/loop-021.md
+next_sub_goal: Loop 021：继续 Phase 5，在测试层旧 parse/compiler/emitter 依赖清零后，扫描并删除 legacy parse/compile/emit 源码与头文件，处理 debug dump/docs/CMake 影响并跑全量验证
+last_verified_loop: loops/loop-020.md
 references: references.md
 ---
 
