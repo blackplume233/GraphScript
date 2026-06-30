@@ -1,6 +1,8 @@
 #include "editor.h"
 #include "source_diagnostics.h"
+#include "graphscript/asset/language.h"
 #include "graphscript/compile/compiler.h"
+#include "graphscript/emit/emitter.h"
 #include "graphscript/parse/lexer.h"
 #include "graphscript/parse/parser.h"
 #include "graphscript/runtime/runtime_graph.h"
@@ -1095,6 +1097,93 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_optional_node_t
     return Result<std::vector<SourcePatchRecord>, std::string>::ok(records);
 }
 
+static bool asset_field_is_flow_pin(const asset::FieldDecl& field) {
+    for (const auto& attr : field.attributes) {
+        if (attr.name == "flow.pin" || attr.name == "flow.input" || attr.name == "flow.output") return true;
+    }
+    return false;
+}
+
+static Result<asset::Module, std::string> parse_asset_declaration_source_for_cli(
+    const std::string& source,
+    const std::string& path) {
+    asset::Parser parser(source, path);
+    auto parsed = parser.parse();
+    if (!parsed.diagnostics.empty()) {
+        return Result<asset::Module, std::string>::err("Parse error in declaration source");
+    }
+    auto diagnostics = asset::Linter::lint(parsed.module);
+    if (!diagnostics.empty()) {
+        return Result<asset::Module, std::string>::err("Lint error in declaration source: " + diagnostics.front().message);
+    }
+    return Result<asset::Module, std::string>::ok(std::move(parsed.module));
+}
+
+static SourceRange asset_token_patch_range(SourceRange range) {
+    if (range.end.column > range.start.column) --range.end.column;
+    return range;
+}
+
+static const asset::SymbolDecl* find_asset_type_symbol(const asset::Module& module, const std::string& name) {
+    for (const auto& symbol : module.symbols) {
+        if (symbol.kind == "type" && symbol.name == name) return &symbol;
+    }
+    return nullptr;
+}
+
+static const asset::ObjectDecl* find_asset_object_decl(const asset::Module& module, const std::string& name) {
+    for (const auto& object : module.objects) {
+        if (object.name == name) return &object;
+    }
+    return nullptr;
+}
+
+static const asset::SchemaDecl* find_asset_schema_decl(const asset::Module& module, const std::string& name) {
+    for (const auto& schema : module.schemas) {
+        if (schema.name == name) return &schema;
+    }
+    return nullptr;
+}
+
+static Result<void, std::string> add_asset_expression_type_rename_patches(
+    const std::string& source,
+    const asset::Expression& expression,
+    const std::string& old_name,
+    const std::string& new_name,
+    const std::string& label,
+    std::vector<SourcePatchRecord>& records) {
+    if (expression.kind == asset::ExprKind::Call && expression.callee == old_name) {
+        auto added = add_checked_source_rename_patch(
+            source, asset_token_patch_range(expression.callee_span.range), old_name, new_name, label, records);
+        if (added.is_err()) return added;
+    }
+    for (const auto& element : expression.elements) {
+        auto added = add_asset_expression_type_rename_patches(source, element, old_name, new_name, label, records);
+        if (added.is_err()) return added;
+    }
+    for (const auto& property : expression.properties) {
+        auto added = add_asset_expression_type_rename_patches(source, property.value, old_name, new_name, label, records);
+        if (added.is_err()) return added;
+    }
+    return Result<void, std::string>::ok();
+}
+
+static Result<void, std::string> add_asset_attribute_type_rename_patches(
+    const std::string& source,
+    const std::vector<asset::Attribute>& attributes,
+    const std::string& old_name,
+    const std::string& new_name,
+    const std::string& label,
+    std::vector<SourcePatchRecord>& records) {
+    for (const auto& attr : attributes) {
+        for (const auto& arg : attr.args) {
+            auto added = add_asset_expression_type_rename_patches(source, arg.value, old_name, new_name, label, records);
+            if (added.is_err()) return added;
+        }
+    }
+    return Result<void, std::string>::ok();
+}
+
 static Result<std::vector<SourcePatchRecord>, std::string> build_declaration_node_rename_patches(
     const std::string& source,
     const std::string& old_name,
@@ -1109,27 +1198,20 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_declaration_nod
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration node rename must change the name");
     }
 
-    Lexer lexer(source);
-    Parser parser(lexer.tokenize());
-    auto parsed = parser.parse();
-    if (parsed.is_err()) {
-        return Result<std::vector<SourcePatchRecord>, std::string>::err("Parse error in declaration source");
-    }
+    auto parsed = parse_asset_declaration_source_for_cli(source, "");
+    if (parsed.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(parsed.error());
 
-    const DeclareNodeNode* target = nullptr;
-    for (const auto& node : parsed.value()->declare_nodes) {
-        if (node->name == new_name) {
-            return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration node '" + new_name + "' already exists");
-        }
-        if (node->name == old_name) target = node.get();
+    if (find_asset_object_decl(parsed.value(), new_name)) {
+        return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration node '" + new_name + "' already exists");
     }
+    const auto* target = find_asset_object_decl(parsed.value(), old_name);
     if (!target) {
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration node '" + old_name + "' not found");
     }
 
     std::vector<SourcePatchRecord> records;
     auto added = add_checked_source_rename_patch(
-        source, target->name_range, old_name, new_name, "declaration node definition", records);
+        source, asset_token_patch_range(target->name_span.range), old_name, new_name, "declaration node definition", records);
     if (added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(added.error());
     return Result<std::vector<SourcePatchRecord>, std::string>::ok(records);
 }
@@ -1148,27 +1230,20 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_declaration_sch
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration schema rename must change the name");
     }
 
-    Lexer lexer(source);
-    Parser parser(lexer.tokenize());
-    auto parsed = parser.parse();
-    if (parsed.is_err()) {
-        return Result<std::vector<SourcePatchRecord>, std::string>::err("Parse error in declaration source");
-    }
+    auto parsed = parse_asset_declaration_source_for_cli(source, "");
+    if (parsed.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(parsed.error());
 
-    const DeclareSchemaNode* target = nullptr;
-    for (const auto& schema : parsed.value()->declare_schemas) {
-        if (schema->name == new_name) {
-            return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration schema '" + new_name + "' already exists");
-        }
-        if (schema->name == old_name) target = schema.get();
+    if (find_asset_schema_decl(parsed.value(), new_name)) {
+        return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration schema '" + new_name + "' already exists");
     }
+    const auto* target = find_asset_schema_decl(parsed.value(), old_name);
     if (!target) {
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration schema '" + old_name + "' not found");
     }
 
     std::vector<SourcePatchRecord> records;
     auto added = add_checked_source_rename_patch(
-        source, target->name_range, old_name, new_name, "declaration schema definition", records);
+        source, asset_token_patch_range(target->name_span.range), old_name, new_name, "declaration schema definition", records);
     if (added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(added.error());
     return Result<std::vector<SourcePatchRecord>, std::string>::ok(records);
 }
@@ -1191,31 +1266,21 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_declaration_sch
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration schema field rename must change the name");
     }
 
-    Lexer lexer(source);
-    Parser parser(lexer.tokenize());
-    auto parsed = parser.parse();
-    if (parsed.is_err()) {
-        return Result<std::vector<SourcePatchRecord>, std::string>::err("Parse error in declaration source");
-    }
+    auto parsed = parse_asset_declaration_source_for_cli(source, "");
+    if (parsed.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(parsed.error());
 
-    const DeclareSchemaNode* target_schema = nullptr;
-    for (const auto& schema : parsed.value()->declare_schemas) {
-        if (schema->name == schema_name) {
-            target_schema = schema.get();
-            break;
-        }
-    }
+    const auto* target_schema = find_asset_schema_decl(parsed.value(), schema_name);
     if (!target_schema) {
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration schema '" + schema_name + "' not found");
     }
 
-    const SchemaFieldNode* target_field = nullptr;
-    for (const auto& field : target_schema->fields) {
-        if (field->name == new_name) {
+    const asset::Property* target_field = nullptr;
+    for (const auto& field : target_schema->properties) {
+        if (field.path == new_name) {
             return Result<std::vector<SourcePatchRecord>, std::string>::err(
                 "Declaration schema field '" + new_name + "' already exists on schema '" + schema_name + "'");
         }
-        if (field->name == old_name) target_field = field.get();
+        if (field.path == old_name) target_field = &field;
     }
     if (!target_field) {
         return Result<std::vector<SourcePatchRecord>, std::string>::err(
@@ -1224,7 +1289,7 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_declaration_sch
 
     std::vector<SourcePatchRecord> records;
     auto added = add_checked_source_rename_patch(
-        source, target_field->name_range, old_name, new_name, "declaration schema field definition", records);
+        source, asset_token_patch_range(target_field->name_span.range), old_name, new_name, "declaration schema field definition", records);
     if (added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(added.error());
     return Result<std::vector<SourcePatchRecord>, std::string>::ok(records);
 }
@@ -1243,59 +1308,53 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_declaration_typ
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration type rename must change the name");
     }
 
-    Lexer lexer(source);
-    Parser parser(lexer.tokenize());
-    auto parsed = parser.parse();
-    if (parsed.is_err()) {
-        return Result<std::vector<SourcePatchRecord>, std::string>::err("Parse error in declaration source");
-    }
+    auto parsed = parse_asset_declaration_source_for_cli(source, "");
+    if (parsed.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(parsed.error());
 
-    const DeclareTypeNode* target = nullptr;
-    for (const auto& type : parsed.value()->declare_types) {
-        if (type->name == new_name) {
-            return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration type '" + new_name + "' already exists");
-        }
-        if (type->name == old_name) target = type.get();
+    if (find_asset_type_symbol(parsed.value(), new_name)) {
+        return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration type '" + new_name + "' already exists");
     }
+    const auto* target = find_asset_type_symbol(parsed.value(), old_name);
     if (!target) {
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration type '" + old_name + "' not found");
     }
 
     std::vector<SourcePatchRecord> records;
     auto added = add_checked_source_rename_patch(
-        source, target->name_range, old_name, new_name, "declaration type definition", records);
+        source, asset_token_patch_range(target->name_span.range), old_name, new_name, "declaration type definition", records);
     if (added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(added.error());
 
-    for (const auto& type : parsed.value()->declare_types) {
-        auto annot_added = add_annotation_constructor_type_rename_patches(
-            source, type->annotations, old_name, new_name, "declaration type", records);
+    for (const auto& symbol : parsed.value().symbols) {
+        if (symbol.kind != "type") continue;
+        auto annot_added = add_asset_attribute_type_rename_patches(
+            source, symbol.attributes, old_name, new_name, "declaration type", records);
         if (annot_added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(annot_added.error());
     }
-    for (const auto& node : parsed.value()->declare_nodes) {
-        auto node_annot_added = add_annotation_constructor_type_rename_patches(
-            source, node->annotations, old_name, new_name, "declaration node", records);
+    for (const auto& node : parsed.value().objects) {
+        auto node_annot_added = add_asset_attribute_type_rename_patches(
+            source, node.attributes, old_name, new_name, "declaration node", records);
         if (node_annot_added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(node_annot_added.error());
-        for (const auto& pin : node->pins) {
-            auto pin_annot_added = add_annotation_constructor_type_rename_patches(
-                source, pin->annotations, old_name, new_name, "declaration pin", records);
+        for (const auto& field : node.fields) {
+            auto pin_annot_added = add_asset_attribute_type_rename_patches(
+                source, field.attributes, old_name, new_name, "declaration field", records);
             if (pin_annot_added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(pin_annot_added.error());
-            if (pin->type_name != old_name) continue;
+            if (field.type != old_name) continue;
             auto pin_added = add_checked_source_rename_patch(
-                source, pin->type_name_range, old_name, new_name, "declaration pin type reference", records);
+                source, asset_token_patch_range(field.type_span.range), old_name, new_name, "declaration field type reference", records);
             if (pin_added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(pin_added.error());
         }
     }
-    for (const auto& schema : parsed.value()->declare_schemas) {
-        auto schema_annot_added = add_annotation_constructor_type_rename_patches(
-            source, schema->annotations, old_name, new_name, "declaration schema", records);
+    for (const auto& schema : parsed.value().schemas) {
+        auto schema_annot_added = add_asset_attribute_type_rename_patches(
+            source, schema.attributes, old_name, new_name, "declaration schema", records);
         if (schema_annot_added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(schema_annot_added.error());
-        for (const auto& field : schema->fields) {
-            auto field_annot_added = add_annotation_constructor_type_rename_patches(
-                source, field->annotations, old_name, new_name, "declaration schema field", records);
+        for (const auto& field : schema.properties) {
+            auto field_annot_added = add_asset_attribute_type_rename_patches(
+                source, field.attributes, old_name, new_name, "declaration schema field", records);
             if (field_annot_added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(field_annot_added.error());
-            auto field_value_added = add_optional_type_reference_patch(
+            auto field_value_added = add_asset_expression_type_rename_patches(
                 source,
-                field->value_constructor_type_range,
+                field.value,
                 old_name,
                 new_name,
                 "declaration schema field constructor type reference",
@@ -1325,31 +1384,22 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_declaration_nod
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration pin rename must change the name");
     }
 
-    Lexer lexer(source);
-    Parser parser(lexer.tokenize());
-    auto parsed = parser.parse();
-    if (parsed.is_err()) {
-        return Result<std::vector<SourcePatchRecord>, std::string>::err("Parse error in declaration source");
-    }
+    auto parsed = parse_asset_declaration_source_for_cli(source, "");
+    if (parsed.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(parsed.error());
 
-    const DeclareNodeNode* target_node = nullptr;
-    for (const auto& node : parsed.value()->declare_nodes) {
-        if (node->name == node_type) {
-            target_node = node.get();
-            break;
-        }
-    }
+    const auto* target_node = find_asset_object_decl(parsed.value(), node_type);
     if (!target_node) {
         return Result<std::vector<SourcePatchRecord>, std::string>::err("Declaration node '" + node_type + "' not found");
     }
 
-    const PinDeclNode* target_pin = nullptr;
-    for (const auto& pin : target_node->pins) {
-        if (pin->name == new_name) {
+    const asset::FieldDecl* target_pin = nullptr;
+    for (const auto& field : target_node->fields) {
+        if (!asset_field_is_flow_pin(field)) continue;
+        if (field.name == new_name) {
             return Result<std::vector<SourcePatchRecord>, std::string>::err(
                 "Declaration pin '" + new_name + "' already exists on node '" + node_type + "'");
         }
-        if (pin->name == old_name) target_pin = pin.get();
+        if (field.name == old_name) target_pin = &field;
     }
     if (!target_pin) {
         return Result<std::vector<SourcePatchRecord>, std::string>::err(
@@ -1358,7 +1408,7 @@ static Result<std::vector<SourcePatchRecord>, std::string> build_declaration_nod
 
     std::vector<SourcePatchRecord> records;
     auto added = add_checked_source_rename_patch(
-        source, target_pin->name_range, old_name, new_name, "declaration pin definition", records);
+        source, asset_token_patch_range(target_pin->name_span.range), old_name, new_name, "declaration pin definition", records);
     if (added.is_err()) return Result<std::vector<SourcePatchRecord>, std::string>::err(added.error());
     return Result<std::vector<SourcePatchRecord>, std::string>::ok(records);
 }
@@ -1540,6 +1590,43 @@ static void unregister_declared_native_nodes(Environment& env, const ModuleNode&
     for (const auto& node : declaration_ast.declare_nodes) {
         env.nodes().unregister_node(node->name);
     }
+}
+
+static void unregister_asset_declarations_from_env(Environment& env,
+                                                   const asset::Module& module,
+                                                   const std::string& source_name) {
+    for (const auto& symbol : module.symbols) {
+        if (symbol.kind != "type") continue;
+        const auto* type = env.types().find(symbol.name);
+        if (type && type->source_file == source_name) env.types().unregister_type(symbol.name);
+    }
+    for (const auto& object : module.objects) {
+        const auto* node = env.nodes().find(object.name);
+        if (node && node->source_file == source_name) env.nodes().unregister_node(object.name);
+    }
+    for (const auto& schema : module.schemas) {
+        const auto* registered = env.schemas().find(schema.name);
+        if (registered && registered->source_file == source_name) env.schemas().unregister_schema(schema.name);
+    }
+}
+
+static Result<void, std::string> load_asset_declaration_source_via_temp(
+    Environment& env,
+    const std::string& source,
+    const std::string& label) {
+    const auto temp = std::filesystem::temp_directory_path() /
+        ("graphscript_asset_import_" + source_hash(source) + ".d.gs");
+    auto written = write_text_file(temp.string(), source);
+    if (written.is_err()) return written;
+
+    EditSession temp_session(env);
+    auto loaded = temp_session.load_import(temp.string());
+    std::error_code remove_error;
+    std::filesystem::remove(temp, remove_error);
+    if (loaded.is_err()) {
+        return Result<void, std::string>::err(label + ": " + loaded.error());
+    }
+    return Result<void, std::string>::ok();
 }
 
 static Result<Module, std::string> compile_source_for_ranges(
@@ -3921,6 +4008,12 @@ void CLIEditor::cmd_apply_import_node_rename(const std::vector<std::string>& arg
         return;
     }
 
+    auto original_declaration = parse_asset_declaration_source_for_cli(*declaration_source, path);
+    if (original_declaration.is_err()) {
+        print_error(original_declaration.error());
+        return;
+    }
+
     auto declaration_records = build_declaration_node_rename_patches(*declaration_source, old_name, new_name);
     if (declaration_records.is_err()) {
         print_error(declaration_records.error());
@@ -3933,19 +4026,11 @@ void CLIEditor::cmd_apply_import_node_rename(const std::vector<std::string>& arg
         return;
     }
 
-    Lexer declaration_lexer(patched_declaration.value());
-    Parser declaration_parser(declaration_lexer.tokenize());
-    auto patched_declaration_ast = declaration_parser.parse();
-    if (patched_declaration_ast.is_err()) {
-        print_error("Parse error in patched declaration source");
-        return;
-    }
-
     Environment dry_import_env;
-    Compiler dry_import_compiler(dry_import_env);
-    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+    auto dry_import = load_asset_declaration_source_via_temp(
+        dry_import_env, patched_declaration.value(), "Invalid patched declaration source");
     if (dry_import.is_err()) {
-        print_error("Compile error in patched declaration source: " + dry_import.error());
+        print_error(dry_import.error());
         return;
     }
 
@@ -3974,10 +4059,11 @@ void CLIEditor::cmd_apply_import_node_rename(const std::vector<std::string>& arg
     }
 
     Environment replay_env = session_.env();
-    Compiler replay_import_compiler(replay_env);
-    auto replay_import = replay_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(replay_env, original_declaration.value(), path);
+    auto replay_import = load_asset_declaration_source_via_temp(
+        replay_env, patched_declaration.value(), "Invalid replay declaration environment");
     if (replay_import.is_err()) {
-        print_error("Compile error in replay declaration environment: " + replay_import.error());
+        print_error(replay_import.error());
         return;
     }
     auto replay_module = compile_source_for_ranges(patched_module_source, replay_env, session_.file_path());
@@ -3992,10 +4078,10 @@ void CLIEditor::cmd_apply_import_node_rename(const std::vector<std::string>& arg
         return;
     }
 
-    Compiler real_import_compiler(session_.env());
-    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(session_.env(), original_declaration.value(), path);
+    auto real_import = session_.reload_import(path);
     if (real_import.is_err()) {
-        print_error("Compile error while applying declaration rename: " + real_import.error());
+        print_error("Error while applying declaration rename: " + real_import.error());
         return;
     }
 
@@ -4006,7 +4092,6 @@ void CLIEditor::cmd_apply_import_node_rename(const std::vector<std::string>& arg
             return;
         }
     }
-    session_.env().nodes().unregister_node(old_name);
 
     current_block_.clear();
     print_ok("Applied import node rename");
@@ -4052,6 +4137,12 @@ void CLIEditor::cmd_apply_import_node_pin_rename(const std::vector<std::string>&
         return;
     }
 
+    auto original_declaration = parse_asset_declaration_source_for_cli(*declaration_source, path);
+    if (original_declaration.is_err()) {
+        print_error(original_declaration.error());
+        return;
+    }
+
     auto declaration_records = build_declaration_node_pin_rename_patches(
         *declaration_source, node_type, old_name, new_name);
     if (declaration_records.is_err()) {
@@ -4065,19 +4156,11 @@ void CLIEditor::cmd_apply_import_node_pin_rename(const std::vector<std::string>&
         return;
     }
 
-    Lexer declaration_lexer(patched_declaration.value());
-    Parser declaration_parser(declaration_lexer.tokenize());
-    auto patched_declaration_ast = declaration_parser.parse();
-    if (patched_declaration_ast.is_err()) {
-        print_error("Parse error in patched declaration source");
-        return;
-    }
-
     Environment dry_import_env;
-    Compiler dry_import_compiler(dry_import_env);
-    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+    auto dry_import = load_asset_declaration_source_via_temp(
+        dry_import_env, patched_declaration.value(), "Invalid patched declaration source");
     if (dry_import.is_err()) {
-        print_error("Compile error in patched declaration source: " + dry_import.error());
+        print_error(dry_import.error());
         return;
     }
 
@@ -4106,11 +4189,11 @@ void CLIEditor::cmd_apply_import_node_pin_rename(const std::vector<std::string>&
     }
 
     Environment replay_env = session_.env();
-    replay_env.nodes().unregister_node(node_type);
-    Compiler replay_import_compiler(replay_env);
-    auto replay_import = replay_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(replay_env, original_declaration.value(), path);
+    auto replay_import = load_asset_declaration_source_via_temp(
+        replay_env, patched_declaration.value(), "Invalid replay declaration environment");
     if (replay_import.is_err()) {
-        print_error("Compile error in replay declaration environment: " + replay_import.error());
+        print_error(replay_import.error());
         return;
     }
     auto replay_module = compile_source_for_ranges(patched_module_source, replay_env, session_.file_path());
@@ -4125,11 +4208,10 @@ void CLIEditor::cmd_apply_import_node_pin_rename(const std::vector<std::string>&
         return;
     }
 
-    session_.env().nodes().unregister_node(node_type);
-    Compiler real_import_compiler(session_.env());
-    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(session_.env(), original_declaration.value(), path);
+    auto real_import = session_.reload_import(path);
     if (real_import.is_err()) {
-        print_error("Compile error while applying declaration pin rename: " + real_import.error());
+        print_error("Error while applying declaration pin rename: " + real_import.error());
         return;
     }
 
@@ -4179,6 +4261,12 @@ void CLIEditor::cmd_apply_import_schema_rename(const std::vector<std::string>& a
         return;
     }
 
+    auto original_declaration = parse_asset_declaration_source_for_cli(*declaration_source, path);
+    if (original_declaration.is_err()) {
+        print_error(original_declaration.error());
+        return;
+    }
+
     auto declaration_records = build_declaration_schema_rename_patches(*declaration_source, old_name, new_name);
     if (declaration_records.is_err()) {
         print_error(declaration_records.error());
@@ -4191,19 +4279,11 @@ void CLIEditor::cmd_apply_import_schema_rename(const std::vector<std::string>& a
         return;
     }
 
-    Lexer declaration_lexer(patched_declaration.value());
-    Parser declaration_parser(declaration_lexer.tokenize());
-    auto patched_declaration_ast = declaration_parser.parse();
-    if (patched_declaration_ast.is_err()) {
-        print_error("Parse error in patched declaration source");
-        return;
-    }
-
     Environment dry_import_env;
-    Compiler dry_import_compiler(dry_import_env);
-    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+    auto dry_import = load_asset_declaration_source_via_temp(
+        dry_import_env, patched_declaration.value(), "Invalid patched declaration source");
     if (dry_import.is_err()) {
-        print_error("Compile error in patched declaration source: " + dry_import.error());
+        print_error(dry_import.error());
         return;
     }
 
@@ -4232,11 +4312,11 @@ void CLIEditor::cmd_apply_import_schema_rename(const std::vector<std::string>& a
     }
 
     Environment replay_env = session_.env();
-    replay_env.schemas().unregister_schema(old_name);
-    Compiler replay_import_compiler(replay_env);
-    auto replay_import = replay_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(replay_env, original_declaration.value(), path);
+    auto replay_import = load_asset_declaration_source_via_temp(
+        replay_env, patched_declaration.value(), "Invalid replay declaration environment");
     if (replay_import.is_err()) {
-        print_error("Compile error in replay declaration environment: " + replay_import.error());
+        print_error(replay_import.error());
         return;
     }
     auto replay_module = compile_source_for_ranges(patched_module_source, replay_env, session_.file_path());
@@ -4251,11 +4331,10 @@ void CLIEditor::cmd_apply_import_schema_rename(const std::vector<std::string>& a
         return;
     }
 
-    session_.env().schemas().unregister_schema(old_name);
-    Compiler real_import_compiler(session_.env());
-    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(session_.env(), original_declaration.value(), path);
+    auto real_import = session_.reload_import(path);
     if (real_import.is_err()) {
-        print_error("Compile error while applying declaration schema rename: " + real_import.error());
+        print_error("Error while applying declaration schema rename: " + real_import.error());
         return;
     }
 
@@ -4316,6 +4395,12 @@ void CLIEditor::cmd_apply_import_schema_field_rename(const std::vector<std::stri
         return;
     }
 
+    auto original_declaration = parse_asset_declaration_source_for_cli(*declaration_source, path);
+    if (original_declaration.is_err()) {
+        print_error(original_declaration.error());
+        return;
+    }
+
     auto declaration_records = build_declaration_schema_field_rename_patches(
         *declaration_source, schema_name, old_name, new_name);
     if (declaration_records.is_err()) {
@@ -4329,28 +4414,20 @@ void CLIEditor::cmd_apply_import_schema_field_rename(const std::vector<std::stri
         return;
     }
 
-    Lexer declaration_lexer(patched_declaration.value());
-    Parser declaration_parser(declaration_lexer.tokenize());
-    auto patched_declaration_ast = declaration_parser.parse();
-    if (patched_declaration_ast.is_err()) {
-        print_error("Parse error in patched declaration source");
-        return;
-    }
-
     Environment dry_import_env;
-    Compiler dry_import_compiler(dry_import_env);
-    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+    auto dry_import = load_asset_declaration_source_via_temp(
+        dry_import_env, patched_declaration.value(), "Invalid patched declaration source");
     if (dry_import.is_err()) {
-        print_error("Compile error in patched declaration source: " + dry_import.error());
+        print_error(dry_import.error());
         return;
     }
 
     Environment replay_env = session_.env();
-    replay_env.schemas().unregister_schema(schema_name);
-    Compiler replay_import_compiler(replay_env);
-    auto replay_import = replay_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(replay_env, original_declaration.value(), path);
+    auto replay_import = load_asset_declaration_source_via_temp(
+        replay_env, patched_declaration.value(), "Invalid replay declaration environment");
     if (replay_import.is_err()) {
-        print_error("Compile error in replay declaration environment: " + replay_import.error());
+        print_error(replay_import.error());
         return;
     }
 
@@ -4360,11 +4437,10 @@ void CLIEditor::cmd_apply_import_schema_field_rename(const std::vector<std::stri
         return;
     }
 
-    session_.env().schemas().unregister_schema(schema_name);
-    Compiler real_import_compiler(session_.env());
-    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(session_.env(), original_declaration.value(), path);
+    auto real_import = session_.reload_import(path);
     if (real_import.is_err()) {
-        print_error("Compile error while applying declaration schema field rename: " + real_import.error());
+        print_error("Error while applying declaration schema field rename: " + real_import.error());
         return;
     }
 
@@ -4406,6 +4482,12 @@ void CLIEditor::cmd_apply_import_type_rename(const std::vector<std::string>& arg
         return;
     }
 
+    auto original_declaration = parse_asset_declaration_source_for_cli(*declaration_source, path);
+    if (original_declaration.is_err()) {
+        print_error(original_declaration.error());
+        return;
+    }
+
     auto declaration_records = build_declaration_type_rename_patches(*declaration_source, old_name, new_name);
     if (declaration_records.is_err()) {
         print_error(declaration_records.error());
@@ -4418,19 +4500,11 @@ void CLIEditor::cmd_apply_import_type_rename(const std::vector<std::string>& arg
         return;
     }
 
-    Lexer declaration_lexer(patched_declaration.value());
-    Parser declaration_parser(declaration_lexer.tokenize());
-    auto patched_declaration_ast = declaration_parser.parse();
-    if (patched_declaration_ast.is_err()) {
-        print_error("Parse error in patched declaration source");
-        return;
-    }
-
     Environment dry_import_env;
-    Compiler dry_import_compiler(dry_import_env);
-    auto dry_import = dry_import_compiler.compile(*patched_declaration_ast.value(), path);
+    auto dry_import = load_asset_declaration_source_via_temp(
+        dry_import_env, patched_declaration.value(), "Invalid patched declaration source");
     if (dry_import.is_err()) {
-        print_error("Compile error in patched declaration source: " + dry_import.error());
+        print_error(dry_import.error());
         return;
     }
 
@@ -4459,12 +4533,11 @@ void CLIEditor::cmd_apply_import_type_rename(const std::vector<std::string>& arg
     }
 
     Environment replay_env = session_.env();
-    replay_env.types().unregister_type(old_name);
-    unregister_declared_native_nodes(replay_env, *patched_declaration_ast.value());
-    Compiler replay_import_compiler(replay_env);
-    auto replay_import = replay_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(replay_env, original_declaration.value(), path);
+    auto replay_import = load_asset_declaration_source_via_temp(
+        replay_env, patched_declaration.value(), "Invalid replay declaration environment");
     if (replay_import.is_err()) {
-        print_error("Compile error in replay declaration environment: " + replay_import.error());
+        print_error(replay_import.error());
         return;
     }
     auto replay_module = compile_source_for_ranges(patched_module_source, replay_env, session_.file_path());
@@ -4479,12 +4552,10 @@ void CLIEditor::cmd_apply_import_type_rename(const std::vector<std::string>& arg
         return;
     }
 
-    session_.env().types().unregister_type(old_name);
-    unregister_declared_native_nodes(session_.env(), *patched_declaration_ast.value());
-    Compiler real_import_compiler(session_.env());
-    auto real_import = real_import_compiler.compile(*patched_declaration_ast.value(), path);
+    unregister_asset_declarations_from_env(session_.env(), original_declaration.value(), path);
+    auto real_import = session_.reload_import(path);
     if (real_import.is_err()) {
-        print_error("Compile error while applying declaration type rename: " + real_import.error());
+        print_error("Error while applying declaration type rename: " + real_import.error());
         return;
     }
 

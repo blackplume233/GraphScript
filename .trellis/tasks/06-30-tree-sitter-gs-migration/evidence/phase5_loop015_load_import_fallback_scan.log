@@ -1,0 +1,2 @@
+load_import fallback removed; remaining fixed-string hit is load_source legacy compatibility:
+3610:    Compiler compiler(env_);

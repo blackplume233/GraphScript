@@ -3198,37 +3198,6 @@ static asset::ParseResult parse_asset_result(const std::string& source, const st
     return parser.parse();
 }
 
-static bool looks_like_asset_declaration_source(const std::string& source) {
-    return source.find("export declare") != std::string::npos ||
-           source.find("declare module") != std::string::npos ||
-           source.find("declare enum") != std::string::npos ||
-           source.find("declare kind") != std::string::npos ||
-           source.find("declare block") != std::string::npos ||
-           source.find("declare command") != std::string::npos ||
-           source.find("declare lint") != std::string::npos ||
-           source.find("declare object") != std::string::npos ||
-           source.find("declare schema") != std::string::npos;
-}
-
-static bool line_starts_with_token(const std::string& source, const std::string& token) {
-    size_t line_start = 0;
-    while (line_start <= source.size()) {
-        size_t first = line_start;
-        while (first < source.size() && (source[first] == ' ' || source[first] == '\t' || source[first] == '\r')) {
-            ++first;
-        }
-        if (source.compare(first, token.size(), token) == 0) return true;
-        const size_t next = source.find('\n', line_start);
-        if (next == std::string::npos) break;
-        line_start = next + 1;
-    }
-    return false;
-}
-
-static bool looks_like_asset_graph_source(const std::string& source) {
-    return line_starts_with_token(source, "graph ");
-}
-
 static std::string asset_parse_error_message(const std::string& path, const std::vector<Diagnostic>& diagnostics) {
     std::string message = "Asset parse error in: " + path;
     if (!diagnostics.empty()) message += ": " + diagnostics.front().message;
@@ -3680,8 +3649,16 @@ Result<void, std::string> EditSession::load_file(const std::string& path) {
 }
 
 Result<void, std::string> EditSession::load_import(const std::string& path) {
+    return load_import_impl(path, false);
+}
+
+Result<void, std::string> EditSession::reload_import(const std::string& path) {
+    return load_import_impl(path, true);
+}
+
+Result<void, std::string> EditSession::load_import_impl(const std::string& path, bool force_reload) {
     auto key = import_key(path);
-    if (contains_key(loaded_import_keys_, key)) {
+    if (!force_reload && contains_key(loaded_import_keys_, key)) {
         add_import(path, true);
         return Result<void, std::string>::ok();
     }
@@ -3690,30 +3667,20 @@ Result<void, std::string> EditSession::load_import(const std::string& path) {
     if (src.empty()) return Result<void, std::string>::err("Cannot read file: " + path);
 
     auto asset_parsed = parse_asset_result(src, path);
-    if (!asset_parsed.diagnostics.empty() &&
-        (looks_like_asset_declaration_source(src) || looks_like_asset_graph_source(src))) {
+    if (!asset_parsed.diagnostics.empty()) {
         return Result<void, std::string>::err(asset_parse_error_message(path, asset_parsed.diagnostics));
     }
-    if (asset_parsed.diagnostics.empty() && has_asset_declaration_import_items(asset_parsed.module)) {
+    if (has_asset_declaration_import_items(asset_parsed.module)) {
         auto linted = lint_asset_module(asset_parsed.module);
         if (linted.is_err()) return linted;
         auto registered = register_asset_declarations(env_, asset_parsed.module, path);
         if (registered.is_err()) return registered;
-        loaded_import_keys_.push_back(key);
+        if (!contains_key(loaded_import_keys_, key)) loaded_import_keys_.push_back(key);
         add_import(path, true);
         return Result<void, std::string>::ok();
     }
 
-    auto ast = parse_text(src);
-    if (!ast) return Result<void, std::string>::err("Parse error in: " + path);
-
-    Compiler compiler(env_);
-    auto result = compiler.compile(*ast, path);
-    if (result.is_err()) return Result<void, std::string>::err("Compile error: " + result.error());
-
-    loaded_import_keys_.push_back(key);
-    add_import(path, true);
-    return Result<void, std::string>::ok();
+    return Result<void, std::string>::err("Import file has no asset declarations: " + path);
 }
 
 Result<void, std::string> EditSession::save_file(const std::string& path) {

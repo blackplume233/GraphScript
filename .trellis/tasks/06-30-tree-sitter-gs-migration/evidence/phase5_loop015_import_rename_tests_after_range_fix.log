@@ -1,0 +1,57 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = CLIEditor.ApplyImport*Rename*:CLIEditor.ApplySourceCommandsSupportEnvironmentGuard:CLIEditor.NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceApply
+[==========] Running 7 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 7 tests from CLIEditor
+[ RUN      ] CLIEditor.ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] New declaration node identifier is invalid
+  Applied import node rename
+[       OK ] CLIEditor.ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReferences (5 ms)
+[ RUN      ] CLIEditor.ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Declaration pin 'result' already exists on node 'OldNode'
+  Applied import node pin rename
+  Applied import node pin rename
+  Applied import node pin rename
+  Applied import node pin rename
+[       OK ] CLIEditor.ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleReferences (12 ms)
+[ RUN      ] CLIEditor.ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseTypes
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Schema 'ExistingSchema' already exists
+  [ERROR] New declaration schema identifier is invalid
+  Applied import schema rename
+[       OK ] CLIEditor.ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseTypes (4 ms)
+[ RUN      ] CLIEditor.ApplyImportSchemaFieldRenamePatchesDeclarationFieldName
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Declaration schema field 'existing_field' already exists on schema 'PreviewSchema'
+  [ERROR] Declaration schema 'MissingSchema' is not loaded
+  [ERROR] Declaration schema field 'missing' not found on schema 'PreviewSchema'
+  [ERROR] New declaration schema field identifier is invalid
+  Applied import schema field rename
+[       OK ] CLIEditor.ApplyImportSchemaFieldRenamePatchesDeclarationFieldName (4 ms)
+[ RUN      ] CLIEditor.ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Type 'ExistingType' already exists
+  [ERROR] New declaration type identifier is invalid
+  Applied import type rename
+[       OK ] CLIEditor.ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReferences (5 ms)
+[ RUN      ] CLIEditor.ApplySourceCommandsSupportEnvironmentGuard
+  Applied source snapshot
+  Applied source patch
+  [ERROR] Source environment hash mismatch
+[       OK ] CLIEditor.ApplySourceCommandsSupportEnvironmentGuard (3 ms)
+[ RUN      ] CLIEditor.NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceApply
+  Loaded: C:\Users\black\AppData\Local\Temp\graphscript_cli_nested_replay\types.d.gs
+  Loaded: C:\Users\black\AppData\Local\Temp\graphscript_cli_nested_replay\nodes.d.gs
+  Applied source snapshot
+[       OK ] CLIEditor.NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceApply (4 ms)
+[----------] 7 tests from CLIEditor (40 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 1 test suite ran. (40 ms total)
+[  PASSED  ] 7 tests.

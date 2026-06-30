@@ -1,0 +1,47 @@
+Result<void, std::string> EditSession::load_import(const std::string& path) {
+    return load_import_impl(path, false);
+}
+
+Result<void, std::string> EditSession::reload_import(const std::string& path) {
+    return load_import_impl(path, true);
+}
+
+Result<void, std::string> EditSession::load_import_impl(const std::string& path, bool force_reload) {
+    auto key = import_key(path);
+    if (!force_reload && contains_key(loaded_import_keys_, key)) {
+        add_import(path, true);
+        return Result<void, std::string>::ok();
+    }
+
+    auto src = read_file_contents(path);
+    if (src.empty()) return Result<void, std::string>::err("Cannot read file: " + path);
+
+    auto asset_parsed = parse_asset_result(src, path);
+    if (!asset_parsed.diagnostics.empty()) {
+        return Result<void, std::string>::err(asset_parse_error_message(path, asset_parsed.diagnostics));
+    }
+    if (has_asset_declaration_import_items(asset_parsed.module)) {
+        auto linted = lint_asset_module(asset_parsed.module);
+        if (linted.is_err()) return linted;
+        auto registered = register_asset_declarations(env_, asset_parsed.module, path);
+        if (registered.is_err()) return registered;
+        if (!contains_key(loaded_import_keys_, key)) loaded_import_keys_.push_back(key);
+        add_import(path, true);
+        return Result<void, std::string>::ok();
+    }
+
+    return Result<void, std::string>::err("Import file has no asset declarations: " + path);
+}
+
+Result<void, std::string> EditSession::save_file(const std::string& path) {
+    std::string out_path = path.empty() ? file_path_ : path;
+    if (out_path.empty()) return Result<void, std::string>::err("No file path specified");
+
+    std::ofstream f(out_path);
+    if (!f.is_open()) return Result<void, std::string>::err("Cannot write to: " + out_path);
+
+    f << emit();
+    file_path_ = out_path;
+    dirty_ = false;
+    return Result<void, std::string>::ok();
+}

@@ -6,9 +6,7 @@
 #include <functional>
 
 #include "graphscript/core/result.h"
-#include "graphscript/core/graph.h"
-#include "graphscript/compile/compiler.h"
-#include "graphscript/emit/emitter.h"
+#include "graphscript/core/module.h"
 #include "graphscript/edit/edit_graph.h"
 #include "graphscript/registry/environment.h"
 
@@ -23,6 +21,7 @@ struct EditSnapshot {
     Module module;
     int active_index = -1;
     std::string description;
+    std::optional<std::string> asset_source;
 };
 
 /// Interactive editing session operating on a Module.
@@ -405,6 +404,9 @@ public:
     /// Loads a .d.gs declaration file into the environment.
     Result<void, std::string> load_import(const std::string& path);
 
+    /// Reloads a .d.gs declaration file, bypassing the loaded-import cache.
+    Result<void, std::string> reload_import(const std::string& path);
+
     /// Saves the module to a .gs file.
     Result<void, std::string> save_file(const std::string& path);
 
@@ -443,6 +445,8 @@ private:
     /// Marks module import declarations that correspond to loaded declaration files.
     void mark_loaded_imports();
 
+    Result<void, std::string> load_import_impl(const std::string& path, bool force_reload);
+
     /// Finds a logic block (event or function) by name in the active graph.
     LogicBlock* find_block(const std::string& name);
 
@@ -454,6 +458,7 @@ private:
     int          active_ = -1;
     bool         dirty_  = false;
     std::string  file_path_;
+    std::optional<std::string> asset_source_;
 
     std::vector<EditSnapshot> undo_stack_;
     std::vector<EditSnapshot> redo_stack_;

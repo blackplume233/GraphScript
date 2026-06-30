@@ -1,0 +1,336 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = CLIEditor.ApplyImport*Rename*:CLIEditor.ApplySourceCommandsSupportEnvironmentGuard:CLIEditor.NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceApply
+[==========] Running 7 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 7 tests from CLIEditor
+[ RUN      ] CLIEditor.ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] New declaration node identifier is invalid
+  [ERROR] Source range for declaration node definition does not match 'OldNode'
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1718): error: Value of: editor.last_command_succeeded()
+  Actual: false
+Expected: true
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1720): error: Expected: (renamed.find("NewNode first{}")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1721): error: Expected: (renamed.find("NewNode second{}")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1723): error: Expected equality of these values:
+  renamed.find("OldNode first{}")
+    Which is: 64
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1724): error: Expected equality of these values:
+  renamed.find("OldNode second{}")
+    Which is: 85
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1729): error: Expected: (contents.str().find("object NewNode")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1730): error: Expected equality of these values:
+  contents.str().find("object OldNode")
+    Which is: 44
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1731): error: Expected equality of these values:
+  env.nodes().find("OldNode")
+    Which is: 000001D1E8B2CA80
+  nullptr
+    Which is: (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1732): error: Expected: (env.nodes().find("NewNode")) != (nullptr), actual: NULL vs (nullptr)
+
+[  FAILED  ] CLIEditor.ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReferences (3 ms)
+[ RUN      ] CLIEditor.ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Declaration pin 'result' already exists on node 'OldNode'
+  [ERROR] Source range for declaration pin definition does not match 'enter'
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1959): error: Value of: editor.last_command_succeeded()
+  Actual: false
+Expected: true
+
+  [ERROR] Source range for declaration pin definition does not match 'exit'
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1961): error: Value of: editor.last_command_succeeded()
+  Actual: false
+Expected: true
+
+  [ERROR] Source range for declaration pin definition does not match 'message'
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1963): error: Value of: editor.last_command_succeeded()
+  Actual: false
+Expected: true
+
+  [ERROR] Source range for declaration pin definition does not match 'result'
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1965): error: Value of: editor.last_command_succeeded()
+  Actual: false
+Expected: true
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1968): error: Expected: (renamed.find("context.start(worker.begin)")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1969): error: Expected: (renamed.find("worker.done(context.done)")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1970): error: Expected: (renamed.find("worker.body = text")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1971): error: Expected: (renamed.find("sink.value = worker.output")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1973): error: Expected equality of these values:
+  renamed.find("worker.enter")
+    Which is: 185
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1974): error: Expected equality of these values:
+  renamed.find("worker.exit")
+    Which is: 208
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1975): error: Expected equality of these values:
+  renamed.find("worker.message")
+    Which is: 243
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1976): error: Expected equality of these values:
+  renamed.find("worker.result")
+    Which is: 287
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1981): error: Expected: (contents.str().find("begin: Exec;")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1982): error: Expected: (contents.str().find("done: Exec;")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1983): error: Expected: (contents.str().find("body: FString;")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1984): error: Expected: (contents.str().find("output: FString;")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1985): error: Expected equality of these values:
+  contents.str().find("enter: Exec;")
+    Which is: 138
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1986): error: Expected equality of these values:
+  contents.str().find("exit: Exec;")
+    Which is: 203
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1987): error: Expected equality of these values:
+  contents.str().find("message: FString")
+    Which is: 235
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1988): error: Expected equality of these values:
+  contents.str().find("result: FString")
+    Which is: 274
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1992): error: Expected equality of these values:
+  node->find_pin("enter")
+    Which is: 000001D1E8B386E0
+  nullptr
+    Which is: (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1993): error: Expected equality of these values:
+  node->find_pin("exit")
+    Which is: 000001D1E8B38790
+  nullptr
+    Which is: (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1994): error: Expected equality of these values:
+  node->find_pin("message")
+    Which is: 000001D1E8B38840
+  nullptr
+    Which is: (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1995): error: Expected equality of these values:
+  node->find_pin("result")
+    Which is: 000001D1E8B388F0
+  nullptr
+    Which is: (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1996): error: Expected: (node->find_pin("begin")) != (nullptr), actual: NULL vs (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1997): error: Expected: (node->find_pin("done")) != (nullptr), actual: NULL vs (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1998): error: Expected: (node->find_pin("body")) != (nullptr), actual: NULL vs (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(1999): error: Expected: (node->find_pin("output")) != (nullptr), actual: NULL vs (nullptr)
+
+[  FAILED  ] CLIEditor.ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleReferences (3 ms)
+[ RUN      ] CLIEditor.ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseTypes
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Schema 'ExistingSchema' already exists
+  [ERROR] New declaration schema identifier is invalid
+  [ERROR] Source range for declaration schema definition does not match 'OldSchema'
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2219): error: Value of: editor.last_command_succeeded()
+  Actual: false
+Expected: true
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2221): error: Expected: (renamed.find("Graph UsesSchema : NewSchema")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2223): error: Expected equality of these values:
+  renamed.find("Graph UsesSchema : OldSchema")
+    Which is: 36
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2228): error: Expected: (contents.str().find("schema NewSchema")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2229): error: Expected equality of these values:
+  contents.str().find("schema OldSchema")
+    Which is: 15
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2230): error: Expected equality of these values:
+  env.schemas().find("OldSchema")
+    Which is: 000001D1E8B24FA0
+  nullptr
+    Which is: (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2231): error: Expected: (env.schemas().find("NewSchema")) != (nullptr), actual: NULL vs (nullptr)
+
+[  FAILED  ] CLIEditor.ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseTypes (2 ms)
+[ RUN      ] CLIEditor.ApplyImportSchemaFieldRenamePatchesDeclarationFieldName
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Declaration schema field 'existing_field' already exists on schema 'PreviewSchema'
+  [ERROR] Declaration schema 'MissingSchema' is not loaded
+  [ERROR] Declaration schema field 'missing' not found on schema 'PreviewSchema'
+  [ERROR] New declaration schema field identifier is invalid
+  [ERROR] Source range for declaration schema field definition does not match 'default_payload'
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2280): error: Value of: editor.last_command_succeeded()
+  Actual: false
+Expected: true
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2285): error: Expected: (contents.str().find("renamed_payload: PayloadType(\"seed\");")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2287): error: Expected equality of these values:
+  contents.str().find("default_payload: PayloadType(\"seed\");")
+    Which is: 132
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2293): error: Expected equality of these values:
+  schema->fields[1].name
+    Which is: "default_payload"
+  "renamed_payload"
+
+[  FAILED  ] CLIEditor.ApplyImportSchemaFieldRenamePatchesDeclarationFieldName (2 ms)
+[ RUN      ] CLIEditor.ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Type 'ExistingType' already exists
+  [ERROR] New declaration type identifier is invalid
+  [ERROR] Source range for declaration type definition does not match 'OldType'
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2558): error: Value of: editor.last_command_succeeded()
+  Actual: false
+Expected: true
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2560): error: Expected: (renamed.find("let cached = NewType(\"literal OldType\");")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2561): error: Expected: (renamed.find("in input : NewType")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2562): error: Expected: (renamed.find("out output : NewType")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2564): error: Expected equality of these values:
+  renamed.find("let cached = OldType(\"literal OldType\");")
+    Which is: 0
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2565): error: Expected equality of these values:
+  renamed.find("in input : OldType")
+    Which is: 98
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2566): error: Expected equality of these values:
+  renamed.find("out output : OldType")
+    Which is: 122
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2571): error: Expected: (contents.str().find("Bind(Type = NewType(\"decl type annotation OldType\"))")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2572): error: Expected: (contents.str().find("Bind(Type = NewType(\"node annotation OldType\"))")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2573): error: Expected: (contents.str().find("Bind(Type = NewType(\"pin annotation OldType\"))")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2574): error: Expected: (contents.str().find("Bind(Type = NewType(\"schema annotation OldType\"))")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2575): error: Expected: (contents.str().find("Bind(Type = NewType(\"schema field annotation OldType\"))")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2576): error: Expected: (contents.str().find("type NewType: constructible;")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2577): error: Expected: (contents.str().find("input: NewType;")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2578): error: Expected: (contents.str().find("output: NewType;")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2579): error: Expected: (contents.str().find("default_payload: NewType(\"schema field OldType\");")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2580): error: Expected equality of these values:
+  contents.str().find("Bind(Type = OldType")
+    Which is: 16
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2581): error: Expected equality of these values:
+  contents.str().find("type OldType")
+    Which is: 69
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2582): error: Expected equality of these values:
+  contents.str().find(": OldType")
+    Which is: 294
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2583): error: Expected equality of these values:
+  contents.str().find("default_payload: OldType")
+    Which is: 516
+  std::string::npos
+    Which is: 18446744073709551615
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2585): error: Expected equality of these values:
+  env.types().find("OldType")
+    Which is: 000001D1E8B375A0
+  nullptr
+    Which is: (nullptr)
+
+G:\Workspace\PluginDevelop\Plugins\GraphScript\tests\test_cli_editor.cpp(2587): error: Expected: (new_type) != (nullptr), actual: NULL vs (nullptr)
+
+[  FAILED  ] CLIEditor.ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReferences (2 ms)
+[ RUN      ] CLIEditor.ApplySourceCommandsSupportEnvironmentGuard
+  Applied source snapshot
+  Applied source patch
+  [ERROR] Source environment hash mismatch
+[       OK ] CLIEditor.ApplySourceCommandsSupportEnvironmentGuard (3 ms)
+[ RUN      ] CLIEditor.NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceApply
+  Loaded: C:\Users\black\AppData\Local\Temp\graphscript_cli_nested_replay\types.d.gs
+  Loaded: C:\Users\black\AppData\Local\Temp\graphscript_cli_nested_replay\nodes.d.gs
+  Applied source snapshot
+[       OK ] CLIEditor.NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceApply (4 ms)
+[----------] 7 tests from CLIEditor (20 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 1 test suite ran. (21 ms total)
+[  PASSED  ] 2 tests.
+[  FAILED  ] 5 tests, listed below:
+[  FAILED  ] CLIEditor.ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReferences
+[  FAILED  ] CLIEditor.ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleReferences
+[  FAILED  ] CLIEditor.ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseTypes
+[  FAILED  ] CLIEditor.ApplyImportSchemaFieldRenamePatchesDeclarationFieldName
+[  FAILED  ] CLIEditor.ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReferences
+
+ 5 FAILED TESTS

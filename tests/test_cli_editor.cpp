@@ -1556,12 +1556,14 @@ TEST(CLIEditor, ApplySourceNodeTypeRenameMigratesDeclaredNodeReferences) {
     auto dir = make_cli_temp_dir("node_type_rename");
     auto declarations = dir / "declared_nodes.d.gs";
     write_cli_text(declarations,
-                   "declare type FString;\n"
-                   "declare Node OldNode {\n"
-                   "    data in message : FString;\n"
+                   "export declare type FString;\n"
+                   "export declare object OldNode {\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
                    "}\n"
-                   "declare Node NewNode {\n"
-                   "    data in message : FString;\n"
+                   "export declare object NewNode {\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
                    "}\n");
 
     Environment env;
@@ -1614,10 +1616,11 @@ TEST(CLIEditor, ApplySourceTypeRenameMigratesActiveModuleTypeReferences) {
     auto dir = make_cli_temp_dir("source_type_rename");
     auto declarations = dir / "declared_types.d.gs";
     write_cli_text(declarations,
-                   "declare type OldType : constructible;\n"
-                   "declare type NewType : constructible;\n"
-                   "declare Node Holder {\n"
-                   "    data in value : OldType;\n"
+                   "export declare type OldType: constructible;\n"
+                   "export declare type NewType: constructible;\n"
+                   "export declare object Holder {\n"
+                   "    @flow.input\n"
+                   "    value: OldType;\n"
                    "}\n");
 
     Environment env;
@@ -1679,9 +1682,10 @@ TEST(CLIEditor, ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReference
     auto dir = make_cli_temp_dir("import_node_rename");
     auto declarations = dir / "declared_nodes.d.gs";
     write_cli_text(declarations,
-                   "declare type FString;\n"
-                   "declare Node OldNode {\n"
-                   "    data in message : FString;\n"
+                   "export declare type FString;\n"
+                   "export declare object OldNode {\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
                    "}\n");
 
     Environment env;
@@ -1706,7 +1710,7 @@ TEST(CLIEditor, ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReference
         std::ifstream in(declarations, std::ios::binary);
         std::stringstream contents;
         contents << in.rdbuf();
-        EXPECT_NE(contents.str().find("declare Node OldNode"), std::string::npos);
+        EXPECT_NE(contents.str().find("object OldNode"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_import_node_rename " + quoted_path(declarations) + " OldNode Graph"));
@@ -1725,8 +1729,8 @@ TEST(CLIEditor, ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReference
     std::ifstream in(declarations, std::ios::binary);
     std::stringstream contents;
     contents << in.rdbuf();
-    EXPECT_NE(contents.str().find("declare Node NewNode"), std::string::npos);
-    EXPECT_EQ(contents.str().find("declare Node OldNode"), std::string::npos);
+    EXPECT_NE(contents.str().find("object NewNode"), std::string::npos);
+    EXPECT_EQ(contents.str().find("object OldNode"), std::string::npos);
     EXPECT_EQ(env.nodes().find("OldNode"), nullptr);
     EXPECT_NE(env.nodes().find("NewNode"), nullptr);
 }
@@ -1738,12 +1742,14 @@ TEST(CLIEditor, ApplyFilesNodeTypeRenameMigratesDiskGraphFilesAtomically) {
     auto second_file = dir / "second.gs";
     auto untouched_file = dir / "untouched.gs";
     write_cli_text(declarations,
-                   "declare type FString;\n"
-                   "declare Node OldNode {\n"
-                   "    data in message : FString;\n"
+                   "export declare type FString;\n"
+                   "export declare object OldNode {\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
                    "}\n"
-                   "declare Node NewNode {\n"
-                   "    data in message : FString;\n"
+                   "export declare object NewNode {\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
                    "}\n");
     write_cli_text(first_file,
                    "[Comment(\"OldNode stays string\")]\n"
@@ -1819,19 +1825,29 @@ TEST(CLIEditor, ApplySourceNodePinRenameMigratesActiveModulePinReferences) {
     auto dir = make_cli_temp_dir("source_node_pin_rename");
     auto declarations = dir / "declared_nodes.d.gs";
     write_cli_text(declarations,
-                   "declare type FString;\n"
-                   "declare Node Worker {\n"
-                   "    exec in enter;\n"
-                   "    exec in begin;\n"
-                   "    exec out exit;\n"
-                   "    exec out done;\n"
-                   "    data in message : FString;\n"
-                   "    data in body : FString;\n"
-                   "    data out result : FString;\n"
-                   "    data out output : FString;\n"
+                   "export declare type Exec;\n"
+                   "export declare type FString;\n"
+                   "export declare object Worker {\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"in\")\n"
+                   "    enter: Exec;\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"in\")\n"
+                   "    begin: Exec;\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"out\")\n"
+                   "    exit: Exec;\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"out\")\n"
+                   "    done: Exec;\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
+                   "    @flow.input\n"
+                   "    body: FString;\n"
+                   "    @flow.output\n"
+                   "    result: FString;\n"
+                   "    @flow.output\n"
+                   "    output: FString;\n"
                    "}\n"
-                   "declare Node SinkNode {\n"
-                   "    data in value : FString;\n"
+                   "export declare object SinkNode {\n"
+                   "    @flow.input\n"
+                   "    value: FString;\n"
                    "}\n");
 
     Environment env;
@@ -1907,15 +1923,21 @@ TEST(CLIEditor, ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleRefere
     auto dir = make_cli_temp_dir("import_node_pin_rename");
     auto declarations = dir / "declared_nodes.d.gs";
     write_cli_text(declarations,
-                   "declare type FString;\n"
-                   "declare Node OldNode {\n"
-                   "    exec in enter;\n"
-                   "    exec out exit;\n"
-                   "    data in message : FString;\n"
-                   "    data out result : FString;\n"
+                   "export declare type Exec;\n"
+                   "export declare type FString;\n"
+                   "export declare object OldNode {\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"in\")\n"
+                   "    enter: Exec;\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"out\")\n"
+                   "    exit: Exec;\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
+                   "    @flow.output\n"
+                   "    result: FString;\n"
                    "}\n"
-                   "declare Node SinkNode {\n"
-                   "    data in value : FString;\n"
+                   "export declare object SinkNode {\n"
+                   "    @flow.input\n"
+                   "    value: FString;\n"
                    "}\n");
 
     Environment env;
@@ -1971,14 +1993,14 @@ TEST(CLIEditor, ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleRefere
     std::ifstream in(declarations, std::ios::binary);
     std::stringstream contents;
     contents << in.rdbuf();
-    EXPECT_NE(contents.str().find("exec in begin;"), std::string::npos);
-    EXPECT_NE(contents.str().find("exec out done;"), std::string::npos);
-    EXPECT_NE(contents.str().find("data in body : FString;"), std::string::npos);
-    EXPECT_NE(contents.str().find("data out output : FString;"), std::string::npos);
-    EXPECT_EQ(contents.str().find("exec in enter;"), std::string::npos);
-    EXPECT_EQ(contents.str().find("exec out exit;"), std::string::npos);
-    EXPECT_EQ(contents.str().find("data in message"), std::string::npos);
-    EXPECT_EQ(contents.str().find("data out result"), std::string::npos);
+    EXPECT_NE(contents.str().find("begin: Exec;"), std::string::npos);
+    EXPECT_NE(contents.str().find("done: Exec;"), std::string::npos);
+    EXPECT_NE(contents.str().find("body: FString;"), std::string::npos);
+    EXPECT_NE(contents.str().find("output: FString;"), std::string::npos);
+    EXPECT_EQ(contents.str().find("enter: Exec;"), std::string::npos);
+    EXPECT_EQ(contents.str().find("exit: Exec;"), std::string::npos);
+    EXPECT_EQ(contents.str().find("message: FString"), std::string::npos);
+    EXPECT_EQ(contents.str().find("result: FString"), std::string::npos);
 
     const auto* node = env.nodes().find("OldNode");
     ASSERT_NE(node, nullptr);
@@ -1999,19 +2021,29 @@ TEST(CLIEditor, ApplyFilesNodePinRenameMigratesDiskGraphPinReferencesAtomically)
     auto second_file = dir / "second.gs";
     auto untouched_file = dir / "untouched.gs";
     write_cli_text(declarations,
-                   "declare type FString;\n"
-                   "declare Node Worker {\n"
-                   "    exec in enter;\n"
-                   "    exec in begin;\n"
-                   "    exec out exit;\n"
-                   "    exec out done;\n"
-                   "    data in message : FString;\n"
-                   "    data in body : FString;\n"
-                   "    data out result : FString;\n"
-                   "    data out output : FString;\n"
+                   "export declare type Exec;\n"
+                   "export declare type FString;\n"
+                   "export declare object Worker {\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"in\")\n"
+                   "    enter: Exec;\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"in\")\n"
+                   "    begin: Exec;\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"out\")\n"
+                   "    exit: Exec;\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"out\")\n"
+                   "    done: Exec;\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
+                   "    @flow.input\n"
+                   "    body: FString;\n"
+                   "    @flow.output\n"
+                   "    result: FString;\n"
+                   "    @flow.output\n"
+                   "    output: FString;\n"
                    "}\n"
-                   "declare Node SinkNode {\n"
-                   "    data in value : FString;\n"
+                   "export declare object SinkNode {\n"
+                   "    @flow.input\n"
+                   "    value: FString;\n"
                    "}\n");
     write_cli_text(first_file,
                    "[Comment(\"enter message result stay string\")]\n"
@@ -2115,10 +2147,10 @@ TEST(CLIEditor, ApplySourceSchemaRenameMigratesActiveModuleGraphBaseTypes) {
     auto dir = make_cli_temp_dir("source_schema_rename");
     auto declarations = dir / "declared_schemas.d.gs";
     write_cli_text(declarations,
-                   "declare Schema OldSchema {\n"
+                   "export declare schema OldSchema: FlowGraphSchema {\n"
                    "    strict_type_match: true;\n"
                    "}\n"
-                   "declare Schema NewSchema {\n"
+                   "export declare schema NewSchema: FlowGraphSchema {\n"
                    "    strict_type_match: false;\n"
                    "}\n");
 
@@ -2168,10 +2200,10 @@ TEST(CLIEditor, ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseType
     auto dir = make_cli_temp_dir("import_schema_rename");
     auto declarations = dir / "declared_schemas.d.gs";
     write_cli_text(declarations,
-                   "declare Schema OldSchema {\n"
+                   "export declare schema OldSchema: FlowGraphSchema {\n"
                    "    strict_type_match: true;\n"
                    "}\n"
-                   "declare Schema ExistingSchema {\n"
+                   "export declare schema ExistingSchema: FlowGraphSchema {\n"
                    "    strict_type_match: false;\n"
                    "}\n");
 
@@ -2197,7 +2229,7 @@ TEST(CLIEditor, ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseType
         std::ifstream in(declarations, std::ios::binary);
         std::stringstream contents;
         contents << in.rdbuf();
-        EXPECT_NE(contents.str().find("declare Schema OldSchema"), std::string::npos);
+        EXPECT_NE(contents.str().find("schema OldSchema"), std::string::npos);
     }
 
     EXPECT_TRUE(editor.execute("apply_import_schema_rename " + quoted_path(declarations) + " OldSchema ExistingSchema"));
@@ -2218,8 +2250,8 @@ TEST(CLIEditor, ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseType
     std::ifstream in(declarations, std::ios::binary);
     std::stringstream contents;
     contents << in.rdbuf();
-    EXPECT_NE(contents.str().find("declare Schema NewSchema"), std::string::npos);
-    EXPECT_EQ(contents.str().find("declare Schema OldSchema"), std::string::npos);
+    EXPECT_NE(contents.str().find("schema NewSchema"), std::string::npos);
+    EXPECT_EQ(contents.str().find("schema OldSchema"), std::string::npos);
     EXPECT_EQ(env.schemas().find("OldSchema"), nullptr);
     EXPECT_NE(env.schemas().find("NewSchema"), nullptr);
     EXPECT_NE(env.schemas().find("ExistingSchema"), nullptr);
@@ -2229,8 +2261,8 @@ TEST(CLIEditor, ApplyImportSchemaFieldRenamePatchesDeclarationFieldName) {
     auto dir = make_cli_temp_dir("import_schema_field_rename");
     auto declarations = dir / "declared_schema_fields.d.gs";
     write_cli_text(declarations,
-                   "declare type PayloadType : constructible;\n"
-                   "declare Schema PreviewSchema {\n"
+                   "export declare type PayloadType: constructible;\n"
+                   "export declare schema PreviewSchema: FlowGraphSchema {\n"
                    "    max_exec_fan_out: 1;\n"
                    "    default_payload: PayloadType(\"seed\");\n"
                    "    existing_field: true;\n"
@@ -2295,10 +2327,10 @@ TEST(CLIEditor, ApplyFilesSchemaRenameMigratesDiskGraphBaseTypesAtomically) {
     auto second_file = dir / "second.gs";
     auto untouched_file = dir / "untouched.gs";
     write_cli_text(declarations,
-                   "declare Schema OldSchema {\n"
+                   "export declare schema OldSchema: FlowGraphSchema {\n"
                    "    strict_type_match: true;\n"
                    "}\n"
-                   "declare Schema NewSchema {\n"
+                   "export declare schema NewSchema: FlowGraphSchema {\n"
                    "    strict_type_match: false;\n"
                    "}\n");
     write_cli_text(first_file,
@@ -2377,10 +2409,11 @@ TEST(CLIEditor, ApplyFilesTypeRenameMigratesDiskGraphTypeReferencesAtomically) {
     auto second_file = dir / "second.gs";
     auto untouched_file = dir / "untouched.gs";
     write_cli_text(declarations,
-                   "declare type OldType : constructible;\n"
-                   "declare type NewType : constructible;\n"
-                   "declare Node Holder {\n"
-                   "    data in value : OldType;\n"
+                   "export declare type OldType: constructible;\n"
+                   "export declare type NewType: constructible;\n"
+                   "export declare object Holder {\n"
+                   "    @flow.input\n"
+                   "    value: OldType;\n"
                    "}\n");
     write_cli_text(first_file,
                    "[Bind(Type = OldType(\"let annotation OldType\"))]\n"
@@ -2495,18 +2528,17 @@ TEST(CLIEditor, ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReference
     auto dir = make_cli_temp_dir("import_type_rename");
     auto declarations = dir / "declared_types.d.gs";
     write_cli_text(declarations,
-                   "[Bind(Type = OldType(\"decl type annotation OldType\"))]\n"
-                   "declare type OldType : constructible;\n"
-                   "declare type ExistingType;\n"
-                   "[Bind(Type = OldType(\"node annotation OldType\"))]\n"
-                   "declare Node Passthrough {\n"
-                   "    [Bind(Type = OldType(\"pin annotation OldType\"))]\n"
-                   "    data in input : OldType;\n"
-                   "    data out output : OldType;\n"
+                   "export declare @Bind(Type = OldType(\"decl type annotation OldType\")) type OldType: constructible;\n"
+                   "export declare type ExistingType;\n"
+                   "export declare @Bind(Type = OldType(\"node annotation OldType\")) object Passthrough {\n"
+                   "    @Bind(Type = OldType(\"pin annotation OldType\"))\n"
+                   "    @flow.input\n"
+                   "    input: OldType;\n"
+                   "    @flow.output\n"
+                   "    output: OldType;\n"
                    "}\n"
-                   "[Bind(Type = OldType(\"schema annotation OldType\"))]\n"
-                   "declare Schema PreviewSchema {\n"
-                   "    [Bind(Type = OldType(\"schema field annotation OldType\"))]\n"
+                   "export declare @Bind(Type = OldType(\"schema annotation OldType\")) schema PreviewSchema: FlowGraphSchema {\n"
+                   "    @Bind(Type = OldType(\"schema field annotation OldType\"))\n"
                    "    default_payload: OldType(\"schema field OldType\");\n"
                    "}\n");
 
@@ -2536,7 +2568,7 @@ TEST(CLIEditor, ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReference
         contents << in.rdbuf();
         EXPECT_NE(contents.str().find("Bind(Type = OldType(\"decl type annotation OldType\"))"), std::string::npos);
         EXPECT_NE(contents.str().find("default_payload: OldType(\"schema field OldType\")"), std::string::npos);
-        EXPECT_NE(contents.str().find("declare type OldType"), std::string::npos);
+        EXPECT_NE(contents.str().find("type OldType"), std::string::npos);
         EXPECT_EQ(contents.str().find("Bind(Type = NewType"), std::string::npos);
     }
 
@@ -2567,12 +2599,12 @@ TEST(CLIEditor, ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReference
     EXPECT_NE(contents.str().find("Bind(Type = NewType(\"pin annotation OldType\"))"), std::string::npos);
     EXPECT_NE(contents.str().find("Bind(Type = NewType(\"schema annotation OldType\"))"), std::string::npos);
     EXPECT_NE(contents.str().find("Bind(Type = NewType(\"schema field annotation OldType\"))"), std::string::npos);
-    EXPECT_NE(contents.str().find("declare type NewType : constructible;"), std::string::npos);
-    EXPECT_NE(contents.str().find("data in input : NewType;"), std::string::npos);
-    EXPECT_NE(contents.str().find("data out output : NewType;"), std::string::npos);
+    EXPECT_NE(contents.str().find("type NewType: constructible;"), std::string::npos);
+    EXPECT_NE(contents.str().find("input: NewType;"), std::string::npos);
+    EXPECT_NE(contents.str().find("output: NewType;"), std::string::npos);
     EXPECT_NE(contents.str().find("default_payload: NewType(\"schema field OldType\");"), std::string::npos);
     EXPECT_EQ(contents.str().find("Bind(Type = OldType"), std::string::npos);
-    EXPECT_EQ(contents.str().find("declare type OldType"), std::string::npos);
+    EXPECT_EQ(contents.str().find("type OldType"), std::string::npos);
     EXPECT_EQ(contents.str().find(": OldType"), std::string::npos);
     EXPECT_EQ(contents.str().find("default_payload: OldType"), std::string::npos);
 
@@ -2591,25 +2623,38 @@ TEST(CLIEditor, ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReference
 }
 
 TEST(CLIEditor, ApplySourceCommandsSupportEnvironmentGuard) {
+    auto dir = make_cli_temp_dir("asset_guard");
+    auto declarations = dir / "custom.d.gs";
+    write_cli_text(declarations,
+                   "export declare type Exec;\n"
+                   "export declare type FString;\n"
+                   "export declare object CustomPrint {\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"in\")\n"
+                   "    enter: Exec;\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
+                   "}\n");
+
     Environment env;
     EditSession session(env);
-    load_core_for_cli(session);
     CLIEditor editor(session);
 
     const std::string source =
-        "import \"ue_core.d.gs\";\n"
-        "Graph Guarded {\n"
-        "    PrintString logger{};\n"
+        "import \"custom.d.gs\";\n"
+        "graph Guarded {\n"
+        "    node logger {\n"
+        "        type CustomPrint;\n"
+        "    }\n"
         "}\n";
     SourceDiagnosticsOptions options;
     options.resolve_imports = true;
-    options.base_dir = GS_PRESETS_DIR;
+    options.base_dir = dir.string();
     auto hash = source_diagnostics_environment_hash(source, session.env(), options);
     ASSERT_TRUE(hash.is_ok()) << hash.error();
 
     const std::string guarded_args =
         " --env-hash " + hash.value() +
-        " --resolve-imports --base-dir \"" + std::string(GS_PRESETS_DIR) + "\"";
+        " --resolve-imports --base-dir " + quoted_path(dir);
     EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source) + guarded_args));
     EXPECT_TRUE(editor.last_command_succeeded());
     ASSERT_NE(session.active_graph(), nullptr);
@@ -2623,16 +2668,16 @@ TEST(CLIEditor, ApplySourceCommandsSupportEnvironmentGuard) {
     ASSERT_TRUE(patched_hash.is_ok()) << patched_hash.error();
     const std::string patched_guard_args =
         " --env-hash " + patched_hash.value() +
-        " --resolve-imports --base-dir \"" + std::string(GS_PRESETS_DIR) + "\"";
+        " --resolve-imports --base-dir " + quoted_path(dir);
 
-    EXPECT_TRUE(editor.execute("apply_source_patch 4 17 4 23 d3JpdGVy" + patched_guard_args));
+    EXPECT_TRUE(editor.execute("apply_source_patch 3 10 3 16 d3JpdGVy" + patched_guard_args));
     EXPECT_TRUE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("PrintString writer"), std::string::npos);
+    EXPECT_NE(session.emit().find("node writer"), std::string::npos);
 
-    EXPECT_TRUE(editor.execute("apply_source_patch 4 17 4 23 bG9nZ2Vy --env-hash definitely-wrong --resolve-imports --base-dir \"" + std::string(GS_PRESETS_DIR) + "\""));
+    EXPECT_TRUE(editor.execute("apply_source_patch 3 10 3 16 bG9nZ2Vy --env-hash definitely-wrong --resolve-imports --base-dir " + quoted_path(dir)));
     EXPECT_FALSE(editor.last_command_succeeded());
-    EXPECT_NE(session.emit().find("PrintString writer"), std::string::npos);
-    EXPECT_EQ(session.emit().find("PrintString logger"), std::string::npos);
+    EXPECT_NE(session.emit().find("node writer"), std::string::npos);
+    EXPECT_EQ(session.emit().find("node logger"), std::string::npos);
 }
 
 TEST(CLIEditor, NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceApply) {
@@ -2640,12 +2685,15 @@ TEST(CLIEditor, NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceAp
     auto types = dir / "types.d.gs";
     auto nodes = dir / "nodes.d.gs";
     write_cli_text(types,
-                   "declare type FString;\n");
+                   "export declare type Exec;\n"
+                   "export declare type FString;\n");
     write_cli_text(nodes,
                    "import \"types.d.gs\";\n"
-                   "declare Node CustomPrint {\n"
-                   "    exec in enter;\n"
-                   "    data in message : FString;\n"
+                   "export declare object CustomPrint {\n"
+                   "    @flow.pin(kind = \"exec\", direction = \"in\")\n"
+                   "    enter: Exec;\n"
+                   "    @flow.input\n"
+                   "    message: FString;\n"
                    "}\n");
 
     Environment env;
@@ -2654,20 +2702,17 @@ TEST(CLIEditor, NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceAp
 
     const std::string source =
         "import \"nodes.d.gs\";\n"
-        "Graph Replay {\n"
-        "    CustomPrint printer{};\n"
+        "graph Replay {\n"
+        "    node printer {\n"
+        "        type CustomPrint;\n"
+        "    }\n"
         "}\n";
     SourceDiagnosticsOptions options;
     options.resolve_imports = true;
     options.base_dir = dir.string();
 
-    auto json = source_diagnostics_to_json(source, session.env(), options);
-    ASSERT_NE(json.find("\"ok\":true"), std::string::npos);
-    auto types_pos = json.find("\"path\":\"types.d.gs\"");
-    auto nodes_pos = json.find("\"path\":\"nodes.d.gs\"");
-    ASSERT_NE(types_pos, std::string::npos);
-    ASSERT_NE(nodes_pos, std::string::npos);
-    EXPECT_LT(types_pos, nodes_pos);
+    auto preview_hash = source_diagnostics_environment_hash(source, session.env(), options);
+    ASSERT_TRUE(preview_hash.is_ok()) << preview_hash.error();
     EXPECT_EQ(session.env().nodes().find("CustomPrint"), nullptr);
 
     EXPECT_TRUE(editor.execute("import " + quoted_path(types)));

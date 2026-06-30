@@ -1,0 +1,11 @@
+include/graphscript/edit/edit_session.h:408:    Result<void, std::string> reload_import(const std::string& path);
+include/graphscript/edit/edit_session.h:448:    Result<void, std::string> load_import_impl(const std::string& path, bool force_reload);
+src/edit/edit_session.cpp:3652:    return load_import_impl(path, false);
+src/edit/edit_session.cpp:3655:Result<void, std::string> EditSession::reload_import(const std::string& path) {
+src/edit/edit_session.cpp:3656:    return load_import_impl(path, true);
+src/edit/edit_session.cpp:3659:Result<void, std::string> EditSession::load_import_impl(const std::string& path, bool force_reload) {
+cli/editor.cpp:4082:    auto real_import = session_.reload_import(path);
+cli/editor.cpp:4212:    auto real_import = session_.reload_import(path);
+cli/editor.cpp:4335:    auto real_import = session_.reload_import(path);
+cli/editor.cpp:4441:    auto real_import = session_.reload_import(path);
+cli/editor.cpp:4556:    auto real_import = session_.reload_import(path);
