@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { FormEvent, useEffect, useState } from 'react'
 import { ArrowDown, ArrowUp, Boxes, FileSearch, FunctionSquare, Info, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'

@@ -1276,7 +1276,7 @@ export default function App() {
       setSelectedNode(null)
     }
     return { graph, graphIndex: nextGraphIndex }
-  }, [acceptSourceBaseline, graphIndex, refresh, runCommand, setSourcePreviewEditable, sourceText, state])
+  }, [acceptSourceBaseline, graphIndex, runCommand, setSourcePreviewEditable, sourceText, state])
 
   const handleSourceRangeFocus = useCallback(async (range: SourceRange, sourceFile?: string) => {
     setFocusedDiagnostic(null)

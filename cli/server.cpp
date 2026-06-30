@@ -397,7 +397,7 @@ int WebServer::run() {
         res.set_content(json, "application/json");
     });
 
-    // ── POST /api/diagnostics → parse/compile diagnostics for source
+    // ── POST /api/diagnostics -> parse/semantic diagnostics for source
     svr.Post("/api/diagnostics", [this](const httplib::Request& req, httplib::Response& res) {
         std::lock_guard<std::mutex> lock(mutex_);
         std::string source = req.body;

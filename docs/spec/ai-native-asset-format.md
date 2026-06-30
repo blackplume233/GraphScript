@@ -509,7 +509,7 @@ public:
 - 当前 `Document` 和无损 CST/AST。
 - `SemanticModel` 里的符号、类型、声明、fragment 聚合结果。
 - 通用 `Command/Object IR`。
-- `.d.sc` 中声明的 object、scope、schema、command、attribute、lint 元数据。
+- `.d.gs` 中声明的 object、scope、schema、command、attribute、lint 元数据。
 - 当前投影入口 scope，例如 `scope graph Execute: AbilityGraph` 或 `scope table Tuning: DataTable<RowType>`。
 
 `ProjectionProvider` 不应直接修改文档。任何图操作、表操作或 AI 修复都应返回可解释的 edit operation，再交给 AST/Text Framework 生成 `TextPatch`。
@@ -579,7 +579,7 @@ FlowGraphProjection 在 GraphProjection 之上解释 FlowGraph 语义。
 
 输入来源：
 
-- `.d.sc` 的 object declaration。
+- `.d.gs` 的 object declaration。
 - 字段上的 `@flow.input`、`@flow.output`、`@flow.pin(...)`。
 - schema 中的 fan-in/fan-out、entry/context、allowed object、allowed command 规则。
 - GraphProjection 生成的 node/property/edge。
@@ -628,7 +628,7 @@ scope graph PatrolPlan: HTNGraph {
 投影规则：
 
 - `HTNGraph` schema 选择 HTNProjection。
-- `HTN_Sequence`、`HTN_MoveTo` 是普通 object type，由 `.d.sc` 声明。
+- `HTN_Sequence`、`HTN_MoveTo` 是普通 object type，由 `.d.gs` 声明。
 - `root`、`method`、`task`、`decorator`、`condition` 等语义由 object type、attribute 和 schema 决定。
 - HTN root 缺失、循环分解、非法 child 端口等都是 domain diagnostic。
 - bake 阶段可以生成 HTN runtime tree 或 planner data，但 authoring model 仍保持 graph/source binding。
@@ -706,7 +706,7 @@ Graph -> source scope range
 GraphEntry -> source entry scope range
 Node -> source const/object expression range
 NodeProperty -> source property range
-PinDefinition -> .d.sc field range
+PinDefinition -> .d.gs field range
 Edge -> source command call range
 EdgeEndpoint -> source callee/member/argument range
 Table -> source table scope range
@@ -1915,7 +1915,7 @@ Validator
 
 但这些概念应属于 FlowGraph/domain 层，而不是 parser 层。
 
-推荐 `.d.sc` 声明方式：
+推荐 `.d.gs` 声明方式：
 
 ```ts
 export declare object ApplyDamage {
@@ -2180,7 +2180,7 @@ Runtime error:
   ApplyDamage.amount expected positive float, got -10
 
 Source:
-  Fireball.sc:12:17
+  Fireball.gs:12:17
   amount: -10;
 ```
 
@@ -2242,13 +2242,13 @@ Runtime debug:
 建议 CLI/API 提供类似命令：
 
 ```bash
-gs inspect syntax   Fireball.sc --json
-gs inspect semantic Fireball.sc --json
-gs inspect command  Fireball.sc --json
-gs inspect graph    Fireball.sc --scope Execute --json
-gs inspect runtime  Fireball.sc --scope Execute --json
-gs lint             Fireball.sc --json
-gs trace            Fireball.sc --scope Execute --entry Start
+gs inspect syntax   Fireball.gs --json
+gs inspect semantic Fireball.gs --json
+gs inspect command  Fireball.gs --json
+gs inspect graph    Fireball.gs --scope Execute --json
+gs inspect runtime  Fireball.gs --scope Execute --json
+gs lint             Fireball.gs --json
+gs trace            Fireball.gs --scope Execute --entry Start
 ```
 
 这些命令输出必须优先支持 JSON，供 AI、测试和编辑器消费；人类可读格式可以由 JSON 渲染得到。
@@ -2439,7 +2439,7 @@ EditTransaction:
 第一版 parser/contract 不需要解决所有开放问题。它需要固定最小可实现闭环：
 
 ```text
-.sc / .d.sc
+.gs / .d.gs
   -> Tree-sitter CST
   -> AST/Text typed wrapper
   -> SemanticModel
@@ -2452,7 +2452,7 @@ EditTransaction:
 
 第一版必须实现：
 
-- `.sc` / `.d.sc` 文件识别。
+- `.gs` / `.d.gs` 文件识别。
 - `import`、`export`、`declare module`、`declare type/enum/object/scope/command/schema/lint`。
 - `scope`、`const alias = new Type { ... }`、property、literal、reference、attribute、restricted command call。
 - Tree-sitter CST named node、field name、source range、错误恢复和增量 parse。
@@ -2479,7 +2479,7 @@ EditTransaction:
 第一版推荐默认决策：
 
 - stable id 使用声明前置 `@id(...)`；缺失时允许 authoring-session-local id，并提供 quick fix 添加稳定 id。
-- editor metadata 允许先使用 `editor.pos`，同时把 `@editor.field` 作为 `.d.sc` 元信息；后续可以迁移到更统一的 metadata channel。
+- editor metadata 允许先使用 `editor.pos`，同时把 `@editor.field` 作为 `.d.gs` 元信息；后续可以迁移到更统一的 metadata channel。
 - directive-like statement 只作为兼容或 schema extension；核心可逆作者子集优先使用 property、attribute 和 command call。
 - 图编辑操作优先通过 AST/Text Framework 生成 `TextPatch`；具体内部是 AST edit 还是 rewrite 描述由实现选择，但外部契约固定为 `EditTransaction`。
 - trace event 作为 authoring runtime 的统一调试协议；engine runtime 可以选择剥离或压缩。

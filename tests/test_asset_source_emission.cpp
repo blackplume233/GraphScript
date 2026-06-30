@@ -16,7 +16,7 @@ static void expect_reparse_ok(const std::string& emitted) {
     ASSERT_TRUE(reloaded.is_ok()) << reloaded.error();
 }
 
-TEST(Emitter, EmitMinimalAssetGraph) {
+TEST(AssetSourceEmission, MinimalAssetGraph) {
     Environment env;
     EditSession session(env);
     load_asset_source(session, R"(import "ue_core.d.gs";
@@ -46,7 +46,7 @@ graph HelloWorld {
     expect_reparse_ok(output);
 }
 
-TEST(Emitter, EmitSchemaDirective) {
+TEST(AssetSourceEmission, SchemaDirective) {
     Environment env;
     EditSession session(env);
     load_asset_source(session, R"(graph SimpleHTN {
@@ -61,7 +61,7 @@ TEST(Emitter, EmitSchemaDirective) {
     expect_reparse_ok(output);
 }
 
-TEST(Emitter, EmitTopLevelConstBody) {
+TEST(AssetSourceEmission, TopLevelConstBody) {
     Environment env;
     EditSession session(env);
     load_asset_source(session, R"(@PersistentId("spawn-point")
@@ -80,7 +80,7 @@ graph UsesConst {
     expect_reparse_ok(output);
 }
 
-TEST(Emitter, EmitGenerateBlock) {
+TEST(AssetSourceEmission, GenerateBlock) {
     Environment env;
     EditSession session(env);
     load_asset_source(session, R"(graph GeneratedLayout {
@@ -102,7 +102,7 @@ TEST(Emitter, EmitGenerateBlock) {
     expect_reparse_ok(output);
 }
 
-TEST(Emitter, EmitAnnotationConstructorValueRaw) {
+TEST(AssetSourceEmission, AnnotationConstructorValueRaw) {
     Environment env;
     EditSession session(env);
     load_asset_source(session, R"(graph ConstructorAnnotation {
@@ -120,7 +120,7 @@ TEST(Emitter, EmitAnnotationConstructorValueRaw) {
     expect_reparse_ok(output);
 }
 
-TEST(Emitter, EmitConstructorStringArgumentsRoundTrip) {
+TEST(AssetSourceEmission, ConstructorStringArgumentsRoundTrip) {
     Environment env;
     EditSession session(env);
     load_asset_source(session, R"(graph ConstructorStrings {
@@ -149,7 +149,7 @@ TEST(Emitter, EmitConstructorStringArgumentsRoundTrip) {
     expect_reparse_ok(output);
 }
 
-TEST(Emitter, EmitFunctionAndVarParam) {
+TEST(AssetSourceEmission, FunctionAndVarParam) {
     Environment env;
     EditSession session(env);
     load_asset_source(session, R"(graph WithFunction {

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'

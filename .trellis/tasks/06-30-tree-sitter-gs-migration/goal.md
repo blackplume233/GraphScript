@@ -4,9 +4,9 @@ updated_at: 2026-06-30
 artifact_language: zh-CN
 execution_mode: native-codex-goal
 native_goal_id: codex_019f188c-0800-7041-9d48-9a868ddcb496
-current_loop: loops/loop-022.md
-next_sub_goal: Loop 022：进入 Phase 6/后续清理，扫描并处理 remaining legacy-only surface，包括文档旧 .sc/.d.sc、旧架构 parser/compiler/emitter 描述、测试 suite 命名噪声、RuntimeGraph replacement 前置评估与 webapp build/lint 验证
-last_verified_loop: loops/loop-021.md
+current_loop: loops/loop-023.md
+next_sub_goal: Loop 023：替换 RuntimeGraph 为新的 graph runtime IR，先建立 projection/model 输入的新 runtime 类型与 bake 路径，再迁移 CLI bake、debug dump 和 RuntimeGraph 测试依赖
+last_verified_loop: loops/loop-022.md
 references: references.md
 ---
 

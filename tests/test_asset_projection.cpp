@@ -18,7 +18,7 @@ static void load_core_for_compiler(EditSession& session) {
     ASSERT_TRUE(loaded.is_ok()) << loaded.error();
 }
 
-TEST(Compiler, AssetImportPopulatesEnvironmentTypesAndNodes) {
+TEST(AssetProjection, ImportPopulatesEnvironmentTypesAndNodes) {
     Environment env;
     EditSession session(env);
     load_core_for_compiler(session);
@@ -51,7 +51,7 @@ TEST(Compiler, AssetImportPopulatesEnvironmentTypesAndNodes) {
     EXPECT_EQ(delay->fields[0].type_name, "float");
 }
 
-TEST(Compiler, AssetImportPopulatesSchemas) {
+TEST(AssetProjection, ImportPopulatesSchemas) {
     Environment env;
     EditSession session(env);
     load_core_for_compiler(session);
@@ -70,7 +70,7 @@ TEST(Compiler, AssetImportPopulatesSchemas) {
     EXPECT_EQ(schema->fields[0].value, "unlimited");
 }
 
-TEST(Compiler, AssetFlowGraphProjectionCapturesSchemaParamsNodesAndEdges) {
+TEST(AssetProjection, FlowGraphProjectionCapturesSchemaParamsNodesAndEdges) {
     auto parsed = parse_asset_compiler_source(R"(graph Execute {
     schema TraceGraph;
     @graph.input
@@ -110,7 +110,7 @@ TEST(Compiler, AssetFlowGraphProjectionCapturesSchemaParamsNodesAndEdges) {
     ASSERT_EQ(graph.data_edges.size(), 1u);
 }
 
-TEST(Compiler, AssetEditSessionDerivesGraphAsNode) {
+TEST(AssetProjection, EditSessionDerivesGraphAsNode) {
     Environment env;
     EditSession session(env);
     load_core_for_compiler(session);
@@ -158,7 +158,7 @@ graph Parent {
     EXPECT_EQ(child->find_pin("scratch"), nullptr);
 }
 
-TEST(Compiler, AssetEditSessionReportsUnknownEventReference) {
+TEST(AssetProjection, EditSessionReportsUnknownEventReference) {
     Environment env;
     EditSession session(env);
 
@@ -174,7 +174,7 @@ TEST(Compiler, AssetEditSessionReportsUnknownEventReference) {
     EXPECT_NE(loaded.error().find("Unknown source node"), std::string::npos);
 }
 
-TEST(Compiler, AssetEditSessionReportsFunctionNodeReference) {
+TEST(AssetProjection, EditSessionReportsFunctionNodeReference) {
     Environment env;
     EditSession session(env);
 

@@ -1703,7 +1703,7 @@ static Result<void, std::string> load_asset_declaration_source_via_temp(
     return Result<void, std::string>::ok();
 }
 
-static Result<Module, std::string> compile_source_for_ranges(
+static Result<Module, std::string> load_asset_source_for_ranges(
     const std::string& source,
     Environment& env,
     const std::string& source_name) {
@@ -3439,7 +3439,7 @@ void CLIEditor::cmd_apply_source_param_rename(const std::vector<std::string>& ar
         return;
     }
 
-    auto range_module = compile_source_for_ranges(source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -3508,7 +3508,7 @@ void CLIEditor::cmd_apply_source_event_rename(const std::vector<std::string>& ar
         return;
     }
 
-    auto range_module = compile_source_for_ranges(source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -3577,7 +3577,7 @@ void CLIEditor::cmd_apply_source_function_rename(const std::vector<std::string>&
         return;
     }
 
-    auto range_module = compile_source_for_ranges(source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -3646,7 +3646,7 @@ void CLIEditor::cmd_apply_source_node_rename(const std::vector<std::string>& arg
         return;
     }
 
-    auto range_module = compile_source_for_ranges(source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -3708,7 +3708,7 @@ void CLIEditor::cmd_apply_source_graph_rename(const std::vector<std::string>& ar
         return;
     }
 
-    auto range_module = compile_source_for_ranges(source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -3765,7 +3765,7 @@ void CLIEditor::cmd_apply_source_node_type_rename(const std::vector<std::string>
         return;
     }
 
-    auto range_module = compile_source_for_ranges(source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -3855,7 +3855,7 @@ void CLIEditor::cmd_apply_source_node_pin_rename(const std::vector<std::string>&
         return;
     }
 
-    auto range_module = compile_source_for_ranges(source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -3936,7 +3936,7 @@ void CLIEditor::cmd_apply_source_schema_rename(const std::vector<std::string>& a
         return;
     }
 
-    auto range_module = compile_source_for_ranges(source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -4016,7 +4016,7 @@ void CLIEditor::cmd_apply_source_type_rename(const std::vector<std::string>& arg
         return;
     }
 
-    auto range_module = compile_source_for_ranges(source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -4121,7 +4121,7 @@ void CLIEditor::cmd_apply_import_node_rename(const std::vector<std::string>& arg
     }
 
     const std::string module_source = session_.emit();
-    auto range_module = compile_source_for_ranges(module_source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(module_source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -4152,7 +4152,7 @@ void CLIEditor::cmd_apply_import_node_rename(const std::vector<std::string>& arg
         print_error(replay_import.error());
         return;
     }
-    auto replay_module = compile_source_for_ranges(patched_module_source, replay_env, session_.file_path());
+    auto replay_module = load_asset_source_for_ranges(patched_module_source, replay_env, session_.file_path());
     if (replay_module.is_err()) {
         print_error(replay_module.error());
         return;
@@ -4251,7 +4251,7 @@ void CLIEditor::cmd_apply_import_node_pin_rename(const std::vector<std::string>&
     }
 
     const std::string module_source = session_.emit();
-    auto range_module = compile_source_for_ranges(module_source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(module_source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -4282,7 +4282,7 @@ void CLIEditor::cmd_apply_import_node_pin_rename(const std::vector<std::string>&
         print_error(replay_import.error());
         return;
     }
-    auto replay_module = compile_source_for_ranges(patched_module_source, replay_env, session_.file_path());
+    auto replay_module = load_asset_source_for_ranges(patched_module_source, replay_env, session_.file_path());
     if (replay_module.is_err()) {
         print_error(replay_module.error());
         return;
@@ -4374,7 +4374,7 @@ void CLIEditor::cmd_apply_import_schema_rename(const std::vector<std::string>& a
     }
 
     const std::string module_source = session_.emit();
-    auto range_module = compile_source_for_ranges(module_source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(module_source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -4405,7 +4405,7 @@ void CLIEditor::cmd_apply_import_schema_rename(const std::vector<std::string>& a
         print_error(replay_import.error());
         return;
     }
-    auto replay_module = compile_source_for_ranges(patched_module_source, replay_env, session_.file_path());
+    auto replay_module = load_asset_source_for_ranges(patched_module_source, replay_env, session_.file_path());
     if (replay_module.is_err()) {
         print_error(replay_module.error());
         return;
@@ -4595,7 +4595,7 @@ void CLIEditor::cmd_apply_import_type_rename(const std::vector<std::string>& arg
     }
 
     const std::string module_source = session_.emit();
-    auto range_module = compile_source_for_ranges(module_source, session_.env(), session_.file_path());
+    auto range_module = load_asset_source_for_ranges(module_source, session_.env(), session_.file_path());
     if (range_module.is_err()) {
         print_error(range_module.error());
         return;
@@ -4626,7 +4626,7 @@ void CLIEditor::cmd_apply_import_type_rename(const std::vector<std::string>& arg
         print_error(replay_import.error());
         return;
     }
-    auto replay_module = compile_source_for_ranges(patched_module_source, replay_env, session_.file_path());
+    auto replay_module = load_asset_source_for_ranges(patched_module_source, replay_env, session_.file_path());
     if (replay_module.is_err()) {
         print_error(replay_module.error());
         return;
@@ -4735,7 +4735,7 @@ void CLIEditor::cmd_apply_files_graph_rename(const std::vector<std::string>& arg
         }
 
         Environment range_env = session_.env();
-        auto range_module = compile_source_for_ranges(*source, range_env, path);
+        auto range_module = load_asset_source_for_ranges(*source, range_env, path);
         if (range_module.is_err()) {
             print_error("Compile error in source file '" + path + "': " + range_module.error());
             return;
@@ -4758,7 +4758,7 @@ void CLIEditor::cmd_apply_files_graph_rename(const std::vector<std::string>& arg
         }
 
         Environment replay_env = session_.env();
-        auto replay_module = compile_source_for_ranges(patched.value(), replay_env, path);
+        auto replay_module = load_asset_source_for_ranges(patched.value(), replay_env, path);
         if (replay_module.is_err()) {
             print_error("Compile error in patched source file '" + path + "': " + replay_module.error());
             return;
@@ -4869,7 +4869,7 @@ void CLIEditor::cmd_apply_files_graph_param_rename(const std::vector<std::string
         }
 
         Environment range_env = session_.env();
-        auto range_module = compile_source_for_ranges(*source, range_env, path);
+        auto range_module = load_asset_source_for_ranges(*source, range_env, path);
         if (range_module.is_err()) {
             print_error("Compile error in source file '" + path + "': " + range_module.error());
             return;
@@ -4892,7 +4892,7 @@ void CLIEditor::cmd_apply_files_graph_param_rename(const std::vector<std::string
         }
 
         Environment replay_env = session_.env();
-        auto replay_module = compile_source_for_ranges(patched.value(), replay_env, path);
+        auto replay_module = load_asset_source_for_ranges(patched.value(), replay_env, path);
         if (replay_module.is_err()) {
             print_error("Compile error in patched source file '" + path + "': " + replay_module.error());
             return;
@@ -5003,7 +5003,7 @@ void CLIEditor::cmd_apply_files_graph_event_rename(const std::vector<std::string
         }
 
         Environment range_env = session_.env();
-        auto range_module = compile_source_for_ranges(*source, range_env, path);
+        auto range_module = load_asset_source_for_ranges(*source, range_env, path);
         if (range_module.is_err()) {
             print_error("Compile error in source file '" + path + "': " + range_module.error());
             return;
@@ -5026,7 +5026,7 @@ void CLIEditor::cmd_apply_files_graph_event_rename(const std::vector<std::string
         }
 
         Environment replay_env = session_.env();
-        auto replay_module = compile_source_for_ranges(patched.value(), replay_env, path);
+        auto replay_module = load_asset_source_for_ranges(patched.value(), replay_env, path);
         if (replay_module.is_err()) {
             print_error("Compile error in patched source file '" + path + "': " + replay_module.error());
             return;
@@ -5137,7 +5137,7 @@ void CLIEditor::cmd_apply_files_graph_function_rename(const std::vector<std::str
         }
 
         Environment range_env = session_.env();
-        auto range_module = compile_source_for_ranges(*source, range_env, path);
+        auto range_module = load_asset_source_for_ranges(*source, range_env, path);
         if (range_module.is_err()) {
             print_error("Compile error in source file '" + path + "': " + range_module.error());
             return;
@@ -5160,7 +5160,7 @@ void CLIEditor::cmd_apply_files_graph_function_rename(const std::vector<std::str
         }
 
         Environment replay_env = session_.env();
-        auto replay_module = compile_source_for_ranges(patched.value(), replay_env, path);
+        auto replay_module = load_asset_source_for_ranges(patched.value(), replay_env, path);
         if (replay_module.is_err()) {
             print_error("Compile error in patched source file '" + path + "': " + replay_module.error());
             return;
@@ -5270,7 +5270,7 @@ void CLIEditor::cmd_apply_files_node_type_rename(const std::vector<std::string>&
         }
 
         Environment range_env = session_.env();
-        auto range_module = compile_source_for_ranges(*source, range_env, path);
+        auto range_module = load_asset_source_for_ranges(*source, range_env, path);
         if (range_module.is_err()) {
             print_error("Compile error in source file '" + path + "': " + range_module.error());
             return;
@@ -5293,7 +5293,7 @@ void CLIEditor::cmd_apply_files_node_type_rename(const std::vector<std::string>&
         }
 
         Environment replay_env = session_.env();
-        auto replay_module = compile_source_for_ranges(patched.value(), replay_env, path);
+        auto replay_module = load_asset_source_for_ranges(patched.value(), replay_env, path);
         if (replay_module.is_err()) {
             print_error("Compile error in patched source file '" + path + "': " + replay_module.error());
             return;
@@ -5417,7 +5417,7 @@ void CLIEditor::cmd_apply_files_node_pin_rename(const std::vector<std::string>& 
         }
 
         Environment range_env = session_.env();
-        auto range_module = compile_source_for_ranges(*source, range_env, path);
+        auto range_module = load_asset_source_for_ranges(*source, range_env, path);
         if (range_module.is_err()) {
             print_error("Compile error in source file '" + path + "': " + range_module.error());
             return;
@@ -5440,7 +5440,7 @@ void CLIEditor::cmd_apply_files_node_pin_rename(const std::vector<std::string>& 
         }
 
         Environment replay_env = session_.env();
-        auto replay_module = compile_source_for_ranges(patched.value(), replay_env, path);
+        auto replay_module = load_asset_source_for_ranges(patched.value(), replay_env, path);
         if (replay_module.is_err()) {
             print_error("Compile error in patched source file '" + path + "': " + replay_module.error());
             return;
@@ -5550,7 +5550,7 @@ void CLIEditor::cmd_apply_files_schema_rename(const std::vector<std::string>& ar
         }
 
         Environment range_env = session_.env();
-        auto range_module = compile_source_for_ranges(*source, range_env, path);
+        auto range_module = load_asset_source_for_ranges(*source, range_env, path);
         if (range_module.is_err()) {
             print_error("Compile error in source file '" + path + "': " + range_module.error());
             return;
@@ -5573,7 +5573,7 @@ void CLIEditor::cmd_apply_files_schema_rename(const std::vector<std::string>& ar
         }
 
         Environment replay_env = session_.env();
-        auto replay_module = compile_source_for_ranges(patched.value(), replay_env, path);
+        auto replay_module = load_asset_source_for_ranges(patched.value(), replay_env, path);
         if (replay_module.is_err()) {
             print_error("Compile error in patched source file '" + path + "': " + replay_module.error());
             return;
@@ -5683,7 +5683,7 @@ void CLIEditor::cmd_apply_files_type_rename(const std::vector<std::string>& args
         }
 
         Environment range_env = session_.env();
-        auto range_module = compile_source_for_ranges(*source, range_env, path);
+        auto range_module = load_asset_source_for_ranges(*source, range_env, path);
         if (range_module.is_err()) {
             print_error("Compile error in source file '" + path + "': " + range_module.error());
             return;
@@ -5706,7 +5706,7 @@ void CLIEditor::cmd_apply_files_type_rename(const std::vector<std::string>& args
         }
 
         Environment replay_env = session_.env();
-        auto replay_module = compile_source_for_ranges(patched.value(), replay_env, path);
+        auto replay_module = load_asset_source_for_ranges(patched.value(), replay_env, path);
         if (replay_module.is_err()) {
             print_error("Compile error in patched source file '" + path + "': " + replay_module.error());
             return;

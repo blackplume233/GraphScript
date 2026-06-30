@@ -393,15 +393,15 @@ scope asset Fireball: Ability {
 新语法建议区分资产文件和声明文件。
 
 ```text
-.sc      source asset file，保存真实资产对象、scope、图、表、连接等内容
-.d.sc    declaration file，保存类型、scope kind、对象类型、command、schema、导出符号和依赖信息
+.gs      source asset file，保存真实资产对象、scope、图、表、连接等内容
+.d.gs    declaration file，保存类型、scope kind、对象类型、command、schema、导出符号和依赖信息
 ```
 
-`.d.sc` 类似 TypeScript 的 `.d.ts` 或当前 GraphScript 的 `.d.gs`，但它服务的是通用资产格式，而不是只服务图 DSL。
+`.d.gs` 类似 TypeScript 的 `.d.ts` 或当前 GraphScript 的 `.d.gs`，但它服务的是通用资产格式，而不是只服务图 DSL。
 
-### 3.1 `.sc` 资产文件
+### 3.1 `.gs` 资产文件
 
-`.sc` 文件可以包含：
+`.gs` 文件可以包含：
 
 ```text
 import
@@ -417,7 +417,7 @@ attribute
 示例：
 
 ```ts
-import "ability_core.d.sc";
+import "ability_core.d.gs";
 
 scope asset Fireball: Ability {
     const damage = new DamageEffect {
@@ -426,11 +426,11 @@ scope asset Fireball: Ability {
 }
 ```
 
-### 3.2 `.d.sc` 声明文件
+### 3.2 `.d.gs` 声明文件
 
-`.d.sc` 文件只声明接口和元信息，不创建真实资产实例。
+`.d.gs` 文件只声明接口和元信息，不创建真实资产实例。
 
-`.d.sc` 可以包含：
+`.d.gs` 可以包含：
 
 ```text
 import
@@ -448,7 +448,7 @@ declare lint
 示例：
 
 ```ts
-import "core.d.sc";
+import "core.d.gs";
 
 declare module "ability.core" {
     package: "Game.Ability";
@@ -501,9 +501,9 @@ export declare command connect(from: PinRef, to: PinRef): EdgeRef;
 
 设计原则：
 
-- `.d.sc` 可被 parser 解析成同一套 CST。
-- `.d.sc` 不包含 `const x = new Type { ... }` 这种实例创建。
-- `.d.sc` 是 SemanticModel、补全、lint、projection 和依赖分析的主要输入。
+- `.d.gs` 可被 parser 解析成同一套 CST。
+- `.d.gs` 不包含 `const x = new Type { ... }` 这种实例创建。
+- `.d.gs` 是 SemanticModel、补全、lint、projection 和依赖分析的主要输入。
 - domain module 可以扩展 declaration 的语义，但不应要求 parser 内建具体 domain。
 
 ---
@@ -609,7 +609,7 @@ import 只声明依赖，不执行代码。
 
 ## 6. Export 与 Declaration
 
-`.d.sc` 需要显式表达导出符号，方便依赖分析、补全和跨文件绑定。
+`.d.gs` 需要显式表达导出符号，方便依赖分析、补全和跨文件绑定。
 
 ### 6.1 Export
 
@@ -650,7 +650,7 @@ DeclStmt ::= "declare" TypeDecl
 
 ### 6.3 Module 声明
 
-`declare module` 是 `.d.sc` 的可选元信息声明，用于导出表、依赖图、包管理和版本诊断。它不创建 runtime module，也不改变文件内名字解析规则。
+`declare module` 是 `.d.gs` 的可选元信息声明，用于导出表、依赖图、包管理和版本诊断。它不创建 runtime module，也不改变文件内名字解析规则。
 
 ```ebnf
 ModuleDecl ::= "module" StringLiteral "{" ModuleField* "}"
@@ -669,11 +669,11 @@ declare module "ability.core" {
 
 规则：
 
-- 一个 `.d.sc` 最多声明一个 canonical module id。
+- 一个 `.d.gs` 最多声明一个 canonical module id。
 - module id 推荐使用稳定字符串，不从文件路径隐式推导。
 - `package`、`version`、`owner` 等字段是普通 metadata，具体含义由 package/build 系统解释。
 - 没有 `declare module` 时，工具可以把文件路径作为 fallback module id，但应在导出表中标记为 inferred。
-- `declare module` 只能出现在 `.d.sc`，`.sc` 资产文件不应声明 module。
+- `declare module` 只能出现在 `.d.gs`，`.gs` 资产文件不应声明 module。
 
 ### 6.4 类型声明
 
@@ -873,13 +873,13 @@ export declare lint AbilityGraphLint for AbilityGraph;
 export declare lint HTNLint for HTNGraph;
 ```
 
-具体 lint 实现通常在宿主 C++/插件中注册，`.d.sc` 只暴露符号和适用范围。
+具体 lint 实现通常在宿主 C++/插件中注册，`.d.gs` 只暴露符号和适用范围。
 
 ---
 
 ## 7. 依赖分析
 
-`.d.sc` 的一个核心用途是静态依赖分析。依赖分析不执行代码，只读取 `import`、`export`、`declare module`、声明体中的 `TypeRef`、schema/command/lint 引用，以及 `.sc` 中的资产 `ref`。
+`.d.gs` 的一个核心用途是静态依赖分析。依赖分析不执行代码，只读取 `import`、`export`、`declare module`、声明体中的 `TypeRef`、schema/command/lint 引用，以及 `.gs` 中的资产 `ref`。
 
 最低产物：
 
@@ -910,15 +910,15 @@ SymbolResolution
 直接依赖来自 import：
 
 ```ts
-import "core.d.sc";
-import "ability_core.d.sc";
+import "core.d.gs";
+import "ability_core.d.gs";
 ```
 
 语义规则：
 
 - `import` 是静态依赖声明，不执行被导入文件。
 - import path 推荐使用显式文件路径或虚拟包路径，解析规则由 `ImportResolver` 提供。
-- `.sc` 可以 import `.d.sc` 或其他 `.sc`；`.d.sc` 不应依赖 `.sc` 实例文件。
+- `.gs` 可以 import `.d.gs` 或其他 `.gs`；`.d.gs` 不应依赖 `.gs` 实例文件。
 - import cycle 允许被诊断和降级处理，但不应阻止 parser 产出 CST。
 
 建议结果：
@@ -976,7 +976,7 @@ struct SymbolEdge {
 
 ### 7.3 ModuleRecord
 
-每个 `.d.sc` 应生成一个 `ModuleRecord`。
+每个 `.d.gs` 应生成一个 `ModuleRecord`。
 
 ```cpp
 struct ModuleRecord {
@@ -1011,13 +1011,13 @@ module_id_inferred: false
 没有 `declare module` 时：
 
 ```text
-module_id: path://ability_core.d.sc
+module_id: path://ability_core.d.gs
 module_id_inferred: true
 ```
 
 ### 7.4 资产依赖
 
-`.sc` 中的 `ref` 表达式形成资产依赖：
+`.gs` 中的 `ref` 表达式形成资产依赖：
 
 ```ts
 icon: ref "/Game/UI/Icons/Fireball";
@@ -1044,7 +1044,7 @@ struct AssetRefEdge {
 
 ### 7.5 导出表
 
-每个 `.d.sc` 应能被分析成导出表：
+每个 `.d.gs` 应能被分析成导出表：
 
 ```text
 module ability.core
@@ -1085,7 +1085,7 @@ struct ExportTable {
 - `export declare ...` 同时声明并导出符号。
 - `export { A, B }` 只导出当前文件已声明或已 re-export 的符号。
 - `declare module` 不需要 `export`，它描述当前声明文件自身。
-- `.sc` 默认不导出类型符号；资产是否可被其他文件引用由 asset id、package/build 系统和 `@id(...)` 决定。
+- `.gs` 默认不导出类型符号；资产是否可被其他文件引用由 asset id、package/build 系统和 `@id(...)` 决定。
 
 ### 7.6 ModuleGraph 诊断
 
@@ -1094,7 +1094,7 @@ struct ExportTable {
 ```text
 GS-REF-001 unresolved import
 GS-REF-002 cyclic declaration import
-GS-REF-003 import from instance file in .d.sc
+GS-REF-003 import from instance file in .d.gs
 GS-REF-004 unresolved symbol
 GS-REF-005 ambiguous symbol
 GS-REF-006 duplicate export
@@ -1120,7 +1120,7 @@ GS-REF-008 incompatible module version
 | organize imports | 只重排 import block，不移动其他 item |
 | add export | 声明前加 `export`，或更新 `export { ... }` 列表 |
 | rename exported symbol | declaration name range，并更新同文件引用 |
-| add declare module | `.d.sc` 的 import block 后、第一个 declaration 前 |
+| add declare module | `.d.gs` 的 import block 后、第一个 declaration 前 |
 
 AI 修复不应凭字符串搜索插入 import。它应消费 `ModuleGraph` 和 `ExportTable`，再通过 `RewriteBuilder` 生成 `TextPatch`。
 
@@ -1621,7 +1621,7 @@ graph edge contribution -> source connect call range
 跨文件 fragment 需要 import 和依赖分析支持：
 
 ```ts
-import "Fireball.sc";
+import "Fireball.gs";
 
 @for("ability.fireball")
 scope tuning FireballBalance: AbilityTuning {
@@ -1860,6 +1860,6 @@ scope asset Fireball: Ability {
 - call expression 是否只允许作为 statement，不允许作为 value？
 - 缺分号的 formatter 策略是什么？
 - 和现有 `.gs` 语法如何共存：新扩展名、模式开关，还是逐步迁移？
-- `.d.sc` 中 FlowGraph 的 `exec/data/input/output` 声明是否完全移除，还是只保留为兼容语法糖？
+- `.d.gs` 中 FlowGraph 的 `exec/data/input/output` 声明是否完全移除，还是只保留为兼容语法糖？
 - `declare schema` 里的数组和类型引用如何区分符号引用与普通值？
 - 多 fragment 描述同一对象时，属性冲突默认是否一律报错，还是允许 schema 指定覆盖策略？

@@ -1,0 +1,9 @@
+docs\spec\legacy-graph-dsl-feature-inventory.md:60:| 解析错误、context、hint 和 quickfix action。 | `Parser::record_error()`；`tests/test_parser.cpp` parser diagnostic/quickfix 用例。 | 部分覆盖：asset parser 记录 tree-sitter error/missing diagnostics，坏文本可保留 partial AST；quickfix/action 尚未覆盖。 | Source diagnostics 必须保留 range/context/hint/action 或等价 patch action；坏文本仍应可编辑。 |
+docs\spec\legacy-graph-dsl-feature-inventory.md:132:| `tests/test_parser.cpp` | asset parser/semantic source binding tests。 |
+docs\spec\legacy-graph-dsl-feature-inventory.md:133:| `tests/test_compiler.cpp` | asset declaration environment、GraphDomain binding、scope rules tests。 |
+docs\spec\legacy-graph-dsl-feature-inventory.md:134:| `tests/test_emitter.cpp` | asset formatter/rewrite/reparse tests。 |
+docs\spec\legacy-graph-dsl-feature-inventory.md:135:| `tests/test_lexer.cpp` | tree-sitter parser facade/highlight/query/token-equivalent smoke；若不再暴露 lexer，则删除旧 lexer 专属断言。 |
+docs\spec\development-guide.md:61:| `test_lexer.cpp` | Lexer | 20 | Tokenization of all syntax |
+docs\spec\development-guide.md:62:| `test_parser.cpp` | Parser | 21 | AST construction from tokens |
+docs\spec\development-guide.md:63:| `test_compiler.cpp` | Compiler | 10 | AST → Module compilation |
+docs\spec\development-guide.md:64:| `test_emitter.cpp` | Emitter | 8 | Module → .gs text round-trip |

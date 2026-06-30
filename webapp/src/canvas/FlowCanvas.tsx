@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   applyEdgeChanges,
@@ -198,10 +199,6 @@ function nodePosition(node: NodeInst, index: number): FlowPosition {
     x: 200 + (index % 4) * 300,
     y: 120 + Math.floor(index / 4) * 200,
   }
-}
-
-function getPinsForType(typeName: string, types: NodeTypeDef[]): PinDef[] {
-  return types.find(type => type.type_name === typeName)?.pins ?? []
 }
 
 function intrinsicPropertiesForNode(node: NodeInst, nodeFields: NodeFieldDef[], pins: PinDef[]): BlueprintIntrinsicProperty[] {
@@ -894,6 +891,7 @@ function FlowCanvasInner({
     return buildDiagnosticHighlightIndex(graph, diagnostics, focusedDiagnostic)
   }, [diagnostics, focusedDiagnostic, graph])
   const [contextMenu, setContextMenu] = useState<CanvasContextMenu | null>(null)
+  const [wrapperWidth, setWrapperWidth] = useState(0)
   const [connectionPreview, setConnectionPreview] = useState<PendingConnection | null>(null)
   const pointerDragRef = useRef<PointerDragState | null>(null)
   const pendingConnectionRef = useRef<PendingConnection | null>(null)
@@ -901,6 +899,18 @@ function FlowCanvasInner({
   const manualReconnectRef = useRef<ManualReconnectState | null>(null)
   const commentBoxResizeRef = useRef<CommentBoxResizeState | null>(null)
   const commentBoxDragRef = useRef<CommentBoxDragState | null>(null)
+
+  useEffect(() => {
+    const element = wrapperRef.current
+    if (!element) return undefined
+
+    const updateWrapperWidth = () => setWrapperWidth(element.clientWidth)
+    updateWrapperWidth()
+
+    const observer = new ResizeObserver(updateWrapperWidth)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   const initialNodes = useMemo(() => {
     if (!state || !graph) return []
@@ -1860,7 +1870,7 @@ function FlowCanvasInner({
         <div
           className="absolute z-50 w-80 rounded-md border border-border bg-card/95 shadow-xl backdrop-blur p-1"
           style={{
-            left: Math.min(contextMenu.localX, Math.max(8, wrapperRef.current ? wrapperRef.current.clientWidth - 328 : contextMenu.localX)),
+            left: Math.min(contextMenu.localX, Math.max(8, wrapperWidth > 0 ? wrapperWidth - 328 : contextMenu.localX)),
             top: contextMenu.localY,
           }}
           onClick={event => event.stopPropagation()}

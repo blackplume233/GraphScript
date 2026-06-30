@@ -25,7 +25,7 @@ static asset::ParseResult parse_asset_source(const std::string& source, const st
     return parser.parse();
 }
 
-TEST(Parser, AssetDeclareTypeObjectSchemaAndCommand) {
+TEST(AssetParser, DeclareTypeObjectSchemaAndCommand) {
     auto result = parse_asset_source(R"(export declare type FVector: constructible;
 export declare object PrintString {
     @flow.pin(kind = "exec", direction = "in")
@@ -56,7 +56,7 @@ export declare command connect(from: PinRef, to: PinRef): EdgeRef;
     EXPECT_EQ(result.module.commands[0].name, "connect");
 }
 
-TEST(Parser, AssetPresetsParse) {
+TEST(AssetParser, PresetsParse) {
     struct ExpectedPreset {
         const char* name;
         size_t min_symbols;
@@ -81,7 +81,7 @@ TEST(Parser, AssetPresetsParse) {
     }
 }
 
-TEST(Parser, AssetImportsConstAndGraphBlocks) {
+TEST(AssetParser, ImportsConstAndGraphBlocks) {
     auto result = parse_asset_source(R"(import "ue_core.d.gs";
 const spawn_point = new SoftObjectPath {
     path: "/Game/Spawn";
@@ -104,7 +104,7 @@ graph Execute {
     EXPECT_EQ(result.module.items.blocks[0]->name, "Execute");
 }
 
-TEST(Parser, AssetProjectsFlowGraphWithBlocksAndEdges) {
+TEST(AssetParser, ProjectsFlowGraphWithBlocksAndEdges) {
     auto result = parse_asset_source(R"(graph Execute {
     schema AbilityGraph;
     @graph.input
@@ -144,7 +144,7 @@ TEST(Parser, AssetProjectsFlowGraphWithBlocksAndEdges) {
     EXPECT_EQ(graph.blocks[0].kind, "event");
 }
 
-TEST(Parser, AssetGenerateBlockSourceRanges) {
+TEST(AssetParser, GenerateBlockSourceRanges) {
     auto result = parse_asset_source(R"(graph LayoutGraph {
     node logger {
         type PrintString;
@@ -175,7 +175,7 @@ TEST(Parser, AssetGenerateBlockSourceRanges) {
     EXPECT_EQ(generate.metadata[0].span.range.start.column, 9u);
 }
 
-TEST(Parser, AssetReportsSyntaxDiagnostics) {
+TEST(AssetParser, ReportsSyntaxDiagnostics) {
     auto result = parse_asset_source(R"(graph Broken {
     node missing {
         type PrintString;
@@ -186,7 +186,7 @@ TEST(Parser, AssetReportsSyntaxDiagnostics) {
     EXPECT_FALSE(result.diagnostics[0].message.empty());
 }
 
-TEST(Parser, AssetLinterReportsMissingGraphName) {
+TEST(AssetParser, LinterReportsMissingGraphName) {
     auto result = parse_asset_source(R"(graph {
 }
 )");

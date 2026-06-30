@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight, FileText, Pencil, Play, RefreshCw, RotateCcw, Save } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'

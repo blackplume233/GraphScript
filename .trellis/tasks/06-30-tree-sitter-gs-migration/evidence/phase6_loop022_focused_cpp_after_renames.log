@@ -1,0 +1,69 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = AssetLexicalSurface.*:AssetParser.*:AssetProjection.*:AssetSourceEmission.*
+[==========] Running 25 tests from 4 test suites.
+[----------] Global test environment set-up.
+[----------] 5 tests from AssetLexicalSurface
+[ RUN      ] AssetLexicalSurface.EmptyAndWhitespaceOnlyInput
+[       OK ] AssetLexicalSurface.EmptyAndWhitespaceOnlyInput (0 ms)
+[ RUN      ] AssetLexicalSurface.ImportsStringsAndEscapes
+[       OK ] AssetLexicalSurface.ImportsStringsAndEscapes (0 ms)
+[ RUN      ] AssetLexicalSurface.NumericBoolNullAssetRefAndCallExpressions
+[       OK ] AssetLexicalSurface.NumericBoolNullAssetRefAndCallExpressions (0 ms)
+[ RUN      ] AssetLexicalSurface.SymbolsAttributesArraysAndInlineObjects
+[       OK ] AssetLexicalSurface.SymbolsAttributesArraysAndInlineObjects (0 ms)
+[ RUN      ] AssetLexicalSurface.ReportsSyntaxErrorsWithRanges
+[       OK ] AssetLexicalSurface.ReportsSyntaxErrorsWithRanges (0 ms)
+[----------] 5 tests from AssetLexicalSurface (0 ms total)
+
+[----------] 7 tests from AssetParser
+[ RUN      ] AssetParser.DeclareTypeObjectSchemaAndCommand
+[       OK ] AssetParser.DeclareTypeObjectSchemaAndCommand (0 ms)
+[ RUN      ] AssetParser.PresetsParse
+[       OK ] AssetParser.PresetsParse (0 ms)
+[ RUN      ] AssetParser.ImportsConstAndGraphBlocks
+[       OK ] AssetParser.ImportsConstAndGraphBlocks (0 ms)
+[ RUN      ] AssetParser.ProjectsFlowGraphWithBlocksAndEdges
+[       OK ] AssetParser.ProjectsFlowGraphWithBlocksAndEdges (0 ms)
+[ RUN      ] AssetParser.GenerateBlockSourceRanges
+[       OK ] AssetParser.GenerateBlockSourceRanges (0 ms)
+[ RUN      ] AssetParser.ReportsSyntaxDiagnostics
+[       OK ] AssetParser.ReportsSyntaxDiagnostics (0 ms)
+[ RUN      ] AssetParser.LinterReportsMissingGraphName
+[       OK ] AssetParser.LinterReportsMissingGraphName (0 ms)
+[----------] 7 tests from AssetParser (1 ms total)
+
+[----------] 6 tests from AssetProjection
+[ RUN      ] AssetProjection.ImportPopulatesEnvironmentTypesAndNodes
+[       OK ] AssetProjection.ImportPopulatesEnvironmentTypesAndNodes (0 ms)
+[ RUN      ] AssetProjection.ImportPopulatesSchemas
+[       OK ] AssetProjection.ImportPopulatesSchemas (0 ms)
+[ RUN      ] AssetProjection.FlowGraphProjectionCapturesSchemaParamsNodesAndEdges
+[       OK ] AssetProjection.FlowGraphProjectionCapturesSchemaParamsNodesAndEdges (0 ms)
+[ RUN      ] AssetProjection.EditSessionDerivesGraphAsNode
+[       OK ] AssetProjection.EditSessionDerivesGraphAsNode (0 ms)
+[ RUN      ] AssetProjection.EditSessionReportsUnknownEventReference
+[       OK ] AssetProjection.EditSessionReportsUnknownEventReference (0 ms)
+[ RUN      ] AssetProjection.EditSessionReportsFunctionNodeReference
+[       OK ] AssetProjection.EditSessionReportsFunctionNodeReference (0 ms)
+[----------] 6 tests from AssetProjection (1 ms total)
+
+[----------] 7 tests from AssetSourceEmission
+[ RUN      ] AssetSourceEmission.MinimalAssetGraph
+[       OK ] AssetSourceEmission.MinimalAssetGraph (0 ms)
+[ RUN      ] AssetSourceEmission.SchemaDirective
+[       OK ] AssetSourceEmission.SchemaDirective (0 ms)
+[ RUN      ] AssetSourceEmission.TopLevelConstBody
+[       OK ] AssetSourceEmission.TopLevelConstBody (0 ms)
+[ RUN      ] AssetSourceEmission.GenerateBlock
+[       OK ] AssetSourceEmission.GenerateBlock (0 ms)
+[ RUN      ] AssetSourceEmission.AnnotationConstructorValueRaw
+[       OK ] AssetSourceEmission.AnnotationConstructorValueRaw (0 ms)
+[ RUN      ] AssetSourceEmission.ConstructorStringArgumentsRoundTrip
+[       OK ] AssetSourceEmission.ConstructorStringArgumentsRoundTrip (0 ms)
+[ RUN      ] AssetSourceEmission.FunctionAndVarParam
+[       OK ] AssetSourceEmission.FunctionAndVarParam (0 ms)
+[----------] 7 tests from AssetSourceEmission (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 25 tests from 4 test suites ran. (4 ms total)
+[  PASSED  ] 25 tests.

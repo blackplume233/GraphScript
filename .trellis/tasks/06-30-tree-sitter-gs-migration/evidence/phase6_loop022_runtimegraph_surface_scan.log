@@ -1,0 +1,94 @@
+docs\design.md:54:    图形编辑器交互    Emitter → .gs 文本    bake() → RuntimeGraph
+docs\design.md:273:        RuntimeGraph& rt, const EditGraph& edit, const Environment& env)>;
+docs\design.md:777:## 13. 双模型架构：EditGraph + RuntimeGraph
+docs\design.md:781:| | EditGraph（编辑器模型） | RuntimeGraph（运行时模型） |
+docs\design.md:803:                 修改 Edit        Emitter → .gs text     bake() → RuntimeGraph
+docs\design.md:1045:    Result<RuntimeGraph, std::string> bake() const;
+docs\design.md:1078:### 13C. RuntimeGraph — 高性能运行时模型
+docs\design.md:1080:RuntimeGraph 从 EditGraph 经过 **bake** 产生。所有字符串名称解析为整数索引，所有连接预构建为邻接表，值存储为连续 buffer。**一旦 bake 完成，结构不可变。**
+docs\design.md:1186:#### 13C.7 RuntimeGraph — 完整运行时结构
+docs\design.md:1189:class RuntimeGraph {
+docs\design.md:1224:    static Result<RuntimeGraph, std::string> bake(
+docs\design.md:1275:### 13D. Bake 流程 — EditGraph → RuntimeGraph
+docs\design.md:1307:└─ 9. 输出 RuntimeGraph（冻结，不可变）
+docs\design.md:1354:**RuntimeGraph 视角**（bake 后，执行引擎持有）:
+docs\design.md:1357:RuntimeGraph "graph_name"
+docs\design.md:1568:                                                      RuntimeGraph（可执行）
+docs\design.md:1602:### 17.4 EditGraph 修改后的 RuntimeGraph 更新
+docs\design.md:1604:EditGraph 变更后，旧的 RuntimeGraph 失效，需要重新 bake：
+docs\design.md:1610:标记 RuntimeGraph 为 dirty
+docs\design.md:1613:下次执行请求时 → EditGraph.bake() → 新的 RuntimeGraph
+docs\design.md:1616:替换旧 RuntimeGraph（原子交换）
+docs\design.md:1759:  (round-trip)     → Diagnostics   → RuntimeGraph
+docs\design.md:1797:│   │   └── runtime_graph.h     // RNode, RPin, RuntimeGraph
+docs\design.md:1868:| `gs bake` | Bake → RuntimeGraph 统计 | `gs bake -i graph.gs -f json` |
+docs\spec\ai-native-asset-format.md:1912:RuntimeGraph
+docs\spec\ai-native-asset-format.md:2052:RuntimeGraph
+cli\editor.cpp:5:#include "graphscript/runtime/runtime_graph.h"
+cli\editor.cpp:2022:        "  bake                     Show RuntimeGraph stats\n"
+cli\editor.cpp:3155:    auto rt = RuntimeGraph::bake(*eg);
+cli\editor.cpp:3156:    std::cout << "  RuntimeGraph '" << rt.name() << "'\n";
+docs\spec\legacy-graph-dsl-feature-inventory.md:13:- Runtime/debug 层：`include/graphscript/runtime/*`、`src/runtime/*`、`include/graphscript/debug/*`、`src/debug/*`，提供 `RuntimeGraph` bake、debug dump 和结构 diff。
+docs\spec\legacy-graph-dsl-feature-inventory.md:34:| Runtime | 旧 Runtime / validation / debug 能力 | `include/graphscript/runtime/runtime_graph.h`、`src/runtime/runtime_graph.cpp` |
+docs\spec\legacy-graph-dsl-feature-inventory.md:106:| `RuntimeGraph` flat node/pin/edge arrays。 | `include/graphscript/runtime/runtime_graph.h`；`src/runtime/runtime_graph.cpp`。 | 缺失/后续 Phase：Q5 决定替换为新 graph runtime IR，不保留兼容外壳。 | runtime node/pin lookup、edge array counts、source mapping intent 需迁移到新 IR。 |
+docs\spec\legacy-graph-dsl-feature-inventory.md:107:| `RuntimeGraph::bake(EditGraph)`。 | `RuntimeGraph::bake()`。 | 缺失/后续 Phase：新 bake 应消费 graph projection/model，不依赖 `EditGraph`。 | bake from projected graph、invalid graph rejection、large graph performance tests 需迁移。 |
+docs\spec\legacy-graph-dsl-feature-inventory.md:108:| runtime node/pin 查询失败语义。 | `RuntimeGraph::find_node()`、`find_pin_index()`；`tests/test_runtimegraph.cpp` lookup tests。 | 缺失/后续 Phase：新 runtime IR 尚未定义 stable id/index 查询。 | 新 runtime IR 需提供稳定 id/index 查询和明确失败语义。 |
+docs\spec\legacy-graph-dsl-feature-inventory.md:110:| debug dump AST/Module/EditGraph/RuntimeGraph。 | `include/graphscript/debug/dump.h`；`src/debug/dump.cpp`。 | 后续 Phase：dump 目标应改为 asset syntax tree、semantic model、graph projection、新 runtime IR。 | debug dump readability 和 structural diff tests 需迁移。 |
+docs\spec\legacy-graph-dsl-feature-inventory.md:125:8. 新 graph runtime IR 替换 `RuntimeGraph`，并以 graph projection/model 作为输入。
+docs\spec\legacy-graph-dsl-feature-inventory.md:165:| 新 graph runtime IR 替换 `RuntimeGraph`。 | Phase 5/6 |
+src\debug\dump.cpp:2:/// Produces human-readable hierarchical text from Module, EditGraph, and RuntimeGraph.
+src\debug\dump.cpp:8:#include "graphscript/runtime/runtime_graph.h"
+src\debug\dump.cpp:199:// ─── dump_runtime_graph ────────────────────────────────────────────
+src\debug\dump.cpp:201:std::string dump_runtime_graph(const RuntimeGraph& rg) {
+src\debug\dump.cpp:203:    os << "RuntimeGraph " << quote(rg.name()) << " {\n";
+docs\spec\development-guide.md:72:| `test_runtimegraph.cpp` | RuntimeGraph | 9 | Bake pipeline |
+docs\spec\development-guide.md:285:│   ├── runtime/            # RuntimeGraph (baked)
+docs\spec\development-guide.md:301:- **Classes**: `PascalCase` (`EditSession`, `RuntimeGraph`)
+docs\plans\tree-sitter-gs-migration-plan.md:493:          runtime_graph.h
+docs\plans\tree-sitter-gs-migration-plan.md:587:        runtime_graph.cpp
+docs\plans\tree-sitter-gs-migration-plan.md:878:| Runtime | `include/graphscript/runtime/runtime_graph.h`、`src/runtime/runtime_graph.cpp` | bake model、runtime source mapping、node/pin/edge layout。 |
+docs\plans\tree-sitter-gs-migration-plan.md:1225:### Q5：RuntimeGraph 保留还是替换？（已决）
+docs\plans\tree-sitter-gs-migration-plan.md:1230:- 不把旧 `RuntimeGraph` 作为长期 public runtime type 保留。
+docs\plans\tree-sitter-gs-migration-plan.md:1233:- 现有依赖 `RuntimeGraph` 的测试、debug dump 和 runtime bake 路径需要迁移或改写到新 IR。
+docs\plans\tree-sitter-gs-migration-plan.md:1238:- 方案 A：保留 `RuntimeGraph` 类型，但输入改为新 `graph/model` 或 `graph/projection`。
+docs\spec\architecture.md:20:│  Parse · Compile · EditGraph · EditSession · RuntimeGraph · Emitter │
+docs\spec\architecture.md:83:  RuntimeGraph.bake(edit_graph)
+docs\spec\architecture.md:86:  RuntimeGraph  (flat arrays, integer indices, immutable)
+docs\spec\architecture.md:171:### RuntimeGraph (runtime/runtime_graph.h)
+src\runtime\runtime_graph.cpp:1:#include "graphscript/runtime/runtime_graph.h"
+src\runtime\runtime_graph.cpp:8:const RNode* RuntimeGraph::find_node(const std::string& instance_name) const {
+src\runtime\runtime_graph.cpp:16:uint8_t RuntimeGraph::find_pin_index(uint32_t node_index, const std::string& pin_name) const {
+src\runtime\runtime_graph.cpp:25:// Converts EditGraph to flat RuntimeGraph; maps handles to indices, bakes flow and data edges.
+src\runtime\runtime_graph.cpp:26:RuntimeGraph RuntimeGraph::bake(const EditGraph& edit_graph) {
+src\runtime\runtime_graph.cpp:27:    RuntimeGraph rt;
+include\graphscript\runtime\runtime_graph.h:46:class RuntimeGraph {
+include\graphscript\runtime\runtime_graph.h:66:    static RuntimeGraph bake(const EditGraph& edit_graph);
+tests\test_runtimegraph.cpp:2:#include "graphscript/runtime/runtime_graph.h"
+tests\test_runtimegraph.cpp:43:TEST(RuntimeGraph, BakeEmpty) {
+tests\test_runtimegraph.cpp:46:    auto rt = RuntimeGraph::bake(eg);
+tests\test_runtimegraph.cpp:53:TEST(RuntimeGraph, BakeWithNodes) {
+tests\test_runtimegraph.cpp:59:    auto rt = RuntimeGraph::bake(eg);
+tests\test_runtimegraph.cpp:64:TEST(RuntimeGraph, BakePreservesNodeData) {
+tests\test_runtimegraph.cpp:69:    auto rt = RuntimeGraph::bake(eg);
+tests\test_runtimegraph.cpp:77:TEST(RuntimeGraph, BakeFlowEdges) {
+tests\test_runtimegraph.cpp:84:    auto rt = RuntimeGraph::bake(eg);
+tests\test_runtimegraph.cpp:91:TEST(RuntimeGraph, BakeDataEdges) {
+tests\test_runtimegraph.cpp:105:    auto rt = RuntimeGraph::bake(eg);
+tests\test_runtimegraph.cpp:112:TEST(RuntimeGraph, BakeWithSchema) {
+tests\test_runtimegraph.cpp:118:    auto rt = RuntimeGraph::bake(eg);
+tests\test_runtimegraph.cpp:122:TEST(RuntimeGraph, FindNode) {
+tests\test_runtimegraph.cpp:128:    auto rt = RuntimeGraph::bake(eg);
+tests\test_runtimegraph.cpp:134:TEST(RuntimeGraph, FindPinIndex) {
+tests\test_runtimegraph.cpp:139:    auto rt = RuntimeGraph::bake(eg);
+tests\test_runtimegraph.cpp:151:TEST(RuntimeGraph, PinData) {
+tests\test_runtimegraph.cpp:156:    auto rt = RuntimeGraph::bake(eg);
+tests\test_qa_stress.cpp:10:#include "graphscript/runtime/runtime_graph.h"
+tests\test_qa_stress.cpp:107:    auto runtime = RuntimeGraph::bake(*edit_graph);
+tests\test_qa_stress.cpp:110:    // Current RuntimeGraph bake only materializes node-to-node data links; bare
+tests\test_blueprint_scenarios.cpp:7:#include "graphscript/runtime/runtime_graph.h"
+tests\test_blueprint_scenarios.cpp:110:    auto runtime = RuntimeGraph::bake(*edit_graph);
+tests\test_integration_deep.cpp:7:#include "graphscript/runtime/runtime_graph.h"
+tests\test_integration_deep.cpp:143:    auto runtime = RuntimeGraph::bake(*edit_graph);
+include\graphscript\debug\dump.h:10:class  RuntimeGraph;
+include\graphscript\debug\dump.h:20:/// Dumps RuntimeGraph (baked flat arrays) to text.
+include\graphscript\debug\dump.h:21:std::string dump_runtime_graph(const RuntimeGraph& rg);

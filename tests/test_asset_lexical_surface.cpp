@@ -9,7 +9,7 @@ static asset::ParseResult parse_asset_lexer_source(const std::string& source) {
     return parser.parse();
 }
 
-TEST(Lexer, EmptyAndWhitespaceOnlyInput) {
+TEST(AssetLexicalSurface, EmptyAndWhitespaceOnlyInput) {
     auto empty = parse_asset_lexer_source("");
     EXPECT_TRUE(empty.diagnostics.empty());
     EXPECT_TRUE(empty.module.imports.empty());
@@ -20,7 +20,7 @@ TEST(Lexer, EmptyAndWhitespaceOnlyInput) {
     EXPECT_TRUE(whitespace.module.items.blocks.empty());
 }
 
-TEST(Lexer, ImportsStringsAndEscapes) {
+TEST(AssetLexicalSurface, ImportsStringsAndEscapes) {
     auto result = parse_asset_lexer_source(R"(import "ue_core.d.gs";
 const text = new LocalizedText {
     value: "with \"escape\"";
@@ -36,7 +36,7 @@ const text = new LocalizedText {
     EXPECT_EQ(result.module.items.consts[0].properties[0].value.text, "with \\\"escape\\\"");
 }
 
-TEST(Lexer, NumericBoolNullAssetRefAndCallExpressions) {
+TEST(AssetLexicalSurface, NumericBoolNullAssetRefAndCallExpressions) {
     auto result = parse_asset_lexer_source(R"(graph Literals {
     node sample {
         type LiteralNode;
@@ -64,7 +64,7 @@ TEST(Lexer, NumericBoolNullAssetRefAndCallExpressions) {
     EXPECT_EQ(node.items.properties[5].value.kind, asset::ExprKind::Call);
 }
 
-TEST(Lexer, SymbolsAttributesArraysAndInlineObjects) {
+TEST(AssetLexicalSurface, SymbolsAttributesArraysAndInlineObjects) {
     auto result = parse_asset_lexer_source(R"(@Comment("title", "Graph")
 graph Rich {
     @graph.input
@@ -91,7 +91,7 @@ graph Rich {
     EXPECT_EQ(node.items.properties[1].value.kind, asset::ExprKind::InlineObject);
 }
 
-TEST(Lexer, ReportsSyntaxErrorsWithRanges) {
+TEST(AssetLexicalSurface, ReportsSyntaxErrorsWithRanges) {
     auto result = parse_asset_lexer_source(R"(graph Broken {
     node missing {
         type PrintString
