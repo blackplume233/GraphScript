@@ -1,0 +1,24 @@
+src/edit/edit_session.cpp:3207:static bool has_asset_declaration_import_items(const asset::Module& module) {
+src/edit/edit_session.cpp:3461:static bool has_asset_declarations(const asset::Module& module) {
+src/edit/edit_session.cpp:3509:            if (has_asset_declarations(*asset_module)) {
+src/edit/edit_session.cpp:3540:    Compiler compiler(env_);
+src/edit/edit_session.cpp:3581:Result<void, std::string> EditSession::load_import(const std::string& path) {
+src/edit/edit_session.cpp:3591:    auto asset_module = parse_asset_text(src, path);
+src/edit/edit_session.cpp:3592:    if (asset_module && has_asset_declaration_import_items(*asset_module)) {
+src/edit/edit_session.cpp:3605:    Compiler compiler(env_);
+tests/test_edit_session.cpp:18:    s.load_import(path);
+tests/test_edit_session.cpp:1819:    auto loaded = s.load_import(path.string());
+tests/test_edit_session.cpp:1943:    auto loaded = s.load_import(path.string());
+tests/test_edit_session.cpp:2363:    // load_import compiles + adds import; total should remain 1 due to dedup
+tests/test_edit_session.cpp:2365:    s.load_import(path);
+tests/test_edit_session.cpp:2376:    auto loaded = s.load_import(equivalent.string());
+tests/test_edit_session.cpp:2382:    auto loaded_again = s.load_import(path.string());
+tests/test_edit_session.cpp:2408:    auto loaded_import = s.load_import(import_path.string());
+tests/test_edit_session.cpp:2613:    auto loaded = s.load_import(path.string());
+tests/test_edit_session.cpp:2669:    auto loaded = s.load_import(path.string());
+tests/test_edit_session.cpp:2702:        auto loaded = s.load_import(path.string());
+tests/test_edit_session.cpp:2815:    auto loaded = s.load_import(path.string());
+tests/test_edit_session.cpp:2841:    auto first_loaded = s.load_import(first.string());
+tests/test_edit_session.cpp:2843:    auto second_loaded = s.load_import(second.string());
+tests/test_edit_session.cpp:2872:    auto loaded = s.load_import(path.string());
+tests/test_edit_session.cpp:2890:    auto loaded = s.load_import(path.string());

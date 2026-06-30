@@ -1,0 +1,4 @@
+src/edit/edit_session.cpp:3207:static bool has_asset_declaration_import_items(const asset::Module& module) {
+src/edit/edit_session.cpp:3592:    if (asset_module && has_asset_declaration_import_items(*asset_module)) {
+tests/test_edit_session.cpp:2850:TEST(EditSession, LoadAssetImportAcceptsDeclarationMetadataOnlyFile) {
+tests/test_edit_session.cpp:2862:               "export declare kind command connect;\n"

@@ -1,0 +1,2 @@
+warning: in the working copy of 'src/edit/edit_session.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_edit_session.cpp', LF will be replaced by CRLF the next time Git touches it

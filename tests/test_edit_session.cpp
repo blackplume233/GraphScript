@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "graphscript/compile/compiler.h"
 #include "graphscript/edit/edit_session.h"
 #include "graphscript/parse/lexer.h"
 #include "graphscript/parse/parser.h"
@@ -2395,7 +2396,7 @@ TEST(EditSession, SourceImportDeclarationIsNotLoadedUntilImportCommand) {
     std::filesystem::path import_path = preset_dir / "ue_core.d.gs";
     std::filesystem::path source_name = preset_dir / "module_with_import.gs";
     const std::string source = R"(import "ue_core.d.gs";
-Graph Imported {
+graph Imported {
 }
 )";
 
@@ -2550,4 +2551,482 @@ TEST(EditSession, FullWorkflowSimulation) {
     s.redo(); // redo add_function
     EXPECT_EQ(s.active_graph()->functions.size(), 1u);
     EXPECT_EQ(s.active_graph()->functions[0].name, "Reset");
+}
+
+TEST(EditSession, LoadAssetSourceProjectsGraphAndPreservesSourceEmit) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string source = R"(graph Execute {
+    schema AbilityGraph;
+    @graph.input
+    param target: Actor;
+
+    node log {
+        type PrintString;
+        message: "done";
+    }
+
+    event Start {
+        connect(context.start, log.enter);
+        bind(target, log.message);
+    }
+}
+)";
+
+    auto loaded = s.load_source(source, "asset_session.gs");
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+    ASSERT_NE(s.active_graph(), nullptr);
+    EXPECT_EQ(s.active_graph()->name, "Execute");
+    ASSERT_EQ(s.active_graph()->parameters.size(), 1u);
+    EXPECT_EQ(s.active_graph()->parameters[0].name, "target");
+    EXPECT_EQ(s.active_graph()->parameters[0].direction, ParamDirection::In);
+    ASSERT_EQ(s.active_graph()->node_instances.size(), 1u);
+    EXPECT_EQ(s.active_graph()->node_instances[0].instance_name, "log");
+    EXPECT_EQ(s.active_graph()->node_instances[0].type_name, "PrintString");
+    ASSERT_EQ(s.active_graph()->events.size(), 1u);
+    EXPECT_EQ(s.active_graph()->events[0].name, "Start");
+    EXPECT_EQ(s.active_graph()->events[0].flow_connections.size(), 1u);
+    EXPECT_EQ(s.active_graph()->events[0].data_links.size(), 1u);
+    EXPECT_EQ(s.emit(), source);
+
+    auto add_param = s.add_param(ParamDirection::In, "amount", "float");
+    ASSERT_TRUE(add_param.is_ok()) << add_param.error();
+    EXPECT_EQ(s.emit().find("Graph Execute"), 0u);
+}
+
+TEST(EditSession, LoadAssetImportRejectsInvalidSchemaPolicyValue) {
+    auto dir = std::filesystem::temp_directory_path() / "graphscript_asset_import_bad_policy";
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    std::filesystem::create_directories(dir);
+    auto path = dir / "bad_schema.d.gs";
+    {
+        std::ofstream out(path, std::ios::binary);
+        out << "export declare schema AbilityGraph: FlowGraphSchema {\n"
+               "    max_exec_fan_out: bad;\n"
+               "}\n";
+    }
+
+    Environment env;
+    EditSession s(env);
+    auto loaded = s.load_import(path.string());
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_NE(loaded.error().find("Invalid max_exec_fan_out"), std::string::npos);
+}
+
+TEST(EditSession, LoadAssetSourceRequiresProjectedGraph) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string source =
+        "import \"types.d.gs\";\n"
+        "export declare type Actor;\n";
+
+    auto loaded = s.load_source(source, "declarations_only.gs");
+    EXPECT_TRUE(loaded.is_err());
+    EXPECT_EQ(s.active_graph(), nullptr);
+}
+
+TEST(EditSession, LoadAssetSourceRejectsImportOnlyWithoutProjectedGraph) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string source = "import \"types.d.gs\";\n";
+
+    auto loaded = s.load_source(source, "import_only.gs");
+    EXPECT_TRUE(loaded.is_err());
+    EXPECT_EQ(s.active_graph(), nullptr);
+}
+
+TEST(EditSession, LoadAssetSourceRejectsDeclarationOnlyWithoutProjectedGraph) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string source = "export declare type Actor;\n";
+
+    auto loaded = s.load_source(source, "declaration_only.gs");
+    EXPECT_TRUE(loaded.is_err());
+    EXPECT_EQ(s.active_graph(), nullptr);
+}
+
+TEST(EditSession, LoadAssetImportRejectsInvalidMaxExecFanOutValue) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string source =
+        "export declare schema BadPolicy: FlowGraphSchema {\n"
+        "    max_exec_fan_out: nope;\n"
+        "    allow_exec_fan_in: true;\n"
+        "}\n";
+    const auto path = std::filesystem::temp_directory_path() / "graphscript_asset_bad_policy_090.d.gs";
+    {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << source;
+    }
+
+    auto loaded = s.load_import(path.string());
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_NE(loaded.error().find("Invalid max_exec_fan_out"), std::string::npos);
+    EXPECT_EQ(env.schemas().find("BadPolicy"), nullptr);
+    EXPECT_FALSE(s.is_import_loaded(path.string()));
+}
+
+TEST(EditSession, LoadAssetImportAcceptsDeclarationOnlyMetadataKinds) {
+    struct Case {
+        const char* name;
+        const char* source;
+    };
+
+    const Case cases[] = {
+        {"module_only", "declare module \"meta.only\" {\n    version: \"1\";\n}\n"},
+        {"enum_only", "export declare enum Mode {\n    A;\n}\n"},
+        {"kind_only", "export declare kind block dialog;\n"},
+        {"block_only", "export declare block dialog {\n    allows property title;\n}\n"},
+        {"command_only", "export declare command connect(from: PinRef, to: PinRef): EdgeRef;\n"},
+        {"lint_only", "export declare lint DialogLint for DialogGraph;\n"},
+    };
+
+    for (const auto& item : cases) {
+        Environment env;
+        EditSession s(env);
+        const auto path = std::filesystem::temp_directory_path() /
+                          ("graphscript_asset_decl_only_" + std::string(item.name) + ".d.gs");
+        {
+            std::ofstream out(path, std::ios::binary);
+            ASSERT_TRUE(out.is_open());
+            out << item.source;
+        }
+
+        auto loaded = s.load_import(path.string());
+        ASSERT_TRUE(loaded.is_ok()) << item.name << ": " << loaded.error();
+        ASSERT_EQ(s.module().imports.size(), 1u) << item.name;
+        EXPECT_TRUE(s.module().imports[0].loaded) << item.name;
+    }
+}
+
+TEST(EditSession, LoadAssetImportRejectsGraphSourceWithImportOrExportList) {
+    struct Case {
+        const char* name;
+        const char* source;
+    };
+
+    const Case cases[] = {
+        {"with_import", "import \"core.d.gs\";\ngraph Execute {\n}\n"},
+        {"with_export_list", "export { Execute };\ngraph Execute {\n}\n"},
+    };
+
+    for (const auto& item : cases) {
+        Environment env;
+        EditSession s(env);
+        const auto path = std::filesystem::temp_directory_path() /
+                          ("graphscript_asset_graph_source_import_" + std::string(item.name) + ".d.gs");
+        {
+            std::ofstream out(path, std::ios::binary);
+            ASSERT_TRUE(out.is_open());
+            out << item.source;
+        }
+
+        auto loaded = s.load_import(path.string());
+        ASSERT_TRUE(loaded.is_err()) << item.name;
+        EXPECT_FALSE(s.is_import_loaded(path.string())) << item.name;
+        EXPECT_TRUE(s.module().imports.empty()) << item.name;
+    }
+}
+
+TEST(EditSession, LoadAssetSourceRejectsLintErrors) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string source = R"(graph Bad {
+    node log {
+        type PrintString;
+    }
+    node log {
+        type PrintString;
+    }
+}
+)";
+
+    auto loaded = s.load_source(source, "duplicate_alias.gs");
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_EQ(s.active_graph(), nullptr);
+}
+
+TEST(EditSession, LoadAssetSourceRejectsLintErrorsWithoutMutatingSession) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string good_source = R"(graph Execute {
+    schema AbilityGraph;
+
+    node log {
+        type PrintString;
+        message: "done";
+    }
+}
+)";
+    auto good = s.load_source(good_source, "good_asset.gs");
+    ASSERT_TRUE(good.is_ok()) << good.error();
+    ASSERT_NE(s.active_graph(), nullptr);
+    EXPECT_EQ(s.active_graph()->name, "Execute");
+    EXPECT_EQ(s.emit(), good_source);
+
+    const std::string bad_source = R"(graph Bad {
+    node log {
+        type PrintString;
+    }
+    node log {
+        type PrintString;
+    }
+}
+)";
+    auto loaded = s.load_source(bad_source, "duplicate_alias.gs");
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_NE(loaded.error().find("Asset lint error"), std::string::npos);
+    ASSERT_NE(s.active_graph(), nullptr);
+    EXPECT_EQ(s.active_graph()->name, "Execute");
+    EXPECT_EQ(s.emit(), good_source);
+}
+
+TEST(EditSession, LoadAssetSourceRejectsProjectionErrorsWithoutMutatingSession) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string good_source = R"(graph Execute {
+    schema AbilityGraph;
+
+    node log {
+        type PrintString;
+        message: "done";
+    }
+}
+)";
+    auto good = s.load_source(good_source, "good_asset.gs");
+    ASSERT_TRUE(good.is_ok()) << good.error();
+    ASSERT_NE(s.active_graph(), nullptr);
+    EXPECT_EQ(s.active_graph()->name, "Execute");
+    EXPECT_EQ(s.emit(), good_source);
+
+    const std::string bad_source = R"(graph Broken {
+    schema AbilityGraph;
+
+    node log {
+        type PrintString;
+    }
+
+    bind(missing.value, log.message);
+}
+)";
+    auto loaded = s.load_source(bad_source, "bad_projection.gs");
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_NE(loaded.error().find("Unknown source in data link"), std::string::npos);
+    ASSERT_NE(s.active_graph(), nullptr);
+    EXPECT_EQ(s.active_graph()->name, "Execute");
+    EXPECT_EQ(s.emit(), good_source);
+}
+
+TEST(EditSession, LoadAssetImportRejectsLintErrorsWithoutRegistering) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string source =
+        "export declare type Actor;\n"
+        "export declare type Actor;\n";
+    const auto path = std::filesystem::temp_directory_path() / "graphscript_asset_duplicate_type_090.d.gs";
+    {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << source;
+    }
+
+    auto loaded = s.load_import(path.string());
+    ASSERT_TRUE(loaded.is_err());
+    EXPECT_EQ(env.types().find("Actor"), nullptr);
+    EXPECT_FALSE(s.is_import_loaded(path.string()));
+}
+
+TEST(EditSession, LoadAssetImportRejectsEnvironmentConflictsWithoutMarkingLoaded) {
+    auto dir = std::filesystem::temp_directory_path() / "graphscript_asset_import_conflict";
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    std::filesystem::create_directories(dir);
+    auto first = dir / "first.d.gs";
+    auto second = dir / "second.d.gs";
+    {
+        std::ofstream out(first, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "export declare type Actor;\n";
+    }
+    {
+        std::ofstream out(second, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "export declare type Actor;\n";
+    }
+
+    Environment env;
+    EditSession s(env);
+    auto first_loaded = s.load_import(first.string());
+    ASSERT_TRUE(first_loaded.is_ok()) << first_loaded.error();
+    auto second_loaded = s.load_import(second.string());
+    ASSERT_TRUE(second_loaded.is_err());
+    EXPECT_NE(second_loaded.error().find("conflicts"), std::string::npos);
+    EXPECT_TRUE(s.is_import_loaded(first.string()));
+    EXPECT_FALSE(s.is_import_loaded(second.string()));
+}
+
+TEST(EditSession, LoadAssetImportAcceptsDeclarationMetadataOnlyFile) {
+    const auto path = std::filesystem::temp_directory_path() / "graphscript_asset_declaration_metadata_only_090.d.gs";
+    {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "declare module \"ability.core\" {\n"
+               "    package: \"Game.Ability\";\n"
+               "}\n"
+               "export declare enum DamageType {\n"
+               "    Fire;\n"
+               "}\n"
+               "export declare kind block graph;\n"
+               "export declare kind command connect;\n"
+               "export declare block graph {\n"
+               "    allows command connect;\n"
+               "}\n"
+               "export declare command connect(from: PinRef, to: PinRef): EdgeRef;\n"
+               "export declare lint AbilityLint for AbilityGraph;\n";
+    }
+
+    Environment env;
+    EditSession s(env);
+    auto loaded = s.load_import(path.string());
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+    EXPECT_TRUE(s.is_import_loaded(path.string()));
+    EXPECT_EQ(env.types().all().size(), 0u);
+    EXPECT_EQ(env.nodes().all().size(), 0u);
+    EXPECT_EQ(env.schemas().all().size(), 0u);
+}
+
+TEST(EditSession, LoadAssetImportAcceptsImportOnlyDeclarationFile) {
+    const auto path = std::filesystem::temp_directory_path() / "graphscript_asset_import_only_011.d.gs";
+    {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "import \"core.d.gs\";\n";
+    }
+
+    Environment env;
+    EditSession s(env);
+    auto loaded = s.load_import(path.string());
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+    EXPECT_TRUE(s.is_import_loaded(path.string()));
+    EXPECT_EQ(s.module().imports.size(), 1u);
+    EXPECT_EQ(env.types().all().size(), 0u);
+    EXPECT_EQ(env.nodes().all().size(), 0u);
+    EXPECT_EQ(env.schemas().all().size(), 0u);
+}
+
+TEST(EditSession, LoadAssetImportRegistersTypeObjectAndSchemaDeclarations) {
+    const auto path = std::filesystem::temp_directory_path() / "graphscript_asset_registered_declarations_011.d.gs";
+    {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(out.is_open());
+        out << "export declare type Actor;\n"
+               "export declare object PrintString {\n"
+               "    @flow.input\n"
+               "    message: string;\n"
+               "}\n"
+               "export declare schema AbilityGraph: FlowGraphSchema {\n"
+               "    max_exec_fan_out: 2;\n"
+               "    allow_exec_fan_in: true;\n"
+               "}\n";
+    }
+
+    Environment env;
+    EditSession s(env);
+    auto loaded = s.load_import(path.string());
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+    EXPECT_TRUE(s.is_import_loaded(path.string()));
+
+    auto* actor = env.types().find("Actor");
+    ASSERT_NE(actor, nullptr);
+    EXPECT_EQ(actor->source_file, path.string());
+
+    auto* node = env.nodes().find("PrintString");
+    ASSERT_NE(node, nullptr);
+    ASSERT_EQ(node->pins.size(), 1u);
+    EXPECT_EQ(node->pins[0].name, "message");
+    EXPECT_EQ(node->pins[0].direction, PinDirection::Input);
+
+    auto* schema = env.schemas().find("AbilityGraph");
+    ASSERT_NE(schema, nullptr);
+    EXPECT_EQ(schema->connection_policy.max_exec_fan_out, 2);
+    EXPECT_TRUE(schema->connection_policy.allow_exec_fan_in);
+}
+
+TEST(EditSession, UndoRedoAssetSourceLoadRestoresSourceCache) {
+    Environment env;
+    EditSession s(env);
+    ASSERT_TRUE(s.new_graph("Legacy").is_ok());
+
+    const std::string source = R"(graph Execute {
+    schema AbilityGraph;
+
+    node log {
+        type PrintString;
+    }
+}
+)";
+
+    auto loaded = s.load_source(source, "asset_session.gs");
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+    EXPECT_EQ(s.emit(), source);
+
+    auto undone = s.undo();
+    ASSERT_TRUE(undone.is_ok()) << undone.error();
+    ASSERT_NE(s.active_graph(), nullptr);
+    EXPECT_EQ(s.active_graph()->name, "Legacy");
+    EXPECT_NE(s.emit(), source);
+    EXPECT_NE(s.emit().find("Graph Legacy"), std::string::npos);
+
+    auto redone = s.redo();
+    ASSERT_TRUE(redone.is_ok()) << redone.error();
+    ASSERT_NE(s.active_graph(), nullptr);
+    EXPECT_EQ(s.active_graph()->name, "Execute");
+    EXPECT_EQ(s.emit(), source);
+}
+
+TEST(EditSession, UndoAssetToAssetSourceLoadRestoresPreviousSourceCache) {
+    Environment env;
+    EditSession s(env);
+
+    const std::string first = R"(graph First {
+    node log {
+        type PrintString;
+    }
+}
+)";
+    const std::string second = R"(graph Second {
+    node log {
+        type PrintString;
+    }
+}
+)";
+
+    auto first_loaded = s.load_source(first, "first.gs");
+    ASSERT_TRUE(first_loaded.is_ok()) << first_loaded.error();
+    auto second_loaded = s.load_source(second, "second.gs");
+    ASSERT_TRUE(second_loaded.is_ok()) << second_loaded.error();
+    EXPECT_EQ(s.emit(), second);
+
+    auto undone = s.undo();
+    ASSERT_TRUE(undone.is_ok()) << undone.error();
+    ASSERT_NE(s.active_graph(), nullptr);
+    EXPECT_EQ(s.active_graph()->name, "First");
+    EXPECT_EQ(s.emit(), first);
+
+    auto redone = s.redo();
+    ASSERT_TRUE(redone.is_ok()) << redone.error();
+    ASSERT_NE(s.active_graph(), nullptr);
+    EXPECT_EQ(s.active_graph()->name, "Second");
+    EXPECT_EQ(s.emit(), second);
 }

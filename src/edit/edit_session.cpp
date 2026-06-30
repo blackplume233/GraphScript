@@ -1,4 +1,7 @@
 #include "graphscript/edit/edit_session.h"
+#include "graphscript/asset/language.h"
+#include "graphscript/compile/compiler.h"
+#include "graphscript/emit/emitter.h"
 #include "graphscript/parse/lexer.h"
 #include "graphscript/parse/parser.h"
 #include "graphscript/schema/schema_registry.h"
@@ -8,6 +11,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <exception>
 #include <iterator>
 #include <optional>
 #include <unordered_map>
@@ -868,6 +872,7 @@ static bool has_annotation(const std::vector<Annotation>& annotations, const std
 // Saves current active graph state before a mutation.
 void EditSession::push_undo(const std::string& description) {
     if (active_ < 0 || active_ >= static_cast<int>(module_.graphs.size())) return;
+    asset_source_.reset();
     EditSnapshot snapshot;
     snapshot.scope = EditSnapshot::Scope::Graph;
     snapshot.graph = module_.graphs[active_];
@@ -888,11 +893,13 @@ void EditSession::push_module_undo(const std::string& description) {
     snapshot.module = module_;
     snapshot.active_index = active_;
     snapshot.description = description;
+    snapshot.asset_source = asset_source_;
     undo_stack_.push_back(std::move(snapshot));
     if (undo_stack_.size() > kMaxUndoDepth) {
         undo_stack_.erase(undo_stack_.begin());
     }
     redo_stack_.clear();
+    asset_source_.reset();
     dirty_ = true;
 }
 
@@ -914,6 +921,7 @@ Result<int, std::string> EditSession::new_graph(const std::string& name, const s
     Graph g;
     g.name = name;
     if (!base_type.empty()) g.base_type = base_type;
+    asset_source_.reset();
     module_.graphs.push_back(std::move(g));
     active_ = static_cast<int>(module_.graphs.size()) - 1;
     refresh_graph_node_definition(env_, module_.graphs.back());
@@ -924,6 +932,7 @@ Result<int, std::string> EditSession::new_graph(const std::string& name, const s
 Result<void, std::string> EditSession::delete_graph(const std::string& name) {
     for (size_t i = 0; i < module_.graphs.size(); i++) {
         if (module_.graphs[i].name == name) {
+            asset_source_.reset();
             module_.graphs.erase(module_.graphs.begin() + i);
             if (active_ == static_cast<int>(i)) active_ = -1;
             else if (active_ > static_cast<int>(i)) active_--;
@@ -1006,6 +1015,7 @@ void EditSession::add_import(const std::string& path, bool loaded) {
     decl.path = path;
     decl.is_native = (path.size() > 5 && path.substr(path.size() - 5) == ".d.gs");
     decl.loaded = loaded;
+    asset_source_.reset();
     module_.imports.push_back(std::move(decl));
     dirty_ = true;
 }
@@ -1026,6 +1036,7 @@ void EditSession::add_let(const std::string& name, const std::string& type_name,
     decl.name = name;
     decl.type_name = type_name;
     decl.constructor_arg = ctor_arg;
+    asset_source_.reset();
     module_.top_level_lets.push_back(std::move(decl));
     dirty_ = true;
 }
@@ -2611,10 +2622,12 @@ Result<std::string, std::string> EditSession::undo() {
         redo.module = module_;
         redo.active_index = active_;
         redo.description = snapshot.description;
+        redo.asset_source = asset_source_;
         redo_stack_.push_back(std::move(redo));
 
         module_ = std::move(snapshot.module);
         active_ = snapshot.active_index;
+        asset_source_ = std::move(snapshot.asset_source);
         if (active_ >= static_cast<int>(module_.graphs.size())) active_ = module_.graphs.empty() ? -1 : 0;
         refresh_module_graph_node_definitions(env_, module_);
         dirty_ = true;
@@ -2625,6 +2638,7 @@ Result<std::string, std::string> EditSession::undo() {
     if (index < 0 || index >= static_cast<int>(module_.graphs.size())) {
         return Result<std::string, std::string>::err("Undo graph no longer exists");
     }
+    asset_source_.reset();
 
     EditSnapshot redo;
     redo.scope = EditSnapshot::Scope::Graph;
@@ -2652,10 +2666,12 @@ Result<std::string, std::string> EditSession::redo() {
         undo.module = module_;
         undo.active_index = active_;
         undo.description = snapshot.description;
+        undo.asset_source = asset_source_;
         undo_stack_.push_back(std::move(undo));
 
         module_ = std::move(snapshot.module);
         active_ = snapshot.active_index;
+        asset_source_ = std::move(snapshot.asset_source);
         if (active_ >= static_cast<int>(module_.graphs.size())) active_ = module_.graphs.empty() ? -1 : 0;
         refresh_module_graph_node_definitions(env_, module_);
         dirty_ = true;
@@ -2666,6 +2682,7 @@ Result<std::string, std::string> EditSession::redo() {
     if (index < 0 || index >= static_cast<int>(module_.graphs.size())) {
         return Result<std::string, std::string>::err("Redo graph no longer exists");
     }
+    asset_source_.reset();
 
     EditSnapshot undo;
     undo.scope = EditSnapshot::Scope::Graph;
@@ -2698,6 +2715,7 @@ std::vector<std::string> EditSession::redo_history() const {
 // ─── Query / Output ────────────────────────────────────────────────
 
 std::string EditSession::emit() const {
+    if (asset_source_) return *asset_source_;
     Emitter emitter;
     return emitter.emit(module_);
 }
@@ -3168,14 +3186,375 @@ static std::unique_ptr<ModuleNode> parse_text(const std::string& src) {
     return std::move(result).value();
 }
 
+static std::optional<asset::Module> parse_asset_text(const std::string& source, const std::string& source_name) {
+    asset::Parser parser(source, source_name);
+    auto parsed = parser.parse();
+    if (!parsed.diagnostics.empty()) return std::nullopt;
+    return std::move(parsed.module);
+}
+
+static Result<void, std::string> lint_asset_module(const asset::Module& module) {
+    asset::Linter linter;
+    auto diagnostics = linter.lint(module);
+    for (const auto& diagnostic : diagnostics) {
+        if (diagnostic.severity == Severity::Error) {
+            return Result<void, std::string>::err("Asset lint error: " + diagnostic.message);
+        }
+    }
+    return Result<void, std::string>::ok();
+}
+
+static bool has_asset_source_items(const asset::ItemContainer& items) {
+    return !items.properties.empty() ||
+           !items.consts.empty() ||
+           !items.calls.empty() ||
+           !items.assignments.empty() ||
+           !items.directives.empty() ||
+           !items.blocks.empty();
+}
+
+static bool has_asset_declaration_symbol(const asset::Module& module) {
+    for (const auto& symbol : module.symbols) {
+        if (symbol.kind != "export") return true;
+    }
+    return false;
+}
+
+static bool has_asset_declaration_import_items(const asset::Module& module) {
+    if (has_asset_source_items(module.items)) return false;
+    return !module.modules.empty() ||
+           !module.enums.empty() ||
+           !module.objects.empty() ||
+           !module.block_kinds.empty() ||
+           !module.commands.empty() ||
+           !module.schemas.empty() ||
+           !module.lints.empty() ||
+           has_asset_declaration_symbol(module);
+}
+
+static std::string asset_attr_arg(const asset::Attribute& attr, const std::string& name) {
+    for (const auto& arg : attr.args) {
+        if (arg.name == name) return arg.value.text;
+    }
+    return "";
+}
+
+static bool asset_field_pin(const asset::FieldDecl& field, PinDefinition& pin) {
+    pin.name = field.name;
+    pin.type_name = field.type;
+    pin.source_range = field.span.range;
+    pin.name_range = field.name_span.range;
+    pin.type_name_range = field.span.range;
+    for (const auto& attr : field.attributes) {
+        if (attr.name == "flow.pin") {
+            pin.kind = asset_attr_arg(attr, "kind") == "exec" ? PinKind::Exec : PinKind::Data;
+            pin.direction = asset_attr_arg(attr, "direction") == "out" ? PinDirection::Output : PinDirection::Input;
+            return true;
+        }
+        if (attr.name == "flow.input") {
+            pin.kind = PinKind::Data;
+            pin.direction = PinDirection::Input;
+            return true;
+        }
+        if (attr.name == "flow.output") {
+            pin.kind = PinKind::Data;
+            pin.direction = PinDirection::Output;
+            return true;
+        }
+    }
+    return false;
+}
+
+static std::optional<int> asset_max_exec_fan_out_value(const std::string& value) {
+    if (value == "unlimited") return -1;
+    try {
+        size_t parsed = 0;
+        int result = std::stoi(value, &parsed);
+        if (parsed != value.size()) return std::nullopt;
+        return result;
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+}
+
+static Result<void, std::string> register_asset_declarations(Environment& env,
+                                                             const asset::Module& module,
+                                                             const std::string& source_name) {
+    std::unordered_set<std::string> local_types;
+    std::unordered_set<std::string> local_objects;
+    std::unordered_set<std::string> local_schemas;
+
+    for (const auto& symbol : module.symbols) {
+        if (symbol.kind != "type") continue;
+        if (!local_types.insert(symbol.name).second) {
+            return Result<void, std::string>::err("Duplicate asset type declaration '" + symbol.name + "'");
+        }
+        if (env.types().find(symbol.name)) {
+            return Result<void, std::string>::err("Asset type declaration conflicts with existing type '" + symbol.name + "'");
+        }
+    }
+    for (const auto& object : module.objects) {
+        if (!local_objects.insert(object.name).second) {
+            return Result<void, std::string>::err("Duplicate asset object declaration '" + object.name + "'");
+        }
+        if (env.nodes().find(object.name)) {
+            return Result<void, std::string>::err("Asset object declaration conflicts with existing node '" + object.name + "'");
+        }
+    }
+    for (const auto& schema_decl : module.schemas) {
+        if (!local_schemas.insert(schema_decl.name).second) {
+            return Result<void, std::string>::err("Duplicate asset schema declaration '" + schema_decl.name + "'");
+        }
+        if (env.schemas().find(schema_decl.name)) {
+            return Result<void, std::string>::err("Asset schema declaration conflicts with existing schema '" + schema_decl.name + "'");
+        }
+        for (const auto& property : schema_decl.properties) {
+            if (property.path == "max_exec_fan_out" && !asset_max_exec_fan_out_value(property.value.text)) {
+                return Result<void, std::string>::err(
+                    "Invalid max_exec_fan_out value in asset schema '" + schema_decl.name + "'");
+            }
+        }
+    }
+
+    for (const auto& symbol : module.symbols) {
+        if (symbol.kind != "type") continue;
+        TypeInfo info;
+        info.name = symbol.name;
+        info.source_range = symbol.span.range;
+        info.name_range = symbol.span.range;
+        info.source_file = source_name;
+        env.types().register_type(std::move(info));
+    }
+
+    for (const auto& object : module.objects) {
+        NodeDefinition def;
+        def.type_name = object.name;
+        def.is_native = true;
+        def.source_range = object.span.range;
+        def.name_range = object.span.range;
+        def.source_file = source_name;
+        for (const auto& field : object.fields) {
+            PinDefinition pin;
+            if (asset_field_pin(field, pin)) {
+                pin.source_file = source_name;
+                def.pins.push_back(std::move(pin));
+                continue;
+            }
+            NodeFieldDefinition node_field;
+            node_field.name = field.name;
+            node_field.type_name = field.type;
+            node_field.default_value = field.has_default ? field.default_value.text : "";
+            node_field.source_range = field.span.range;
+            node_field.name_range = field.name_span.range;
+            node_field.type_name_range = field.span.range;
+            node_field.default_value_range = field.default_value.span.range;
+            node_field.source_file = source_name;
+            def.fields.push_back(std::move(node_field));
+        }
+        env.nodes().register_node(std::move(def));
+    }
+
+    for (const auto& schema_decl : module.schemas) {
+        GraphSchema schema;
+        schema.name = schema_decl.name;
+        schema.source_range = schema_decl.span.range;
+        schema.name_range = schema_decl.span.range;
+        schema.source_file = source_name;
+        for (const auto& property : schema_decl.properties) {
+            GraphSchemaField field;
+            field.name = property.path;
+            field.value = property.value.text;
+            field.source_range = property.span.range;
+            field.name_range = property.name_span.range;
+            field.value_range = property.value_span.range;
+            field.source_file = source_name;
+            schema.fields.push_back(field);
+            if (field.name == "max_exec_fan_out") {
+                if (auto parsed = asset_max_exec_fan_out_value(field.value)) {
+                    schema.connection_policy.max_exec_fan_out = *parsed;
+                }
+            } else if (field.name == "allow_exec_fan_in") {
+                schema.connection_policy.allow_exec_fan_in = field.value == "true";
+            } else if (field.name == "strict_type_match") {
+                schema.connection_policy.strict_type_match = field.value == "true";
+            }
+        }
+        env.schemas().register_schema(std::move(schema));
+    }
+    return Result<void, std::string>::ok();
+}
+
+static ParamDirection asset_param_direction(const std::string& direction) {
+    if (direction == "out") return ParamDirection::Out;
+    if (direction == "var") return ParamDirection::Var;
+    return ParamDirection::In;
+}
+
+static PinAddress asset_pin_address(const std::string& endpoint) {
+    auto dot = endpoint.find('.');
+    if (dot == std::string::npos) return {"", endpoint};
+    return {endpoint.substr(0, dot), endpoint.substr(dot + 1)};
+}
+
+static DataSource asset_data_source(const std::string& endpoint) {
+    auto dot = endpoint.find('.');
+    if (dot == std::string::npos) return {"", endpoint};
+    return {endpoint.substr(0, dot), endpoint.substr(dot + 1)};
+}
+
+static FlowConnection asset_flow_edge(const asset::FlowEdge& edge) {
+    FlowConnection flow;
+    flow.from = asset_pin_address(edge.from);
+    flow.to = asset_pin_address(edge.to);
+    flow.source_range = edge.span.range;
+    return flow;
+}
+
+static DataLink asset_data_edge(const asset::FlowDataEdge& edge) {
+    DataLink link;
+    link.source = asset_data_source(edge.source);
+    link.target = asset_pin_address(edge.target);
+    link.source_range = edge.span.range;
+    return link;
+}
+
+static Graph asset_graph_to_legacy_graph(const asset::FlowGraph& flow) {
+    Graph graph;
+    graph.name = flow.name;
+    if (!flow.schema.empty()) graph.base_type = flow.schema;
+    for (const auto& param : flow.parameters) {
+        GraphParameter converted;
+        converted.name = param.name;
+        converted.type_name = param.type;
+        converted.direction = asset_param_direction(param.direction);
+        converted.default_value = param.has_default ? param.default_value.text : "";
+        converted.source_range = param.span.range;
+        graph.parameters.push_back(std::move(converted));
+    }
+    for (const auto& node : flow.nodes) {
+        NodeInstance instance;
+        instance.type_name = node.type;
+        instance.instance_name = node.alias;
+        instance.source_range = node.span.range;
+        for (const auto& property : node.properties) {
+            InitializerField field;
+            field.name = property.path;
+            field.value = property.value.text;
+            field.source_range = property.span.range;
+            field.name_range = property.name_span.range;
+            field.value_range = property.value_span.range;
+            instance.initializer_fields.push_back(std::move(field));
+        }
+        graph.node_instances.push_back(std::move(instance));
+    }
+    for (const auto& block : flow.blocks) {
+        if (block.kind == "function") {
+            Function fn;
+            fn.name = block.name;
+            fn.source_range = block.span.range;
+            for (const auto& edge : block.edges) fn.flow_connections.push_back(asset_flow_edge(edge));
+            for (const auto& edge : block.data_edges) fn.data_links.push_back(asset_data_edge(edge));
+            graph.functions.push_back(std::move(fn));
+        } else {
+            Event ev;
+            ev.name = block.name;
+            ev.source_range = block.span.range;
+            for (const auto& edge : block.edges) ev.flow_connections.push_back(asset_flow_edge(edge));
+            for (const auto& edge : block.data_edges) ev.data_links.push_back(asset_data_edge(edge));
+            graph.events.push_back(std::move(ev));
+        }
+    }
+    return graph;
+}
+
+static void collect_asset_graph_names(const asset::ItemContainer& items, std::vector<std::string>& names) {
+    for (const auto& block : items.blocks) {
+        if (block->kind == "graph") names.push_back(block->name);
+        collect_asset_graph_names(block->items, names);
+    }
+}
+
+static bool has_asset_declarations(const asset::Module& module) {
+    return !module.imports.empty() ||
+           !module.modules.empty() ||
+           !module.enums.empty() ||
+           !module.objects.empty() ||
+           !module.block_kinds.empty() ||
+           !module.commands.empty() ||
+           !module.schemas.empty() ||
+           !module.lints.empty() ||
+           !module.symbols.empty();
+}
+
+static Result<Module, std::string> compile_asset_session_module(const asset::Module& asset_module,
+                                                                const std::string& source_name) {
+    Module module;
+    module.file_path = source_name;
+    for (const auto& import : asset_module.imports) {
+        ImportDecl converted;
+        converted.path = import.path;
+        converted.source_range = import.span.range;
+        converted.path_range = import.path_span.range;
+        module.imports.push_back(std::move(converted));
+    }
+
+    std::vector<std::string> graph_names;
+    collect_asset_graph_names(asset_module.items, graph_names);
+    for (const auto& graph_name : graph_names) {
+        auto projected = asset::FlowGraphProjector::project(asset_module, graph_name);
+        if (projected.is_err()) return Result<Module, std::string>::err(projected.error());
+        if (!projected.value().diagnostics.empty()) {
+            return Result<Module, std::string>::err(projected.value().diagnostics.front().message);
+        }
+        module.graphs.push_back(asset_graph_to_legacy_graph(projected.value()));
+    }
+    return Result<Module, std::string>::ok(std::move(module));
+}
+
 Result<void, std::string> EditSession::load_source(const std::string& source, const std::string& source_name) {
     if (source.empty()) return Result<void, std::string>::err("Cannot load empty source");
+
+    const std::string effective_source_name = source_name.empty() ? file_path_ : source_name;
+    auto asset_module = parse_asset_text(source, effective_source_name);
+    if (asset_module) {
+        auto linted = lint_asset_module(*asset_module);
+        if (linted.is_err()) return linted;
+        auto asset_result = compile_asset_session_module(*asset_module, effective_source_name);
+        if (asset_result.is_err()) return Result<void, std::string>::err(asset_result.error());
+        if (asset_result.value().graphs.empty()) {
+            if (has_asset_declarations(*asset_module)) {
+                return Result<void, std::string>::err("Asset source must contain at least one graph");
+            }
+        } else {
+            std::string active_graph_name;
+            if (active_ >= 0 && active_ < static_cast<int>(module_.graphs.size())) {
+                active_graph_name = module_.graphs[active_].name;
+            }
+
+            push_module_undo("apply asset source");
+            module_ = std::move(asset_result).value();
+            mark_loaded_imports();
+            refresh_module_graph_node_definitions(env_, module_);
+            active_ = module_.graphs.empty() ? -1 : 0;
+            if (!active_graph_name.empty()) {
+                for (size_t i = 0; i < module_.graphs.size(); ++i) {
+                    if (module_.graphs[i].name == active_graph_name) {
+                        active_ = static_cast<int>(i);
+                        break;
+                    }
+                }
+            }
+            asset_source_ = source;
+            dirty_ = true;
+            return Result<void, std::string>::ok();
+        }
+    }
 
     auto ast = parse_text(source);
     if (!ast) return Result<void, std::string>::err("Parse error in source");
 
     Compiler compiler(env_);
-    auto result = compiler.compile(*ast, source_name.empty() ? file_path_ : source_name);
+    auto result = compiler.compile(*ast, effective_source_name);
     if (result.is_err()) return Result<void, std::string>::err("Compile error: " + result.error());
 
     std::string active_graph_name;
@@ -3185,6 +3564,7 @@ Result<void, std::string> EditSession::load_source(const std::string& source, co
 
     push_module_undo("apply source");
     module_ = std::move(result).value();
+    asset_source_.reset();
     mark_loaded_imports();
     refresh_module_graph_node_definitions(env_, module_);
     active_ = module_.graphs.empty() ? -1 : 0;
@@ -3223,6 +3603,17 @@ Result<void, std::string> EditSession::load_import(const std::string& path) {
 
     auto src = read_file_contents(path);
     if (src.empty()) return Result<void, std::string>::err("Cannot read file: " + path);
+
+    auto asset_module = parse_asset_text(src, path);
+    if (asset_module && has_asset_declaration_import_items(*asset_module)) {
+        auto linted = lint_asset_module(*asset_module);
+        if (linted.is_err()) return linted;
+        auto registered = register_asset_declarations(env_, *asset_module, path);
+        if (registered.is_err()) return registered;
+        loaded_import_keys_.push_back(key);
+        add_import(path, true);
+        return Result<void, std::string>::ok();
+    }
 
     auto ast = parse_text(src);
     if (!ast) return Result<void, std::string>::err("Parse error in: " + path);

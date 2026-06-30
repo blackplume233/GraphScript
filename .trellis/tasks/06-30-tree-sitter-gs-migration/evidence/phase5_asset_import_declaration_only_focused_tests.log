@@ -1,0 +1,22 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = EditSession.LoadAssetImportAcceptsDeclarationMetadataOnlyFile:EditSession.LoadAssetImportRejectsInvalidSchemaPolicyValue:EditSession.LoadAssetImportRejectsInvalidMaxExecFanOutValue:EditSession.LoadAssetImportRejectsLintErrorsWithoutRegistering:EditSession.LoadAssetImportRejectsEnvironmentConflictsWithoutMarkingLoaded:EditSession.SourceImportDeclarationIsNotLoadedUntilImportCommand
+[==========] Running 6 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 6 tests from EditSession
+[ RUN      ] EditSession.SourceImportDeclarationIsNotLoadedUntilImportCommand
+[       OK ] EditSession.SourceImportDeclarationIsNotLoadedUntilImportCommand (1 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsInvalidSchemaPolicyValue
+[       OK ] EditSession.LoadAssetImportRejectsInvalidSchemaPolicyValue (2 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsInvalidMaxExecFanOutValue
+[       OK ] EditSession.LoadAssetImportRejectsInvalidMaxExecFanOutValue (0 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsLintErrorsWithoutRegistering
+[       OK ] EditSession.LoadAssetImportRejectsLintErrorsWithoutRegistering (0 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsEnvironmentConflictsWithoutMarkingLoaded
+[       OK ] EditSession.LoadAssetImportRejectsEnvironmentConflictsWithoutMarkingLoaded (3 ms)
+[ RUN      ] EditSession.LoadAssetImportAcceptsDeclarationMetadataOnlyFile
+[       OK ] EditSession.LoadAssetImportAcceptsDeclarationMetadataOnlyFile (1 ms)
+[----------] 6 tests from EditSession (9 ms total)
+
+[----------] Global test environment tear-down
+[==========] 6 tests from 1 test suite ran. (9 ms total)
+[  PASSED  ] 6 tests.
