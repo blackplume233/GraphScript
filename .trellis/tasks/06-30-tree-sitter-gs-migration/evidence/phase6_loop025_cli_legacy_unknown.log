@@ -1,0 +1,18 @@
+[compile] Unknown command: compile
+[compile] exit=1
+[emit] Unknown command: emit
+[emit] exit=1
+[bake] Unknown command: bake
+[bake] exit=1
+[sc-parse] Unknown command: sc-parse
+[sc-parse] exit=1
+[sc-project] Unknown command: sc-project
+[sc-project] exit=1
+[validate] Unknown command: validate
+[validate] exit=1
+[diagram] Unknown command: diagram
+[diagram] exit=1
+[info] Unknown command: info
+[info] exit=1
+[schema] Unknown command: schema
+[schema] exit=1

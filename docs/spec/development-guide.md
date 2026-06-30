@@ -127,26 +127,37 @@ Follow this checklist in order:
 No core code changes needed! Create or extend a `.d.gs` file:
 
 ```gs
-declare Node MyNewNode {
-    exec in enter;
-    exec out success;
-    exec out failed;
-    data in target : AActor;
-    data out result : bool;
+export declare node MyNewNode {
+    @flow.input
+    enter: Exec;
+    @flow.output
+    success: Exec;
+    @flow.output
+    failed: Exec;
+    @flow.input
+    target: AActor;
+    @flow.output
+    result: bool;
 }
 ```
 
 ### Adding a New Schema (Host Side)
 
 ```gs
-declare Schema MyDomainGraph {
+export declare schema MyDomainGraph: FlowGraphSchema {
     max_exec_fan_out = 1;
     allow_exec_fan_in = true;
     strict_type_match = true;
 }
 ```
 
-Then use it: `Graph MyGraph : MyDomainGraph { ... }`
+Then use it:
+
+```gs
+graph MyGraph {
+    schema MyDomainGraph;
+}
+```
 
 ---
 
@@ -158,18 +169,19 @@ All fallible operations return `Result<T, std::string>` instead of throwing exce
 
 ```cpp
 // Function that can fail
-Result<Module, std::string> compile(const ModuleNode& ast);
+Result<asset::FlowGraph, std::string> project_asset_graph(const asset::Module& module,
+                                                          const std::string& graph_name);
 
 // Void operation that can fail
 Result<void, std::string> add_node(const std::string& type, const std::string& name);
 
 // Caller
-auto result = compiler.compile(*ast);
+auto result = asset::FlowGraphProjector::project(parsed.module, "MainGraph");
 if (result.is_err()) {
     std::cerr << result.error() << std::endl;
     return;
 }
-auto& module = result.value();
+auto& graph = result.value();
 ```
 
 ### Pattern: Snapshot-Based Undo/Redo

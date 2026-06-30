@@ -1,0 +1,940 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+[==========] Running 276 tests from 25 test suites.
+[----------] Global test environment set-up.
+[----------] 17 tests from AssetLanguage
+[ RUN      ] AssetLanguage.ParsesDeclarationModuleAndObjectPins
+[       OK ] AssetLanguage.ParsesDeclarationModuleAndObjectPins (0 ms)
+[ RUN      ] AssetLanguage.BuildsModuleGraphAndExports
+[       OK ] AssetLanguage.BuildsModuleGraphAndExports (0 ms)
+[ RUN      ] AssetLanguage.ParsesTypeBaseAndAllowsFieldPinNamePair
+[       OK ] AssetLanguage.ParsesTypeBaseAndAllowsFieldPinNamePair (0 ms)
+[ RUN      ] AssetLanguage.RejectsDuplicateFieldsWithSameRole
+[       OK ] AssetLanguage.RejectsDuplicateFieldsWithSameRole (0 ms)
+[ RUN      ] AssetLanguage.ParsesGraphBlockNodeObjectsAndCalls
+[       OK ] AssetLanguage.ParsesGraphBlockNodeObjectsAndCalls (0 ms)
+[ RUN      ] AssetLanguage.ProjectsFlowGraphWithPinsAndEdges
+[       OK ] AssetLanguage.ProjectsFlowGraphWithPinsAndEdges (0 ms)
+[ RUN      ] AssetLanguage.ReportsInvalidDataEdgeButKeepsProjection
+[       OK ] AssetLanguage.ReportsInvalidDataEdgeButKeepsProjection (0 ms)
+[ RUN      ] AssetLanguage.ReportsInvalidDataTargetButKeepsProjection
+[       OK ] AssetLanguage.ReportsInvalidDataTargetButKeepsProjection (0 ms)
+[ RUN      ] AssetLanguage.ReportsInvalidFlowEdgeButKeepsProjection
+[       OK ] AssetLanguage.ReportsInvalidFlowEdgeButKeepsProjection (0 ms)
+[ RUN      ] AssetLanguage.FunctionBlockCannotReferenceGraphNodeAlias
+[       OK ] AssetLanguage.FunctionBlockCannotReferenceGraphNodeAlias (0 ms)
+[ RUN      ] AssetLanguage.ReportsConflictingGraphParameterDirectionAttributes
+[       OK ] AssetLanguage.ReportsConflictingGraphParameterDirectionAttributes (0 ms)
+[ RUN      ] AssetLanguage.LinterReportsDuplicateNodeBlockAlias
+[       OK ] AssetLanguage.LinterReportsDuplicateNodeBlockAlias (0 ms)
+[ RUN      ] AssetLanguage.ProjectorDoesNotTreatMemberConnectAsCanonicalEdge
+[       OK ] AssetLanguage.ProjectorDoesNotTreatMemberConnectAsCanonicalEdge (0 ms)
+[ RUN      ] AssetLanguage.ParsesQualifiedSchemaAndNodeTypeCommands
+[       OK ] AssetLanguage.ParsesQualifiedSchemaAndNodeTypeCommands (0 ms)
+[ RUN      ] AssetLanguage.PatcherAppliesImportNodeConnectAndPropertyEdits
+[       OK ] AssetLanguage.PatcherAppliesImportNodeConnectAndPropertyEdits (0 ms)
+[ RUN      ] AssetLanguage.PatcherAppliesBlockAttributeAndBlockRenameEdits
+[       OK ] AssetLanguage.PatcherAppliesBlockAttributeAndBlockRenameEdits (0 ms)
+[ RUN      ] AssetLanguage.RecoversBrokenTextWithDiagnosticsAndPartialAst
+[       OK ] AssetLanguage.RecoversBrokenTextWithDiagnosticsAndPartialAst (0 ms)
+[----------] 17 tests from AssetLanguage (1 ms total)
+
+[----------] 5 tests from AssetLexicalSurface
+[ RUN      ] AssetLexicalSurface.EmptyAndWhitespaceOnlyInput
+[       OK ] AssetLexicalSurface.EmptyAndWhitespaceOnlyInput (0 ms)
+[ RUN      ] AssetLexicalSurface.ImportsStringsAndEscapes
+[       OK ] AssetLexicalSurface.ImportsStringsAndEscapes (0 ms)
+[ RUN      ] AssetLexicalSurface.NumericBoolNullAssetRefAndCallExpressions
+[       OK ] AssetLexicalSurface.NumericBoolNullAssetRefAndCallExpressions (0 ms)
+[ RUN      ] AssetLexicalSurface.SymbolsAttributesArraysAndInlineObjects
+[       OK ] AssetLexicalSurface.SymbolsAttributesArraysAndInlineObjects (0 ms)
+[ RUN      ] AssetLexicalSurface.ReportsSyntaxErrorsWithRanges
+[       OK ] AssetLexicalSurface.ReportsSyntaxErrorsWithRanges (0 ms)
+[----------] 5 tests from AssetLexicalSurface (0 ms total)
+
+[----------] 7 tests from AssetParser
+[ RUN      ] AssetParser.DeclareTypeObjectSchemaAndCommand
+[       OK ] AssetParser.DeclareTypeObjectSchemaAndCommand (0 ms)
+[ RUN      ] AssetParser.PresetsParse
+[       OK ] AssetParser.PresetsParse (0 ms)
+[ RUN      ] AssetParser.ImportsConstAndGraphBlocks
+[       OK ] AssetParser.ImportsConstAndGraphBlocks (0 ms)
+[ RUN      ] AssetParser.ProjectsFlowGraphWithBlocksAndEdges
+[       OK ] AssetParser.ProjectsFlowGraphWithBlocksAndEdges (0 ms)
+[ RUN      ] AssetParser.GenerateBlockSourceRanges
+[       OK ] AssetParser.GenerateBlockSourceRanges (0 ms)
+[ RUN      ] AssetParser.ReportsSyntaxDiagnostics
+[       OK ] AssetParser.ReportsSyntaxDiagnostics (0 ms)
+[ RUN      ] AssetParser.LinterReportsMissingGraphName
+[       OK ] AssetParser.LinterReportsMissingGraphName (0 ms)
+[----------] 7 tests from AssetParser (1 ms total)
+
+[----------] 6 tests from AssetProjection
+[ RUN      ] AssetProjection.ImportPopulatesEnvironmentTypesAndNodes
+[       OK ] AssetProjection.ImportPopulatesEnvironmentTypesAndNodes (0 ms)
+[ RUN      ] AssetProjection.ImportPopulatesSchemas
+[       OK ] AssetProjection.ImportPopulatesSchemas (0 ms)
+[ RUN      ] AssetProjection.FlowGraphProjectionCapturesSchemaParamsNodesAndEdges
+[       OK ] AssetProjection.FlowGraphProjectionCapturesSchemaParamsNodesAndEdges (0 ms)
+[ RUN      ] AssetProjection.EditSessionDerivesGraphAsNode
+[       OK ] AssetProjection.EditSessionDerivesGraphAsNode (0 ms)
+[ RUN      ] AssetProjection.EditSessionReportsUnknownEventReference
+[       OK ] AssetProjection.EditSessionReportsUnknownEventReference (0 ms)
+[ RUN      ] AssetProjection.EditSessionReportsFunctionNodeReference
+[       OK ] AssetProjection.EditSessionReportsFunctionNodeReference (0 ms)
+[----------] 6 tests from AssetProjection (1 ms total)
+
+[----------] 7 tests from AssetSourceEmission
+[ RUN      ] AssetSourceEmission.MinimalAssetGraph
+[       OK ] AssetSourceEmission.MinimalAssetGraph (0 ms)
+[ RUN      ] AssetSourceEmission.SchemaDirective
+[       OK ] AssetSourceEmission.SchemaDirective (0 ms)
+[ RUN      ] AssetSourceEmission.TopLevelConstBody
+[       OK ] AssetSourceEmission.TopLevelConstBody (0 ms)
+[ RUN      ] AssetSourceEmission.GenerateBlock
+[       OK ] AssetSourceEmission.GenerateBlock (0 ms)
+[ RUN      ] AssetSourceEmission.AnnotationConstructorValueRaw
+[       OK ] AssetSourceEmission.AnnotationConstructorValueRaw (0 ms)
+[ RUN      ] AssetSourceEmission.ConstructorStringArgumentsRoundTrip
+[       OK ] AssetSourceEmission.ConstructorStringArgumentsRoundTrip (0 ms)
+[ RUN      ] AssetSourceEmission.FunctionAndVarParam
+[       OK ] AssetSourceEmission.FunctionAndVarParam (0 ms)
+[----------] 7 tests from AssetSourceEmission (1 ms total)
+
+[----------] 4 tests from Blueprint
+[ RUN      ] Blueprint.AssetGameplayEventRoundTrip
+[       OK ] Blueprint.AssetGameplayEventRoundTrip (4 ms)
+[ RUN      ] Blueprint.AssetMathBranchProjection
+[       OK ] Blueprint.AssetMathBranchProjection (0 ms)
+[ RUN      ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets
+[       OK ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets (2 ms)
+[ RUN      ] Blueprint.AssetMultiGraphBlueprintRoundTrip
+[       OK ] Blueprint.AssetMultiGraphBlueprintRoundTrip (4 ms)
+[----------] 4 tests from Blueprint (10 ms total)
+
+[----------] 45 tests from CLIEditor
+[ RUN      ] CLIEditor.ExplicitWebAliasesExecuteSuccessfully
+  Created graph 'CliAlias'
+  Added PrintString logger
+  Created graph 'Other'
+  Switched graph to 'CliAlias'
+  Removed 'logger'
+  Switched graph to 'Other'
+  Deleted graph 'CliAlias'
+[       OK ] CLIEditor.ExplicitWebAliasesExecuteSuccessfully (0 ms)
+[ RUN      ] CLIEditor.DiagramCommandUsesAssetProjection
+[       OK ] CLIEditor.DiagramCommandUsesAssetProjection (1 ms)
+[ RUN      ] CLIEditor.AnnotatesTopLevelImportAndLet
+  let cached = SoftObjectPath(seed)
+  Annotated import 'custom.d.gs' [Id]
+  Annotated let 'cached' [PersistentId]
+  Removed import annotation 'custom.d.gs' [Id]
+  Removed let annotation 'cached' [PersistentId]
+[       OK ] CLIEditor.AnnotatesTopLevelImportAndLet (1 ms)
+[ RUN      ] CLIEditor.RenameGraphCommandIsReplayable
+  Created graph 'RenameGraphCli'
+  Renamed graph 'RenameGraphCli' to 'RenamedGraphCli'
+  Switched graph to 'RenamedGraphCli'
+  Renamed graph 'RenamedGraphCli' to 'RenamedGraphCli'
+  [ERROR] Graph 'Missing' not found
+[       OK ] CLIEditor.RenameGraphCommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.RenameNodeCommandIsReplayable
+  Created graph 'RenameCli'
+  Added PrintString logger
+  Renamed node 'logger' to 'writer'
+  Renamed node 'writer' to 'writer'
+  [ERROR] Node 'missing' not found
+[       OK ] CLIEditor.RenameNodeCommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.SetInitializerFieldCommandIsReplayable
+  Created graph 'InitCli'
+  Added PrintString logger
+  Set initializer field 'message' on node 'logger'
+  Set initializer field 'asset' on node 'logger'
+  Set initializer field 'asset' to constructor 'SoftObjectPath' on node 'logger'
+  Set initializer constructor argument for field 'asset' on node 'logger'
+  Set initializer constructor type for field 'asset' on node 'logger'
+  [ERROR] Initializer field 'message' is not a constructor call on node 'logger'
+  [ERROR] Initializer field 'message' is not a constructor call on node 'logger'
+  Renamed initializer field 'message' to 'text' on node 'logger'
+  [ERROR] Initializer field 'asset' already exists on node 'logger'
+  [ERROR] Initializer field 'missing' not found on node 'logger'
+  Removed initializer field 'text' from node 'logger'
+  Removed initializer field 'asset' from node 'logger'
+  [ERROR] Initializer field 'missing' not found on node 'logger'
+  Set initializer expression on node 'logger'
+  Set initializer expression on node 'logger'
+  Set initializer expression on node 'logger'
+  [ERROR] Node 'missing' not found
+  [ERROR] Node 'missing' not found
+[       OK ] CLIEditor.SetInitializerFieldCommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.RenameParamCommandIsReplayable
+  Created graph 'RenameParamCli'
+  in msg : FString
+  Renamed param 'msg' to 'text'
+  Renamed param 'text' to 'text'
+  [ERROR] Parameter 'missing' not found
+[       OK ] CLIEditor.RenameParamCommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.SetParamDefaultCommandIsReplayable
+  Created graph 'ParamDefaultCli'
+  in speed : float
+  Set default for param 'speed'
+  [ERROR] Parameter 'speed' default is not a constructor call
+  Set default constructor for param 'speed'
+  Set default constructor argument for param 'speed'
+  Set default constructor type for param 'speed'
+  Set default for param 'speed'
+  [ERROR] Parameter default constructor type must be an identifier
+  [ERROR] Parameter default constructor type must be an identifier
+  [ERROR] Parameter 'missing' not found
+[       OK ] CLIEditor.SetParamDefaultCommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.SetParamTypeCommandIsReplayable
+  Created graph 'ParamTypeCli'
+  in speed : float
+  Set type for param 'speed'
+  Set type for param 'speed'
+  [ERROR] Parameter type must be an identifier
+  [ERROR] Parameter 'missing' not found
+[       OK ] CLIEditor.SetParamTypeCommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.RenameLogicBlockCommandsAreReplayable
+  Created graph 'RenameBlocksCli'
+  Added PrintString logger
+  Added Delay wait
+  Created event 'OnStart'
+  Editing event 'OnStart'
+  Renamed event 'OnStart' to 'Begin'
+  logger.exit -> wait.enter
+  Created function 'Compute'
+  Editing function 'Compute'
+  Renamed function 'Compute' to 'Evaluate'
+  context.start -> context.done
+  Renamed event 'Begin' to 'Begin'
+  [ERROR] Event 'Missing' not found
+  Renamed function 'Evaluate' to 'Evaluate'
+  [ERROR] Function 'Missing' not found
+[       OK ] CLIEditor.RenameLogicBlockCommandsAreReplayable (0 ms)
+[ RUN      ] CLIEditor.RenameGraphDerivedPinCommandsAreReplayable
+  Applied source snapshot
+  Renamed param 'msg' to 'text'
+  Renamed event 'Run' to 'Execute'
+[       OK ] CLIEditor.RenameGraphDerivedPinCommandsAreReplayable (0 ms)
+[ RUN      ] CLIEditor.GraphInterfaceCommandsRefreshGraphDerivedNodeType
+  Created graph 'Child'
+  in msg : FString
+  Created event 'Run'
+  Editing event 'Run'
+  Created graph 'Parent'
+  Added Child child
+  Switched graph to 'Child'
+  Removed param 'msg'
+  Removed event 'Run'
+  Undone: remove event 'Run'
+[       OK ] CLIEditor.GraphInterfaceCommandsRefreshGraphDerivedNodeType (0 ms)
+[ RUN      ] CLIEditor.FailedCommandUpdatesMachineReadableStatus
+[       OK ] CLIEditor.FailedCommandUpdatesMachineReadableStatus (0 ms)
+[ RUN      ] CLIEditor.RepeatedImportReportsAlreadyLoaded
+[       OK ] CLIEditor.RepeatedImportReportsAlreadyLoaded (0 ms)
+[ RUN      ] CLIEditor.AnnotationCommandsAreReplayable
+  Created graph 'Annotated'
+  in name : FString
+  Added PrintString logger
+  Added Delay wait
+  Created event 'OnStart'
+  Editing event 'OnStart'
+  logger.exit -> wait.enter
+  logger.message = name
+  Created function 'Compute'
+  Editing function 'Compute'
+  Annotated graph [Comment]
+  Annotated param 'name' [Tooltip]
+  Annotated node 'logger' [Position]
+  Annotated event 'OnStart' [Id]
+  Annotated function 'Compute' [PersistentId]
+  Annotated flow 'logger.exit -> wait.enter' [Id]
+  Annotated link 'logger.message = name' [PersistentId]
+  Removed node annotation 'logger' [Position]
+  Removed event annotation 'OnStart' [Id]
+  Removed flow annotation 'logger.exit -> wait.enter' [Id]
+  Removed link annotation 'logger.message = name' [PersistentId]
+  [ERROR] Annotation 'Missing' not found on param name
+  [ERROR] Annotation 'Missing' not found on function Compute
+  [ERROR] Annotation 'Missing' not found on flow
+[       OK ] CLIEditor.AnnotationCommandsAreReplayable (0 ms)
+[ RUN      ] CLIEditor.GenerateAnnotationCommandsAreReplayable
+  Created graph 'GenerateAnnotated'
+  Added PrintString logger
+  Comment logger = "legacy note"
+  position:logger.x(100)
+  Annotated generate comment 'logger' [Id]
+  Annotated generate metadata 'position:logger.x' [PersistentId]
+  Comment logger = "legacy note"
+  [ERROR] Generate comment 'logger' is ambiguous; pass #<occurrence>
+  Annotated generate comment 'logger' [Id]
+  Moved comment logger up
+  Moved comment logger down
+  Renamed comment logger
+  Renamed comment logger
+  position:logger.y(200)
+  Moved metadata position:logger.x down
+  Renamed metadata position:logger.x
+  Renamed metadata position:logger.x
+  Renamed metadata reference position:logger.x to layout:logger.y
+  Renamed metadata reference layout:logger.y to position:logger.x
+  Removed generate metadata annotation 'position:logger.x' [PersistentId]
+  [ERROR] Generate comment 'logger' is ambiguous; pass #<occurrence>
+  Removed comment logger = "legacy note"
+  Removed comment logger = "legacy note"
+  Removed metadata position:logger.x(100)
+  Removed metadata position:logger.y(200)
+[       OK ] CLIEditor.GenerateAnnotationCommandsAreReplayable (0 ms)
+[ RUN      ] CLIEditor.LogicBlockDeleteCommandsAreReplayable
+  Created graph 'DeleteBlocks'
+  Created event 'OnStart'
+  Editing event 'OnStart'
+  Created function 'Compute'
+  Editing function 'Compute'
+  Removed event 'OnStart'
+  Removed function 'Compute'
+  Created event 'Temporary'
+  Editing event 'Temporary'
+  Removed event 'Temporary'
+  Created function 'Helper'
+  Editing function 'Helper'
+  Removed function 'Helper'
+  [ERROR] Event 'Missing' not found
+[       OK ] CLIEditor.LogicBlockDeleteCommandsAreReplayable (0 ms)
+[ RUN      ] CLIEditor.ApplySourceBase64CommandIsReplayable
+  Applied source snapshot
+  [ERROR] Invalid base64 source snapshot
+[       OK ] CLIEditor.ApplySourceBase64CommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.ApplySourcePatchCommandIsReplayable
+  Applied source snapshot
+  Applied source patch
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Invalid base64 source patch replacement
+  [ERROR] Source patch range is outside current source
+[       OK ] CLIEditor.ApplySourcePatchCommandIsReplayable (0 ms)
+[ RUN      ] CLIEditor.ApplySourcePatchesBase64CommandIsAtomicAndReplayable
+  Applied source snapshot
+  Applied source patches
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Source patch ranges overlap
+[       OK ] CLIEditor.ApplySourcePatchesBase64CommandIsAtomicAndReplayable (0 ms)
+[ RUN      ] CLIEditor.ApplySourceIdentifierRenameUsesTokenPatches
+  Applied source snapshot
+  Applied source identifier rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Source identifier rename found no matches
+  [ERROR] New source identifier is invalid
+[       OK ] CLIEditor.ApplySourceIdentifierRenameUsesTokenPatches (0 ms)
+[ RUN      ] CLIEditor.ApplySourceParamRenameUsesActiveGraphRanges
+  Applied source snapshot
+  Applied source parameter rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Parameter 'missing' not found
+  [ERROR] New parameter identifier is invalid
+[       OK ] CLIEditor.ApplySourceParamRenameUsesActiveGraphRanges (0 ms)
+[ RUN      ] CLIEditor.ApplySourceEventRenameUsesActiveGraphRanges
+  Applied source snapshot
+  Applied source event rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Event 'Missing' not found
+  [ERROR] New event identifier is invalid
+[       OK ] CLIEditor.ApplySourceEventRenameUsesActiveGraphRanges (0 ms)
+[ RUN      ] CLIEditor.ApplySourceFunctionRenameUsesActiveGraphRanges
+  Applied source snapshot
+  Applied source function rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Function 'Missing' not found
+  [ERROR] New function identifier is invalid
+[       OK ] CLIEditor.ApplySourceFunctionRenameUsesActiveGraphRanges (0 ms)
+[ RUN      ] CLIEditor.ApplySourceNodeRenameUsesActiveGraphRanges
+  Applied source snapshot
+  Applied source node rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Node 'missing' not found
+  [ERROR] New node identifier is invalid
+[       OK ] CLIEditor.ApplySourceNodeRenameUsesActiveGraphRanges (0 ms)
+[ RUN      ] CLIEditor.ApplySourceGraphRenameMigratesGraphNodeTypes
+  Applied source snapshot
+  Applied source graph rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Graph 'Missing' not found
+  [ERROR] Graph 'Parent' already exists
+  [ERROR] New graph identifier is invalid
+[       OK ] CLIEditor.ApplySourceGraphRenameMigratesGraphNodeTypes (0 ms)
+[ RUN      ] CLIEditor.ApplyFilesGraphRenameMigratesDiskGraphDeclarationsAndNodeTypesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_graph_rename\first.gs
+  [ERROR] Graph 'Leaf' already exists
+  Applied file graph rename to 2 file(s), 3 reference(s)
+  [ERROR] Graph 'Child' has no declarations or graph-node references in the provided files
+  [ERROR] New graph identifier is invalid
+[       OK ] CLIEditor.ApplyFilesGraphRenameMigratesDiskGraphDeclarationsAndNodeTypesAtomically (7 ms)
+[ RUN      ] CLIEditor.ApplyFilesGraphParamRenameMigratesDiskGraphInterfaceDataPinsAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_graph_param_rename\first.gs
+  [ERROR] Parameter 'velocity' already exists on graph 'Child'
+  Applied file graph parameter rename to 2 file(s), 6 reference(s)
+  [ERROR] Graph parameter 'speed' on graph 'Child' has no declarations or references in the provided files
+  [ERROR] New parameter identifier is invalid
+[       OK ] CLIEditor.ApplyFilesGraphParamRenameMigratesDiskGraphInterfaceDataPinsAtomically (7 ms)
+[ RUN      ] CLIEditor.ApplyFilesGraphEventRenameMigratesDiskGraphInterfaceExecPinsAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_graph_event_rename\first.gs
+  [ERROR] Event 'Execute' already exists on graph 'Child'
+  Applied file graph event rename to 2 file(s), 5 reference(s)
+  [ERROR] Graph event 'Run' on graph 'Child' has no declarations or references in the provided files
+  [ERROR] New event identifier is invalid
+[       OK ] CLIEditor.ApplyFilesGraphEventRenameMigratesDiskGraphInterfaceExecPinsAtomically (7 ms)
+[ RUN      ] CLIEditor.ApplyFilesGraphFunctionRenameMigratesDiskGraphFunctionInterfaceExecPinsAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_graph_function_rename\first.gs
+  [ERROR] Function 'Evaluate' already exists on graph 'Worker'
+  Applied file graph function rename to 2 file(s), 5 patch(es)
+  [ERROR] Graph function 'Compute' on graph 'Worker' has no declarations in the provided files
+  [ERROR] New function identifier is invalid
+[       OK ] CLIEditor.ApplyFilesGraphFunctionRenameMigratesDiskGraphFunctionInterfaceExecPinsAtomically (7 ms)
+[ RUN      ] CLIEditor.ApplySourceNodeTypeRenameMigratesDeclaredNodeReferences
+  Applied source snapshot
+  Applied source node type rename
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  [ERROR] Node type 'Missing' is not declared
+  [ERROR] Node type 'Missing' is not declared
+  [ERROR] New node type identifier is invalid
+[       OK ] CLIEditor.ApplySourceNodeTypeRenameMigratesDeclaredNodeReferences (2 ms)
+[ RUN      ] CLIEditor.ApplySourceTypeRenameMigratesActiveModuleTypeReferences
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  Applied source type rename
+  [ERROR] Type 'OldType' has no references in current source
+  [ERROR] Type 'MissingType' is not declared
+  [ERROR] New type identifier is invalid
+[       OK ] CLIEditor.ApplySourceTypeRenameMigratesActiveModuleTypeReferences (2 ms)
+[ RUN      ] CLIEditor.ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] New declaration node identifier is invalid
+  Applied import node rename
+[       OK ] CLIEditor.ApplyImportNodeRenamePatchesDeclarationAndCurrentModuleReferences (5 ms)
+[ RUN      ] CLIEditor.ApplyFilesNodeTypeRenameMigratesDiskGraphFilesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_node_type_rename\first.gs
+  Applied file node type rename to 2 file(s), 2 reference(s)
+  [ERROR] Node type 'OldNode' has no references in the provided files
+  [ERROR] Node type 'Missing' is not declared
+[       OK ] CLIEditor.ApplyFilesNodeTypeRenameMigratesDiskGraphFilesAtomically (6 ms)
+[ RUN      ] CLIEditor.ApplySourceNodePinRenameMigratesActiveModulePinReferences
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  Applied source node pin rename
+  Applied source node pin rename
+  Applied source node pin rename
+  Applied source node pin rename
+  [ERROR] Pin 'enter' on node type 'Worker' has no references in current source
+  [ERROR] Node type 'MissingWorker' is not declared
+  [ERROR] Pin 'missing' is not declared on node type 'Worker'
+  [ERROR] Pin 'missing' is not declared on node type 'Worker'
+  [ERROR] New pin identifier is invalid
+[       OK ] CLIEditor.ApplySourceNodePinRenameMigratesActiveModulePinReferences (3 ms)
+[ RUN      ] CLIEditor.ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Declaration pin 'result' already exists on node 'OldNode'
+  Applied import node pin rename
+  Applied import node pin rename
+  Applied import node pin rename
+  Applied import node pin rename
+[       OK ] CLIEditor.ApplyImportNodePinRenamePatchesDeclarationAndCurrentModuleReferences (14 ms)
+[ RUN      ] CLIEditor.ApplyFilesNodePinRenameMigratesDiskGraphPinReferencesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_node_pin_rename\first.gs
+  Applied file node pin rename to 1 file(s), 1 reference(s)
+  Applied file node pin rename to 2 file(s), 2 reference(s)
+  Applied file node pin rename to 1 file(s), 1 reference(s)
+  Applied file node pin rename to 1 file(s), 1 reference(s)
+  [ERROR] Pin 'message' on node type 'Worker' has no references in the provided files
+  [ERROR] Pin 'missing' is not declared on node type 'Worker'
+[       OK ] CLIEditor.ApplyFilesNodePinRenameMigratesDiskGraphPinReferencesAtomically (8 ms)
+[ RUN      ] CLIEditor.ApplySourceSchemaRenameMigratesActiveModuleGraphBaseTypes
+  Applied source snapshot
+  [ERROR] Source patch base hash mismatch
+  Applied source schema rename
+  [ERROR] Schema 'OldSchema' has no references in current source
+  [ERROR] Schema 'MissingSchema' is not declared
+  [ERROR] New schema identifier is invalid
+[       OK ] CLIEditor.ApplySourceSchemaRenameMigratesActiveModuleGraphBaseTypes (2 ms)
+[ RUN      ] CLIEditor.ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseTypes
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Schema 'ExistingSchema' already exists
+  [ERROR] New declaration schema identifier is invalid
+  Applied import schema rename
+[       OK ] CLIEditor.ApplyImportSchemaRenamePatchesDeclarationAndCurrentGraphBaseTypes (5 ms)
+[ RUN      ] CLIEditor.ApplyImportSchemaFieldRenamePatchesDeclarationFieldName
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Declaration schema field 'existing_field' already exists on schema 'PreviewSchema'
+  [ERROR] Declaration schema 'MissingSchema' is not loaded
+  [ERROR] Declaration schema field 'missing' not found on schema 'PreviewSchema'
+  [ERROR] New declaration schema field identifier is invalid
+  Applied import schema field rename
+[       OK ] CLIEditor.ApplyImportSchemaFieldRenamePatchesDeclarationFieldName (5 ms)
+[ RUN      ] CLIEditor.ApplyFilesSchemaRenameMigratesDiskGraphBaseTypesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_schema_rename\first.gs
+  Applied file schema rename to 2 file(s), 2 reference(s)
+  [ERROR] Schema 'OldSchema' has no references in the provided files
+  [ERROR] Schema 'MissingSchema' is not declared
+[       OK ] CLIEditor.ApplyFilesSchemaRenameMigratesDiskGraphBaseTypesAtomically (6 ms)
+[ RUN      ] CLIEditor.ApplyFilesTypeRenameMigratesDiskGraphTypeReferencesAtomically
+  [ERROR] Source file hash mismatch: C:\Users\black\AppData\Local\Temp\graphscript_cli_files_type_rename\first.gs
+  Applied file type rename to 2 file(s), 11 reference(s)
+  [ERROR] Type 'OldType' has no references in the provided files
+  [ERROR] Type 'MissingType' is not declared
+[       OK ] CLIEditor.ApplyFilesTypeRenameMigratesDiskGraphTypeReferencesAtomically (7 ms)
+[ RUN      ] CLIEditor.ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReferences
+  Applied source snapshot
+  [ERROR] Declaration source hash mismatch
+  [ERROR] Type 'ExistingType' already exists
+  [ERROR] New declaration type identifier is invalid
+  Applied import type rename
+[       OK ] CLIEditor.ApplyImportTypeRenamePatchesDeclarationAndCurrentModuleReferences (6 ms)
+[ RUN      ] CLIEditor.ApplySourceCommandsSupportEnvironmentGuard
+  Applied source snapshot
+  Applied source patch
+  [ERROR] Source environment hash mismatch
+[       OK ] CLIEditor.ApplySourceCommandsSupportEnvironmentGuard (4 ms)
+[ RUN      ] CLIEditor.NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceApply
+  Loaded: C:\Users\black\AppData\Local\Temp\graphscript_cli_nested_replay\types.d.gs
+  Loaded: C:\Users\black\AppData\Local\Temp\graphscript_cli_nested_replay\nodes.d.gs
+  Applied source snapshot
+[       OK ] CLIEditor.NestedResolvedImportReplayLoadsDependenciesBeforeGuardedSourceApply (5 ms)
+[----------] 45 tests from CLIEditor (131 ms total)
+
+[----------] 4 tests from ConnectionPolicy
+[ RUN      ] ConnectionPolicy.DefaultValues
+[       OK ] ConnectionPolicy.DefaultValues (0 ms)
+[ RUN      ] ConnectionPolicy.HTNPolicy
+[       OK ] ConnectionPolicy.HTNPolicy (0 ms)
+[ RUN      ] ConnectionPolicy.TaskPolicy
+[       OK ] ConnectionPolicy.TaskPolicy (0 ms)
+[ RUN      ] ConnectionPolicy.LevelScriptPolicy
+[       OK ] ConnectionPolicy.LevelScriptPolicy (0 ms)
+[----------] 4 tests from ConnectionPolicy (0 ms total)
+
+[----------] 2 tests from DebugDiagram
+[ RUN      ] DebugDiagram.EmitsMermaidFromEditSessionGraph
+[       OK ] DebugDiagram.EmitsMermaidFromEditSessionGraph (0 ms)
+[ RUN      ] DebugDiagram.EmitsMermaidFromAssetFlowGraph
+[       OK ] DebugDiagram.EmitsMermaidFromAssetFlowGraph (0 ms)
+[----------] 2 tests from DebugDiagram (0 ms total)
+
+[----------] 81 tests from EditSession
+[ RUN      ] EditSession.NewGraphAndActive
+[       OK ] EditSession.NewGraphAndActive (0 ms)
+[ RUN      ] EditSession.DuplicateGraphFails
+[       OK ] EditSession.DuplicateGraphFails (0 ms)
+[ RUN      ] EditSession.MultipleGraphsSwitching
+[       OK ] EditSession.MultipleGraphsSwitching (0 ms)
+[ RUN      ] EditSession.DeleteGraph
+[       OK ] EditSession.DeleteGraph (0 ms)
+[ RUN      ] EditSession.RenameGraphMigratesGraphNodeReferencesAndKeepsPersistentId
+[       OK ] EditSession.RenameGraphMigratesGraphNodeReferencesAndKeepsPersistentId (0 ms)
+[ RUN      ] EditSession.RenameGraphDerivedPinsMigratesCrossGraphReferencesAndKeepsPersistentIds
+[       OK ] EditSession.RenameGraphDerivedPinsMigratesCrossGraphReferencesAndKeepsPersistentIds (0 ms)
+[ RUN      ] EditSession.GraphInterfaceEditsRefreshGraphDerivedNodeDefinition
+[       OK ] EditSession.GraphInterfaceEditsRefreshGraphDerivedNodeDefinition (0 ms)
+[ RUN      ] EditSession.NewGraphWithSchema
+[       OK ] EditSession.NewGraphWithSchema (0 ms)
+[ RUN      ] EditSession.AddRemoveParams
+[       OK ] EditSession.AddRemoveParams (0 ms)
+[ RUN      ] EditSession.DuplicateParamFails
+[       OK ] EditSession.DuplicateParamFails (0 ms)
+[ RUN      ] EditSession.SetParamDefaultUpdatesAndClearsValue
+[       OK ] EditSession.SetParamDefaultUpdatesAndClearsValue (0 ms)
+[ RUN      ] EditSession.SetParamTypeUpdatesGraphAndDerivedNodePin
+[       OK ] EditSession.SetParamTypeUpdatesGraphAndDerivedNodePin (0 ms)
+[ RUN      ] EditSession.AddRemoveNodes
+[       OK ] EditSession.AddRemoveNodes (0 ms)
+[ RUN      ] EditSession.SetNodeInitializerFieldUpdatesAndAppendsFields
+[       OK ] EditSession.SetNodeInitializerFieldUpdatesAndAppendsFields (0 ms)
+[ RUN      ] EditSession.UnknownNodeTypeFails
+[       OK ] EditSession.UnknownNodeTypeFails (0 ms)
+[ RUN      ] EditSession.RemoveNodeClearsConnections
+[       OK ] EditSession.RemoveNodeClearsConnections (0 ms)
+[ RUN      ] EditSession.AddRemoveEventsAndFunctions
+[       OK ] EditSession.AddRemoveEventsAndFunctions (0 ms)
+[ RUN      ] EditSession.FlowAndLinkOperations
+[       OK ] EditSession.FlowAndLinkOperations (0 ms)
+[ RUN      ] EditSession.FlowOnMissingBlockFails
+[       OK ] EditSession.FlowOnMissingBlockFails (0 ms)
+[ RUN      ] EditSession.FunctionCannotReferenceGraphNodes
+[       OK ] EditSession.FunctionCannotReferenceGraphNodes (0 ms)
+[ RUN      ] EditSession.EventCannotReferenceDanglingNames
+[       OK ] EditSession.EventCannotReferenceDanglingNames (0 ms)
+[ RUN      ] EditSession.UndoRedoBasic
+[       OK ] EditSession.UndoRedoBasic (0 ms)
+[ RUN      ] EditSession.UndoRedoMultipleSteps
+[       OK ] EditSession.UndoRedoMultipleSteps (0 ms)
+[ RUN      ] EditSession.UndoEmptyFails
+[       OK ] EditSession.UndoEmptyFails (0 ms)
+[ RUN      ] EditSession.NewOperationClearsRedoStack
+[       OK ] EditSession.NewOperationClearsRedoStack (0 ms)
+[ RUN      ] EditSession.EmitRoundTrip
+[       OK ] EditSession.EmitRoundTrip (0 ms)
+[ RUN      ] EditSession.GenerateBlock
+[       OK ] EditSession.GenerateBlock (0 ms)
+[ RUN      ] EditSession.StateJsonExportsGenerateSourceRanges
+[       OK ] EditSession.StateJsonExportsGenerateSourceRanges (0 ms)
+[ RUN      ] EditSession.GenerateAnnotationsRoundTripAndExportPersistentIds
+[       OK ] EditSession.GenerateAnnotationsRoundTripAndExportPersistentIds (1 ms)
+[ RUN      ] EditSession.GenerateAnnotationEditApiUpsertsRemovesAndEmits
+[       OK ] EditSession.GenerateAnnotationEditApiUpsertsRemovesAndEmits (0 ms)
+[ RUN      ] EditSession.GenerateItemRemoveApiSupportsOccurrenceAndUndo
+[       OK ] EditSession.GenerateItemRemoveApiSupportsOccurrenceAndUndo (0 ms)
+[ RUN      ] EditSession.GenerateItemMoveApiSupportsOccurrenceAndUndo
+[       OK ] EditSession.GenerateItemMoveApiSupportsOccurrenceAndUndo (0 ms)
+[ RUN      ] EditSession.GenerateItemRenameApiSupportsOccurrenceAndUndo
+[       OK ] EditSession.GenerateItemRenameApiSupportsOccurrenceAndUndo (0 ms)
+[ RUN      ] EditSession.StateJsonExportsAnnotations
+[       OK ] EditSession.StateJsonExportsAnnotations (0 ms)
+[ RUN      ] EditSession.StateJsonExportsStableElementIds
+[       OK ] EditSession.StateJsonExportsStableElementIds (1 ms)
+[ RUN      ] EditSession.StateJsonDisambiguatesDuplicateGenerateElementIds
+[       OK ] EditSession.StateJsonDisambiguatesDuplicateGenerateElementIds (0 ms)
+[ RUN      ] EditSession.RenameNodeMigratesReferencesAndKeepsPersistentId
+[       OK ] EditSession.RenameNodeMigratesReferencesAndKeepsPersistentId (0 ms)
+[ RUN      ] EditSession.RenameParamMigratesBareReferencesAndKeepsPersistentId
+[       OK ] EditSession.RenameParamMigratesBareReferencesAndKeepsPersistentId (0 ms)
+[ RUN      ] EditSession.RenameLogicBlocksKeepPersistentIdsAndConnections
+[       OK ] EditSession.RenameLogicBlocksKeepPersistentIdsAndConnections (0 ms)
+[ RUN      ] EditSession.LogicBlockAnnotationsRoundTripAndExportPersistentIds
+[       OK ] EditSession.LogicBlockAnnotationsRoundTripAndExportPersistentIds (0 ms)
+[ RUN      ] EditSession.ConnectionAnnotationsRoundTripAndExportPersistentIds
+[       OK ] EditSession.ConnectionAnnotationsRoundTripAndExportPersistentIds (0 ms)
+[ RUN      ] EditSession.TopLevelAnnotationsRoundTripAndExportPersistentIds
+[       OK ] EditSession.TopLevelAnnotationsRoundTripAndExportPersistentIds (1 ms)
+[ RUN      ] EditSession.CanEditTopLevelImportAndLetAnnotations
+[       OK ] EditSession.CanEditTopLevelImportAndLetAnnotations (0 ms)
+[ RUN      ] EditSession.StateJsonExportsElementSourceRanges
+[       OK ] EditSession.StateJsonExportsElementSourceRanges (1 ms)
+[ RUN      ] EditSession.StateJsonExportsDeclarationSourceRanges
+[       OK ] EditSession.StateJsonExportsDeclarationSourceRanges (1 ms)
+[ RUN      ] EditSession.DeclarationAnnotationsExportPersistentIds
+[       OK ] EditSession.DeclarationAnnotationsExportPersistentIds (1 ms)
+[ RUN      ] EditSession.StateJsonExportsDiagnostics
+[       OK ] EditSession.StateJsonExportsDiagnostics (1 ms)
+[ RUN      ] EditSession.ValidateReportsDanglingGraphInterfacePinsAfterRemoval
+[       OK ] EditSession.ValidateReportsDanglingGraphInterfacePinsAfterRemoval (0 ms)
+[ RUN      ] EditSession.ValidateAllReportsInactiveGraphDiagnostics
+[       OK ] EditSession.ValidateAllReportsInactiveGraphDiagnostics (0 ms)
+[ RUN      ] EditSession.ValidateReportsDanglingBareParameterAfterRemoval
+[       OK ] EditSession.ValidateReportsDanglingBareParameterAfterRemoval (0 ms)
+[ RUN      ] EditSession.ValidateReportsPinKindAndDirectionMismatches
+[       OK ] EditSession.ValidateReportsPinKindAndDirectionMismatches (0 ms)
+[ RUN      ] EditSession.ValidateReportsStrictDataTypeMismatches
+[       OK ] EditSession.ValidateReportsStrictDataTypeMismatches (0 ms)
+[ RUN      ] EditSession.AnnotationEditApiUpsertsRemovesAndEmits
+[       OK ] EditSession.AnnotationEditApiUpsertsRemovesAndEmits (0 ms)
+[ RUN      ] EditSession.ImportAndModuleState
+[       OK ] EditSession.ImportAndModuleState (1 ms)
+[ RUN      ] EditSession.LoadImportDeduplicatesAndMarksLoaded
+[       OK ] EditSession.LoadImportDeduplicatesAndMarksLoaded (0 ms)
+[ RUN      ] EditSession.SourceImportDeclarationIsNotLoadedUntilImportCommand
+[       OK ] EditSession.SourceImportDeclarationIsNotLoadedUntilImportCommand (0 ms)
+[ RUN      ] EditSession.LoadSourceReplacesModuleAtomically
+[       OK ] EditSession.LoadSourceReplacesModuleAtomically (0 ms)
+[ RUN      ] EditSession.LetDeclaration
+[       OK ] EditSession.LetDeclaration (0 ms)
+[ RUN      ] EditSession.BuildEditGraphAndValidate
+[       OK ] EditSession.BuildEditGraphAndValidate (0 ms)
+[ RUN      ] EditSession.FullWorkflowSimulation
+[       OK ] EditSession.FullWorkflowSimulation (0 ms)
+[ RUN      ] EditSession.LoadAssetSourceProjectsGraphAndPreservesSourceEmit
+[       OK ] EditSession.LoadAssetSourceProjectsGraphAndPreservesSourceEmit (0 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsInvalidSchemaPolicyValue
+[       OK ] EditSession.LoadAssetImportRejectsInvalidSchemaPolicyValue (3 ms)
+[ RUN      ] EditSession.LoadAssetSourceRequiresProjectedGraph
+[       OK ] EditSession.LoadAssetSourceRequiresProjectedGraph (0 ms)
+[ RUN      ] EditSession.LoadAssetSourceRejectsImportOnlyWithoutProjectedGraph
+[       OK ] EditSession.LoadAssetSourceRejectsImportOnlyWithoutProjectedGraph (0 ms)
+[ RUN      ] EditSession.LoadAssetSourceRejectsDeclarationOnlyWithoutProjectedGraph
+[       OK ] EditSession.LoadAssetSourceRejectsDeclarationOnlyWithoutProjectedGraph (0 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsInvalidMaxExecFanOutValue
+[       OK ] EditSession.LoadAssetImportRejectsInvalidMaxExecFanOutValue (1 ms)
+[ RUN      ] EditSession.LoadAssetImportAcceptsDeclarationOnlyMetadataKinds
+[       OK ] EditSession.LoadAssetImportAcceptsDeclarationOnlyMetadataKinds (4 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsMalformedAssetDeclarationWithoutLegacyFallback
+[       OK ] EditSession.LoadAssetImportRejectsMalformedAssetDeclarationWithoutLegacyFallback (0 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsMalformedDgsAssetWithoutLegacyFallback
+[       OK ] EditSession.LoadAssetImportRejectsMalformedDgsAssetWithoutLegacyFallback (0 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsGraphSourceWithImportOrExportList
+[       OK ] EditSession.LoadAssetImportRejectsGraphSourceWithImportOrExportList (1 ms)
+[ RUN      ] EditSession.LoadAssetSourceRejectsLintErrors
+[       OK ] EditSession.LoadAssetSourceRejectsLintErrors (0 ms)
+[ RUN      ] EditSession.LoadAssetSourceRejectsLintErrorsWithoutMutatingSession
+[       OK ] EditSession.LoadAssetSourceRejectsLintErrorsWithoutMutatingSession (0 ms)
+[ RUN      ] EditSession.LoadAssetSourceRejectsProjectionErrorsWithoutMutatingSession
+[       OK ] EditSession.LoadAssetSourceRejectsProjectionErrorsWithoutMutatingSession (0 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsLintErrorsWithoutRegistering
+[       OK ] EditSession.LoadAssetImportRejectsLintErrorsWithoutRegistering (0 ms)
+[ RUN      ] EditSession.LoadAssetImportRejectsEnvironmentConflictsWithoutMarkingLoaded
+[       OK ] EditSession.LoadAssetImportRejectsEnvironmentConflictsWithoutMarkingLoaded (3 ms)
+[ RUN      ] EditSession.LoadAssetImportAcceptsDeclarationMetadataOnlyFile
+[       OK ] EditSession.LoadAssetImportAcceptsDeclarationMetadataOnlyFile (0 ms)
+[ RUN      ] EditSession.LoadAssetImportAcceptsImportOnlyDeclarationFile
+[       OK ] EditSession.LoadAssetImportAcceptsImportOnlyDeclarationFile (0 ms)
+[ RUN      ] EditSession.LoadAssetImportRegistersTypeObjectAndSchemaDeclarations
+[       OK ] EditSession.LoadAssetImportRegistersTypeObjectAndSchemaDeclarations (0 ms)
+[ RUN      ] EditSession.LoadPresetImportsUseAssetDeclarations
+[       OK ] EditSession.LoadPresetImportsUseAssetDeclarations (5 ms)
+[ RUN      ] EditSession.UndoRedoAssetSourceLoadRestoresSourceCache
+[       OK ] EditSession.UndoRedoAssetSourceLoadRestoresSourceCache (0 ms)
+[ RUN      ] EditSession.UndoAssetToAssetSourceLoadRestoresPreviousSourceCache
+[       OK ] EditSession.UndoAssetToAssetSourceLoadRestoresPreviousSourceCache (0 ms)
+[----------] 81 tests from EditSession (55 ms total)
+
+[----------] 18 tests from EditGraph
+[ RUN      ] EditGraph.AddAndGetNode
+[       OK ] EditGraph.AddAndGetNode (0 ms)
+[ RUN      ] EditGraph.AddUnknownNodeFails
+[       OK ] EditGraph.AddUnknownNodeFails (0 ms)
+[ RUN      ] EditGraph.RemoveNode
+[       OK ] EditGraph.RemoveNode (0 ms)
+[ RUN      ] EditGraph.RemoveNodeRemovesConnections
+[       OK ] EditGraph.RemoveNodeRemovesConnections (0 ms)
+[ RUN      ] EditGraph.ConnectExecPins
+[       OK ] EditGraph.ConnectExecPins (0 ms)
+[ RUN      ] EditGraph.ConnectInvalidPinFails
+[       OK ] EditGraph.ConnectInvalidPinFails (0 ms)
+[ RUN      ] EditGraph.ConnectWrongDirectionFails
+[       OK ] EditGraph.ConnectWrongDirectionFails (0 ms)
+[ RUN      ] EditGraph.ConnectKindMismatchFails
+[       OK ] EditGraph.ConnectKindMismatchFails (0 ms)
+[ RUN      ] EditGraph.Disconnect
+[       OK ] EditGraph.Disconnect (0 ms)
+[ RUN      ] EditGraph.TaskSchemaFanOutLimit
+[       OK ] EditGraph.TaskSchemaFanOutLimit (0 ms)
+[ RUN      ] EditGraph.HTNSchemaUnlimitedFanOut
+[       OK ] EditGraph.HTNSchemaUnlimitedFanOut (0 ms)
+[ RUN      ] EditGraph.HTNSchemaNoExecFanIn
+[       OK ] EditGraph.HTNSchemaNoExecFanIn (0 ms)
+[ RUN      ] EditGraph.StrictTypeMatchEnforced
+[       OK ] EditGraph.StrictTypeMatchEnforced (0 ms)
+[ RUN      ] EditGraph.NodeFilterBySchema
+[       OK ] EditGraph.NodeFilterBySchema (0 ms)
+[ RUN      ] EditGraph.ValidateEmpty
+[       OK ] EditGraph.ValidateEmpty (0 ms)
+[ RUN      ] EditGraph.Parameters
+[       OK ] EditGraph.Parameters (0 ms)
+[ RUN      ] EditGraph.ForEachNode
+[       OK ] EditGraph.ForEachNode (0 ms)
+[ RUN      ] EditGraph.ConnectionQuery
+[       OK ] EditGraph.ConnectionQuery (0 ms)
+[----------] 18 tests from EditGraph (0 ms total)
+
+[----------] 13 tests from GraphRuntimeIR
+[ RUN      ] GraphRuntimeIR.BakeEmpty
+[       OK ] GraphRuntimeIR.BakeEmpty (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeWithNodes
+[       OK ] GraphRuntimeIR.BakeWithNodes (0 ms)
+[ RUN      ] GraphRuntimeIR.BakePreservesNodeData
+[       OK ] GraphRuntimeIR.BakePreservesNodeData (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeFlowEdges
+[       OK ] GraphRuntimeIR.BakeFlowEdges (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeDataEdges
+[       OK ] GraphRuntimeIR.BakeDataEdges (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeWithSchema
+[       OK ] GraphRuntimeIR.BakeWithSchema (0 ms)
+[ RUN      ] GraphRuntimeIR.FindNode
+[       OK ] GraphRuntimeIR.FindNode (0 ms)
+[ RUN      ] GraphRuntimeIR.FindPinIndex
+[       OK ] GraphRuntimeIR.FindPinIndex (0 ms)
+[ RUN      ] GraphRuntimeIR.PinData
+[       OK ] GraphRuntimeIR.PinData (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeFillsMissingPinsFromEnvironment
+[       OK ] GraphRuntimeIR.BakeFillsMissingPinsFromEnvironment (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeMergesPartialProjectedPinsFromEnvironment
+[       OK ] GraphRuntimeIR.BakeMergesPartialProjectedPinsFromEnvironment (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeSkipsEdgesWithUnresolvedPins
+[       OK ] GraphRuntimeIR.BakeSkipsEdgesWithUnresolvedPins (0 ms)
+[ RUN      ] GraphRuntimeIR.DebugDumpUsesRuntimeIRTerminology
+[       OK ] GraphRuntimeIR.DebugDumpUsesRuntimeIRTerminology (0 ms)
+[----------] 13 tests from GraphRuntimeIR (0 ms total)
+
+[----------] 5 tests from DeepCycle
+[ RUN      ] DeepCycle.AssetThreeGraphChainProjectsAndDerivesNodes
+[       OK ] DeepCycle.AssetThreeGraphChainProjectsAndDerivesNodes (1 ms)
+[ RUN      ] DeepCycle.AssetFlowGraphProjectionKeepsFlowAndDataEdges
+[       OK ] DeepCycle.AssetFlowGraphProjectionKeepsFlowAndDataEdges (0 ms)
+[ RUN      ] DeepCycle.GraphRuntimeIRBakeFromAssetProjection
+[       OK ] DeepCycle.GraphRuntimeIRBakeFromAssetProjection (0 ms)
+[ RUN      ] DeepCycle.AssetGenerateAndAnnotationsRoundTrip
+[       OK ] DeepCycle.AssetGenerateAndAnnotationsRoundTrip (0 ms)
+[ RUN      ] DeepCycle.AssetSchemaDefaultsAndMultipleBlocksRoundTrip
+[       OK ] DeepCycle.AssetSchemaDefaultsAndMultipleBlocksRoundTrip (0 ms)
+[----------] 5 tests from DeepCycle (3 ms total)
+
+[----------] 5 tests from NodeDefinition
+[ RUN      ] NodeDefinition.FindPin
+[       OK ] NodeDefinition.FindPin (0 ms)
+[ RUN      ] NodeDefinition.ExecInputs
+[       OK ] NodeDefinition.ExecInputs (0 ms)
+[ RUN      ] NodeDefinition.ExecOutputs
+[       OK ] NodeDefinition.ExecOutputs (0 ms)
+[ RUN      ] NodeDefinition.DataInputs
+[       OK ] NodeDefinition.DataInputs (0 ms)
+[ RUN      ] NodeDefinition.DataOutputsEmpty
+[       OK ] NodeDefinition.DataOutputsEmpty (0 ms)
+[----------] 5 tests from NodeDefinition (0 ms total)
+
+[----------] 5 tests from NodeRegistry
+[ RUN      ] NodeRegistry.RegisterAndFind
+[       OK ] NodeRegistry.RegisterAndFind (0 ms)
+[ RUN      ] NodeRegistry.FindNonexistent
+[       OK ] NodeRegistry.FindNonexistent (0 ms)
+[ RUN      ] NodeRegistry.RegisterGraphNode
+[       OK ] NodeRegistry.RegisterGraphNode (0 ms)
+[ RUN      ] NodeRegistry.UnregisterNodeOnlyRemovesNativeDefinitions
+[       OK ] NodeRegistry.UnregisterNodeOnlyRemovesNativeDefinitions (0 ms)
+[ RUN      ] NodeRegistry.AllNodes
+[       OK ] NodeRegistry.AllNodes (0 ms)
+[----------] 5 tests from NodeRegistry (0 ms total)
+
+[----------] 4 tests from QALoop
+[ RUN      ] QALoop.EditSessionMutationLoopRoundTripsAssetSource
+[       OK ] QALoop.EditSessionMutationLoopRoundTripsAssetSource (0 ms)
+[ RUN      ] QALoop.UndoRedoPreservesAssetRoundTrip
+[       OK ] QALoop.UndoRedoPreservesAssetRoundTrip (0 ms)
+[ RUN      ] QALoop.SourceReloadAfterRepeatedEdits
+[       OK ] QALoop.SourceReloadAfterRepeatedEdits (2 ms)
+[ RUN      ] QALoop.MultiGraphMultiBlockUndoRedoRoundTrips
+[       OK ] QALoop.MultiGraphMultiBlockUndoRedoRoundTrips (1 ms)
+[----------] 4 tests from QALoop (5 ms total)
+
+[----------] 3 tests from QAStress
+[ RUN      ] QAStress.AssetParserProjectsLargeGraphWithinBudget
+[       OK ] QAStress.AssetParserProjectsLargeGraphWithinBudget (6 ms)
+[ RUN      ] QAStress.EditSessionLoadsEmitsAndReloadsLargeAssetGraph
+[       OK ] QAStress.EditSessionLoadsEmitsAndReloadsLargeAssetGraph (5 ms)
+[ RUN      ] QAStress.GraphRuntimeIRBakeLargeAssetProjection
+[       OK ] QAStress.GraphRuntimeIRBakeLargeAssetProjection (3 ms)
+[----------] 3 tests from QAStress (14 ms total)
+
+[----------] 6 tests from Result
+[ RUN      ] Result.OkValue
+[       OK ] Result.OkValue (0 ms)
+[ RUN      ] Result.ErrValue
+[       OK ] Result.ErrValue (0 ms)
+[ RUN      ] Result.ValueOnErrThrows
+[       OK ] Result.ValueOnErrThrows (0 ms)
+[ RUN      ] Result.ErrorOnOkThrows
+[       OK ] Result.ErrorOnOkThrows (0 ms)
+[ RUN      ] Result.MoveValue
+[       OK ] Result.MoveValue (0 ms)
+[ RUN      ] Result.CustomErrorType
+[       OK ] Result.CustomErrorType (0 ms)
+[----------] 6 tests from Result (0 ms total)
+
+[----------] 6 tests from SchemaRegistry
+[ RUN      ] SchemaRegistry.RegisterAndFind
+[       OK ] SchemaRegistry.RegisterAndFind (0 ms)
+[ RUN      ] SchemaRegistry.FindNonexistent
+[       OK ] SchemaRegistry.FindNonexistent (0 ms)
+[ RUN      ] SchemaRegistry.UnregisterSchemaRemovesRegisteredSchema
+[       OK ] SchemaRegistry.UnregisterSchemaRemovesRegisteredSchema (0 ms)
+[ RUN      ] SchemaRegistry.MultipleSchemas
+[       OK ] SchemaRegistry.MultipleSchemas (0 ms)
+[ RUN      ] SchemaRegistry.AllowedNodeTags
+[       OK ] SchemaRegistry.AllowedNodeTags (0 ms)
+[ RUN      ] SchemaRegistry.RequiredEvents
+[       OK ] SchemaRegistry.RequiredEvents (0 ms)
+[----------] 6 tests from SchemaRegistry (0 ms total)
+
+[----------] 2 tests from Handle
+[ RUN      ] Handle.DefaultInvalid
+[       OK ] Handle.DefaultInvalid (0 ms)
+[ RUN      ] Handle.Equality
+[       OK ] Handle.Equality (0 ms)
+[----------] 2 tests from Handle (0 ms total)
+
+[----------] 10 tests from SlotMap
+[ RUN      ] SlotMap.InsertAndGet
+[       OK ] SlotMap.InsertAndGet (0 ms)
+[ RUN      ] SlotMap.Remove
+[       OK ] SlotMap.Remove (0 ms)
+[ RUN      ] SlotMap.RemoveInvalidReturnsFalse
+[       OK ] SlotMap.RemoveInvalidReturnsFalse (0 ms)
+[ RUN      ] SlotMap.GenerationInvalidatesOldHandle
+[       OK ] SlotMap.GenerationInvalidatesOldHandle (0 ms)
+[ RUN      ] SlotMap.SlotReuse
+[       OK ] SlotMap.SlotReuse (0 ms)
+[ RUN      ] SlotMap.MultipleInserts
+[       OK ] SlotMap.MultipleInserts (0 ms)
+[ RUN      ] SlotMap.ForEachConst
+[       OK ] SlotMap.ForEachConst (0 ms)
+[ RUN      ] SlotMap.ForEachMutable
+[       OK ] SlotMap.ForEachMutable (0 ms)
+[ RUN      ] SlotMap.ContainsValid
+[       OK ] SlotMap.ContainsValid (0 ms)
+[ RUN      ] SlotMap.Capacity
+[       OK ] SlotMap.Capacity (0 ms)
+[----------] 10 tests from SlotMap (0 ms total)
+
+[----------] 11 tests from SourceDiagnostics
+[ RUN      ] SourceDiagnostics.ResolveImportsLoadsDeclarationInDryRunEnvironment
+[       OK ] SourceDiagnostics.ResolveImportsLoadsDeclarationInDryRunEnvironment (3 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsLoadsNestedDeclarations
+[       OK ] SourceDiagnostics.ResolveImportsLoadsNestedDeclarations (4 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsDetectsCycles
+[       OK ] SourceDiagnostics.ResolveImportsDetectsCycles (4 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsEnforcesMaxDepth
+[       OK ] SourceDiagnostics.ResolveImportsEnforcesMaxDepth (3 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsRejectsPathEscape
+[       OK ] SourceDiagnostics.ResolveImportsRejectsPathEscape (1 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsRejectsNonDeclarationImport
+[       OK ] SourceDiagnostics.ResolveImportsRejectsNonDeclarationImport (1 ms)
+[ RUN      ] SourceDiagnostics.ResolvedImportsParticipateInAssetDiagnostics
+[       OK ] SourceDiagnostics.ResolvedImportsParticipateInAssetDiagnostics (2 ms)
+[ RUN      ] SourceDiagnostics.DefaultDiagnosticsDoNotIncludeResolverMetadata
+[       OK ] SourceDiagnostics.DefaultDiagnosticsDoNotIncludeResolverMetadata (0 ms)
+[ RUN      ] SourceDiagnostics.ResolveImportsDoesNotHideSourceParseErrors
+[       OK ] SourceDiagnostics.ResolveImportsDoesNotHideSourceParseErrors (2 ms)
+[ RUN      ] SourceDiagnostics.EnvironmentHashChangesWhenResolvedDeclarationChanges
+[       OK ] SourceDiagnostics.EnvironmentHashChangesWhenResolvedDeclarationChanges (3 ms)
+[ RUN      ] SourceDiagnostics.EnvironmentHashFailsWhenResolverHasDiagnostics
+[       OK ] SourceDiagnostics.EnvironmentHashFailsWhenResolverHasDiagnostics (1 ms)
+[----------] 11 tests from SourceDiagnostics (29 ms total)
+
+[----------] 8 tests from TypeRegistry
+[ RUN      ] TypeRegistry.RegisterAndFind
+[       OK ] TypeRegistry.RegisterAndFind (0 ms)
+[ RUN      ] TypeRegistry.FindByHandle
+[       OK ] TypeRegistry.FindByHandle (0 ms)
+[ RUN      ] TypeRegistry.HandleOf
+[       OK ] TypeRegistry.HandleOf (0 ms)
+[ RUN      ] TypeRegistry.DuplicateReturnsSameHandle
+[       OK ] TypeRegistry.DuplicateReturnsSameHandle (0 ms)
+[ RUN      ] TypeRegistry.FindNonexistentReturnsNull
+[       OK ] TypeRegistry.FindNonexistentReturnsNull (0 ms)
+[ RUN      ] TypeRegistry.UnregisterTypeRemovesNameAndPreservesOtherHandles
+[       OK ] TypeRegistry.UnregisterTypeRemovesNameAndPreservesOtherHandles (0 ms)
+[ RUN      ] TypeRegistry.AllReturnsRegisteredTypes
+[       OK ] TypeRegistry.AllReturnsRegisteredTypes (0 ms)
+[ RUN      ] TypeRegistry.InvalidHandleIsZero
+[       OK ] TypeRegistry.InvalidHandleIsZero (0 ms)
+[----------] 8 tests from TypeRegistry (0 ms total)
+
+[----------] 1 test from Diagnostic
+[ RUN      ] Diagnostic.SeverityValues
+[       OK ] Diagnostic.SeverityValues (0 ms)
+[----------] 1 test from Diagnostic (0 ms total)
+
+[----------] 1 test from Validator
+[ RUN      ] Validator.PlaceholderReturnsEmpty
+[       OK ] Validator.PlaceholderReturnsEmpty (0 ms)
+[----------] 1 test from Validator (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 276 tests from 25 test suites ran. (258 ms total)
+[  PASSED  ] 276 tests.

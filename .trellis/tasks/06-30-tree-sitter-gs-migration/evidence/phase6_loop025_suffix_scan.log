@@ -1,0 +1,11 @@
+.\docs\plans\tree-sitter-gs-migration-plan.md:145:- `.sc` 和 `.d.sc`：从用户可见文档、测试、CLI help、package metadata 中移除。
+.\docs\plans\tree-sitter-gs-migration-plan.md:365:| `tools/tree-sitter-graphscript-asset/grammar.js` | 新语法的 canonical grammar | 把文件类型假设从 `.sc/.d.sc` 改成 `.gs/.d.gs`；把旧 `scope_declaration` 改成通用 `block_declaration`，block kind 解析为标识符。 |
+.\docs\plans\tree-sitter-gs-migration-plan.md:370:| `tools/tree-sitter-graphscript-asset/package.json` | tree-sitter package metadata | description/file types 从 `.sc/.d.sc` 改成 `.gs/.d.gs`。 |
+.\docs\plans\tree-sitter-gs-migration-plan.md:375:| `tests/test_asset_language.cpp` | 当前新语法测试 | 所有 fixture 名称和 import 字符串从 `.sc/.d.sc` 改为 `.gs/.d.gs`；补充后缀行为测试。 |
+.\docs\plans\tree-sitter-gs-migration-plan.md:844:第一步把 `.sc/.d.sc` 改成 `.gs/.d.gs`：
+.\docs\plans\tree-sitter-gs-migration-plan.md:857:rg "\.d\.sc|\.sc\b"
+.\docs\plans\tree-sitter-gs-migration-plan.md:912:- 文档、测试、CLI help 中不得继续把 `.sc/.d.sc` 作为当前后缀。
+.\docs\plans\tree-sitter-gs-migration-plan.md:939:- 确认 tree-sitter 实现存在，测试仍引用当前 `.sc/.d.sc` 名称，然后再开始修改。
+.\docs\plans\tree-sitter-gs-migration-plan.md:943:- 用户可见后缀从 `.sc/.d.sc` 改为 `.gs/.d.gs`。
+.\docs\plans\tree-sitter-gs-migration-plan.md:947:- 执行 `rg "\.d\.sc|\.sc\b"` 验证无残留。
+.\docs\plans\tree-sitter-gs-migration-plan.md:993:rg "\.d\.sc|\.sc\b"

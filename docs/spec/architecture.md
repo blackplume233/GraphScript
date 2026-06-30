@@ -251,7 +251,7 @@ Schema declarations and individual schema fields can carry prefix annotations, w
 #### 1. Scope / Trigger
 
 - Trigger: migration to tree-sitter asset `.gs/.d.gs` syntax changes the supported CLI command surface.
-- Scope: user-facing `gs` subcommands. Internal editor/server code may temporarily use legacy parser/compiler paths until the editor replacement phase, but those paths are not supported CLI commands.
+- Scope: user-facing `gs` subcommands. Editor/server entry points use the tree-sitter asset path and may expose additional replay/debug commands only inside the interactive `edit` surface; those are not top-level CLI commands.
 
 #### 2. Signatures
 

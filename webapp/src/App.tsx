@@ -62,15 +62,15 @@ function sourceAnnotationLine(annotation: Annotation): string {
   return args ? `${annotation.name}(${args})` : annotation.name
 }
 
-function sourceAnnotationLines(annotations: Annotation[], indent = ''): string[] {
-  if (annotations.length === 0) return []
-  return [`${indent}[${annotations.map(sourceAnnotationLine).join(', ')}]`]
+function sourceAnnotationLines(annotations: Annotation[] | undefined, indent = ''): string[] {
+  if (!annotations || annotations.length === 0) return []
+  return annotations.map(annotation => `${indent}@${sourceAnnotationLine(annotation)}`)
 }
 
 function sourceForFlow(flow: FlowConn, indent: string): string[] {
   return [
     ...sourceAnnotationLines(flow.annotations, indent),
-    `${indent}${flow.from_node}.${flow.from_pin}(${flow.to_node}.${flow.to_pin});`,
+    `${indent}connect(${flow.from_node}.${flow.from_pin}, ${flow.to_node}.${flow.to_pin});`,
   ]
 }
 
@@ -78,26 +78,45 @@ function sourceForLink(link: DataLink, indent: string): string[] {
   const source = link.source_pin ? `${link.source_node}.${link.source_pin}` : link.source_node
   return [
     ...sourceAnnotationLines(link.annotations, indent),
-    `${indent}${link.target_node}.${link.target_pin} = ${source};`,
+    `${indent}bind(${source}, ${link.target_node}.${link.target_pin});`,
   ]
+}
+
+function sourceParamDirectionAttribute(direction: 'in' | 'out' | 'var'): string {
+  if (direction === 'in') return '@graph.input'
+  if (direction === 'out') return '@graph.output'
+  return '@graph.var'
 }
 
 function currentGraphSource(graph: GraphDef | undefined): string {
   if (!graph) return ''
   const lines: string[] = []
   lines.push(...sourceAnnotationLines(graph.annotations))
-  lines.push(`Graph ${graph.name}${graph.base_type ? ` : ${graph.base_type}` : ''} {`)
+  lines.push(`graph ${graph.name} {`)
+
+  if (graph.base_type) {
+    lines.push(`    schema ${graph.base_type};`)
+  }
 
   for (const param of graph.parameters) {
     lines.push(...sourceAnnotationLines(param.annotations, '    '))
+    lines.push(`    ${sourceParamDirectionAttribute(param.direction)}`)
     const defaultValue = param.default ? ` = ${param.default}` : ''
-    lines.push(`    ${param.direction} ${param.name} : ${param.type}${defaultValue};`)
+    lines.push(`    param ${param.name}: ${param.type}${defaultValue};`)
   }
 
   if (graph.parameters.length > 0 && graph.nodes.length > 0) lines.push('')
   for (const node of graph.nodes) {
     lines.push(...sourceAnnotationLines(node.annotations, '    '))
-    lines.push(`    ${node.type} ${node.instance}{${node.init ?? ''}};`)
+    lines.push(`    node ${node.instance} {`)
+    lines.push(`        type ${node.type};`)
+    for (const field of node.initializer_fields ?? []) {
+      lines.push(`        ${field.name}: ${sourceValue(field.value)};`)
+    }
+    if (!node.initializer_fields?.length && node.init?.trim()) {
+      lines.push(`        ${node.init.trim()};`)
+    }
+    lines.push('    }')
   }
 
   const blocks = [...graph.events, ...graph.functions]
@@ -113,14 +132,14 @@ function currentGraphSource(graph: GraphDef | undefined): string {
 
   if (graph.generate && (graph.generate.comments.length > 0 || graph.generate.metadata.length > 0)) {
     if (lines[lines.length - 1] !== '') lines.push('')
-    lines.push('    generate {')
+    lines.push('    generate Layout {')
     for (const comment of graph.generate.comments) {
       lines.push(...sourceAnnotationLines(comment.annotations, '        '))
-      lines.push(`        Comment ${comment.instance} = ${sourceValue(comment.text)};`)
+      lines.push(`        comment(${comment.instance}, ${sourceValue(comment.text)});`)
     }
     for (const metadata of graph.generate.metadata) {
       lines.push(...sourceAnnotationLines(metadata.annotations, '        '))
-      lines.push(`        ${metadata.scope}:${metadata.node}.${metadata.property}(${metadata.value});`)
+      lines.push(`        metadata(${metadata.scope}, ${metadata.node}, ${metadata.property}, ${sourceValue(metadata.value)});`)
     }
     lines.push('    }')
   }

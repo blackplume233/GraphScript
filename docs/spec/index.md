@@ -19,6 +19,7 @@ GraphScript is a **standalone C++17 library + CLI**. It provides a full pipeline
 | [Architecture](./architecture.md) | Data model, compilation pipeline, layer boundaries | Filled |
 | [DSL Reference](./dsl-reference.md) | `.gs` and `.d.gs` syntax, file types, grammar | Filled |
 | [Scope Rules](./scope-rules.md) | Block-level scope isolation for flow/link references | Filled |
+| [旧 Graph DSL 功能清单](./legacy-graph-dsl-feature-inventory.md) | 迁移历史清单：旧手写 DSL 能力、替代路径和删除前测试意图 | Filled |
 | [AI Native 资产格式](./ai-native-asset-format.md) | Roslyn-like 文本资产、通用 AST、领域投影和 lint 的目标模型草案 | Draft |
 | [AI Native 资产语法](./ai-native-syntax.md) | 通用 scope/object/property/call 语法草案与可逆作者子集 | Draft |
 | [Development Guide](./development-guide.md) | Build, test, extend, common patterns and anti-patterns | Filled |
@@ -32,18 +33,19 @@ GraphScript is a **standalone C++17 library + CLI**. It provides a full pipeline
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
-./build/Release/gs_tests.exe          # 179 tests
+./build/Release/gs_tests.exe
 ```
 
 ### Key Entry Points
 
 | Task | Command / File |
 |------|---------------|
-| Parse `.gs` file | `gs parse <file>` |
-| Compile + validate | `gs compile <file>` |
+| Parse `.gs/.d.gs` asset syntax | `gs parse -i file.gs` |
+| Lint `.gs/.d.gs` asset syntax | `gs lint -i file.gs` |
+| Project graph block | `gs project -i file.gs -I import.d.gs --graph Execute` |
+| Apply source patch | `gs patch -i file.gs --op <op> ...` |
 | Interactive editor | `gs edit [-I import.d.gs]` |
 | Web GUI editor | `gs serve [-I import.d.gs] [-p 8080]` |
-| Generate Mermaid diagram | `gs diagram <file>` |
 | Run tests | `./build/Release/gs_tests.exe` |
 
 ### Test Fixture Location
@@ -65,16 +67,15 @@ All `.gs` and `.d.gs` test fixtures: `tests/fixtures/`
 ## Architecture Overview (Quick)
 
 ```
-.gs text  ──[Lexer→Parser]──▶  AST  ──[Compiler]──▶  Module
-                                                         │
-                                          ┌──────────────┼──────────────┐
-                                          ▼              ▼              ▼
-                                    EditSession     EditGraph       Emitter
-                                    (CLI/GUI)     (SlotMap-based)   (→ .gs text)
-                                                       │
-                                                       ▼
-                                                  RuntimeGraph
-                                                  (Baked, flat arrays)
+.gs/.d.gs text ──[tree-sitter asset parser]──▶ Block/Property/Command/Expr
+                                                          │
+                                                          ▼
+                                             asset lint / graph projection / patch
+                                                          │
+                                          ┌───────────────┴───────────────┐
+                                          ▼                               ▼
+                                      CLI commands                   edit / serve
+                                  parse lint project patch       migration adapter path
 ```
 
 See [Architecture](./architecture.md) for full details.

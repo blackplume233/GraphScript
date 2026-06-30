@@ -1,0 +1,12 @@
+
+Asset source preview smoke
+  PASS node branch rendered
+  PASS node montage rendered
+  PASS current graph uses asset graph
+  PASS current graph uses asset node
+  PASS current graph uses connect
+  PASS source preview loaded canonical source
+  PASS diagnostic code visible
+  PASS source range focused
+  PASS active range text
+Screenshots: G:\Workspace\PluginDevelop\Plugins\GraphScript\webapp\test_screenshots\asset_source_preview_smoke

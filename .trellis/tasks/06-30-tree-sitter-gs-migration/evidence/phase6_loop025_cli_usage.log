@@ -1,0 +1,29 @@
+GraphScript CLI (gs) v0.1.0
+Usage: gs <command> [options]
+
+Commands:
+  edit      Interactive graph editor (CLI REPL)
+  serve     Start web editor (GUI + HTTP server)
+  parse     Parse .gs/.d.gs asset syntax and output syntax summary
+  lint      Lint .gs/.d.gs asset syntax and output diagnostics JSON
+  project   Project .gs graph block into FlowGraph JSON summary
+  patch     Apply tree-sitter-aware .gs text patch operation
+
+Options:
+  -i, --input   Input file
+  -o, --output  Output file
+  -I, --import  Import .d.gs file (can repeat)
+  -f, --format  Output format (json|summary)
+  -p, --port    HTTP port for serve (default: 8080)
+  --op          patch op: add-import|add-node|add-block|add-attribute|connect|disconnect|rename-node|rename-block|set-property
+  --graph       Graph block name for project/patch
+  --alias       Node alias for patch
+  --new-alias   New node alias for rename-node
+  --parent-block Parent block name for add-block
+  --block-kind  Block kind for add-block
+  --block-name  Block name for add-block/rename-block
+  --target      Target block/object name for add-attribute
+  --attribute   Attribute source for add-attribute
+  --from/--to   Connection endpoints for connect/disconnect
+  --property    Property path for set-property
+  --value       Replacement value for set-property

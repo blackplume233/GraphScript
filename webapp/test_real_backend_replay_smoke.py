@@ -15,7 +15,10 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent
-GS_EXE = REPO / "build" / "Release" / "gs.exe"
+GS_EXE_CANDIDATES = [
+    REPO / "build-codex" / "Release" / "gs.exe",
+    REPO / "build" / "Release" / "gs.exe",
+]
 DECL = REPO / "tests" / "fixtures" / "mixed_declarations.d.gs"
 PORT = 8093
 URL = f"http://127.0.0.1:{PORT}/"
@@ -36,14 +39,18 @@ def wait_for_server():
 
 
 def start_gs_serve():
-    if not GS_EXE.exists():
-        raise RuntimeError(f"Missing executable: {GS_EXE}")
+    gs_exe = next((candidate for candidate in GS_EXE_CANDIDATES if candidate.exists()), None)
+    if gs_exe is None:
+        raise RuntimeError(
+            "Missing executable; expected one of: " +
+            ", ".join(str(candidate) for candidate in GS_EXE_CANDIDATES)
+        )
     if not DECL.exists():
         raise RuntimeError(f"Missing declaration fixture: {DECL}")
 
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     proc = subprocess.Popen(
-        [str(GS_EXE), "serve", "-p", str(PORT), "-I", str(DECL)],
+        [str(gs_exe), "serve", "-p", str(PORT), "-I", str(DECL)],
         cwd=REPO,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -98,6 +105,20 @@ def main():
             for command in commands:
                 run_console_command(page, command)
 
+            state_after_replay = fetch_json("api/state")
+            graph_after_replay = (
+                state_after_replay["module"]["graphs"][0]
+                if state_after_replay["module"].get("graphs")
+                else {}
+            )
+            replayed_nodes = {node["instance"] for node in graph_after_replay.get("nodes", [])}
+            if not {"branch", "montage"}.issubset(replayed_nodes):
+                raise RuntimeError(
+                    "Backend command replay did not create expected nodes; "
+                    f"nodes={sorted(replayed_nodes)}, "
+                    f"commands={state_after_replay.get('command_log', [])[-len(commands):]}"
+                )
+
             page.wait_for_selector(".node-card:has-text('branch')", timeout=5000)
             page.wait_for_selector(".node-card:has-text('montage')", timeout=5000)
             page.wait_for_selector(
@@ -128,8 +149,8 @@ def main():
                 ("command log persisted", state["command_log"][-len(commands):] == commands),
                 ("command log visible", all(page.locator(f"text={command}").count() > 0 for command in commands)),
                 ("visual flow line rendered", "branch_exec-out-matched-montage_exec-in-play" in line_ids),
-                ("emitted source has flow", "branch.matched(montage.play);" in emitted),
-                ("emitted source has link", "branch.tag = tag;" in emitted),
+                ("emitted source has flow", "connect(branch.matched, montage.play);" in emitted),
+                ("emitted source has link", "bind(tag, branch.tag);" in emitted),
             ]
             browser.close()
     finally:

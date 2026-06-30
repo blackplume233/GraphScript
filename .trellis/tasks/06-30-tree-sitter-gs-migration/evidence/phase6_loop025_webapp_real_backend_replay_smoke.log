@@ -1,0 +1,15 @@
+
+Real backend replay smoke
+  PASS server loaded declarations
+  PASS graph created in real state
+  PASS parameter replayed
+  PASS nodes replayed
+  PASS event replayed
+  PASS flow replayed
+  PASS link replayed
+  PASS command log persisted
+  PASS command log visible
+  PASS visual flow line rendered
+  PASS emitted source has flow
+  PASS emitted source has link
+Screenshots: G:\Workspace\PluginDevelop\Plugins\GraphScript\webapp\test_screenshots\real_backend_replay_smoke
