@@ -20,8 +20,8 @@ WebServer::WebServer(EditSession& session, CLIEditor& cli, int port)
     : session_(session), cli_(cli), port_(port) {}
 
 // Reads a file into a string. Returns empty on failure.
-static std::string read_file(const std::string& path) {
-    std::ifstream f(path);
+static std::string read_file(const std::string& path, std::ios::openmode mode = std::ios::in) {
+    std::ifstream f(path, mode);
     if (!f.is_open()) return "";
     std::stringstream ss;
     ss << f.rdbuf();
@@ -51,6 +51,54 @@ static std::string json_str(const std::string& s) {
 static bool has_suffix(const std::string& value, const std::string& suffix) {
     return value.size() >= suffix.size() &&
            value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+static std::string content_type_for_path(const std::string& path) {
+    if (has_suffix(path, ".html")) return "text/html";
+    if (has_suffix(path, ".js")) return "text/javascript";
+    if (has_suffix(path, ".css")) return "text/css";
+    if (has_suffix(path, ".svg")) return "image/svg+xml";
+    if (has_suffix(path, ".png")) return "image/png";
+    if (has_suffix(path, ".jpg") || has_suffix(path, ".jpeg")) return "image/jpeg";
+    if (has_suffix(path, ".webp")) return "image/webp";
+    if (has_suffix(path, ".woff2")) return "font/woff2";
+    return "application/octet-stream";
+}
+
+static bool is_safe_web_relative_path(const std::string& path) {
+    if (path.empty()) return false;
+    const auto fs_path = std::filesystem::path(path);
+    if (fs_path.is_absolute()) return false;
+    for (const auto& part : fs_path) {
+        if (part == "..") return false;
+    }
+    return true;
+}
+
+static bool serve_web_file(const std::string& web_dir, const std::string& relative_path, httplib::Response& res) {
+    if (web_dir.empty() || !is_safe_web_relative_path(relative_path)) {
+        res.status = 404;
+        res.set_content("Not found", "text/plain");
+        return false;
+    }
+
+    const auto path = (std::filesystem::path(web_dir) / std::filesystem::path(relative_path)).lexically_normal();
+    std::error_code ec;
+    if (!std::filesystem::exists(path, ec) || !std::filesystem::is_regular_file(path, ec)) {
+        res.status = 404;
+        res.set_content("Not found", "text/plain");
+        return false;
+    }
+
+    const std::string content = read_file(path.string(), std::ios::in | std::ios::binary);
+    if (content.empty() && std::filesystem::file_size(path, ec) > 0) {
+        res.status = 500;
+        res.set_content("Cannot read file", "text/plain");
+        return false;
+    }
+
+    res.set_content(content, content_type_for_path(path.string()));
+    return true;
 }
 
 static std::string base64_encode(const std::string& input) {
@@ -370,6 +418,15 @@ int WebServer::run() {
     if (!web_dir_.empty()) {
         svr.set_mount_point("/", web_dir_);
     }
+
+    // set_mount_point only succeeds when the directory exists at server startup.
+    // These dynamic routes let a running dev server pick up a freshly built dist.
+    svr.Get(R"(/assets/(.+))", [this](const httplib::Request& req, httplib::Response& res) {
+        serve_web_file(web_dir_, "assets/" + std::string(req.matches[1]), res);
+    });
+    svr.Get(R"(/(favicon\.svg|icons\.svg))", [this](const httplib::Request& req, httplib::Response& res) {
+        serve_web_file(web_dir_, std::string(req.matches[1]), res);
+    });
 
     // Fallback: serve index.html for SPA client-side routing
     svr.Get("/", [this](const httplib::Request&, httplib::Response& res) {
