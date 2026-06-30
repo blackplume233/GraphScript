@@ -1,10 +1,9 @@
 /// Debug dump & diff utilities for GraphScript data structures.
-/// Produces human-readable hierarchical text from AST, Module, EditGraph, and RuntimeGraph.
+/// Produces human-readable hierarchical text from Module, EditGraph, and RuntimeGraph.
 
 #include "graphscript/debug/dump.h"
 
-#include "graphscript/parse/ast.h"
-#include "graphscript/compile/compiler.h"
+#include "graphscript/core/module.h"
 #include "graphscript/edit/edit_graph.h"
 #include "graphscript/runtime/runtime_graph.h"
 
@@ -57,8 +56,6 @@ static std::string dump_annotations_block(const std::vector<Annotation>& annots,
     return out;
 }
 
-static std::string dir_str(const std::string& dir) { return dir; }
-
 static std::string param_dir_str(ParamDirection d) {
     switch (d) {
         case ParamDirection::In:  return "in";
@@ -68,125 +65,10 @@ static std::string param_dir_str(ParamDirection d) {
     return "?";
 }
 
-static std::string pin_kind_str(uint8_t k) { return k == 0 ? "Exec" : "Data"; }
-static std::string pin_dir_str(uint8_t d)  { return d == 0 ? "Input" : "Output"; }
 static std::string pin_kind_str(PinKind k) { return k == PinKind::Exec ? "Exec" : "Data"; }
 static std::string pin_dir_str(PinDirection d) { return d == PinDirection::Input ? "Input" : "Output"; }
-
-// ─── dump_ast ──────────────────────────────────────────────────────
-
-std::string dump_ast(const ModuleNode& mod) {
-    std::ostringstream os;
-    os << "AST ModuleNode {\n";
-
-    if (!mod.imports.empty()) {
-        os << indent(1) << "imports: [";
-        for (size_t i = 0; i < mod.imports.size(); ++i) {
-            if (i > 0) os << ", ";
-            os << quote(mod.imports[i]->path);
-        }
-        os << "]\n";
-    }
-
-    if (!mod.let_decls.empty()) {
-        os << indent(1) << "lets:\n";
-        for (auto& l : mod.let_decls)
-            os << indent(2) << "- " << l->name << " : " << l->type_name
-               << (l->constructor_arg.empty() ? "" : " = " + quote(l->constructor_arg)) << "\n";
-    }
-
-    if (!mod.declare_types.empty()) {
-        os << indent(1) << "declare_types:\n";
-        for (auto& dt : mod.declare_types)
-            os << indent(2) << "- " << dt->name << (dt->constructible ? " (constructible)" : "") << "\n";
-    }
-
-    if (!mod.declare_nodes.empty()) {
-        os << indent(1) << "declare_nodes:\n";
-        for (auto& dn : mod.declare_nodes) {
-            os << indent(2) << "- " << dn->name << " {\n";
-            for (auto& p : dn->pins)
-                os << indent(3) << pin_kind_str(p->kind) << " " << pin_dir_str(p->direction)
-                   << " " << p->name << " : " << p->type_name << "\n";
-            os << indent(2) << "}\n";
-        }
-    }
-
-    if (!mod.declare_schemas.empty()) {
-        os << indent(1) << "declare_schemas:\n";
-        for (auto& ds : mod.declare_schemas) {
-            os << indent(2) << "- " << ds->name << " {";
-            for (size_t i = 0; i < ds->fields.size(); ++i) {
-                if (i > 0) os << ",";
-                os << " " << ds->fields[i]->name << ": " << ds->fields[i]->value;
-            }
-            os << " }\n";
-        }
-    }
-
-    for (auto& g : mod.graphs) {
-        os << indent(1) << "Graph " << quote(g->name);
-        if (g->base_type.has_value()) os << " : " << g->base_type.value();
-        os << " {\n";
-        os << dump_annotations_block(g->annotations, 2);
-
-        if (!g->params.empty()) {
-            os << indent(2) << "params:\n";
-            for (auto& p : g->params) {
-                os << indent(3) << "- " << dir_str(p->direction) << " " << p->name << " : " << p->type_name;
-                if (!p->default_value.empty()) os << " = " << p->default_value;
-                os << dump_annotations_inline(p->annotations) << "\n";
-            }
-        }
-
-        if (!g->node_instances.empty()) {
-            os << indent(2) << "nodes:\n";
-            for (auto& ni : g->node_instances) {
-                os << indent(3) << "- " << ni->type_name << " " << ni->instance_name;
-                if (!ni->initializer.empty()) os << "{" << ni->initializer << "}";
-                else os << "{}";
-                os << dump_annotations_inline(ni->annotations) << "\n";
-            }
-        }
-
-        for (auto& ev : g->events) {
-            os << indent(2) << "event " << ev->name << " {\n";
-            for (auto& f : ev->flow_stmts)
-                os << indent(3) << f->from_node << "." << f->from_pin << " -> "
-                   << f->to_node << "." << f->to_pin << "\n";
-            for (auto& l : ev->link_stmts)
-                os << indent(3) << "link " << l->target_node << "." << l->target_pin << " <- "
-                   << l->source_node << (l->source_pin.empty() ? "" : "." + l->source_pin) << "\n";
-            os << indent(2) << "}\n";
-        }
-
-        for (auto& fn : g->functions) {
-            os << indent(2) << "function " << fn->name << " {\n";
-            for (auto& f : fn->flow_stmts)
-                os << indent(3) << f->from_node << "." << f->from_pin << " -> "
-                   << f->to_node << "." << f->to_pin << "\n";
-            for (auto& l : fn->link_stmts)
-                os << indent(3) << "link " << l->target_node << "." << l->target_pin << " <- "
-                   << l->source_node << (l->source_pin.empty() ? "" : "." + l->source_pin) << "\n";
-            os << indent(2) << "}\n";
-        }
-
-        if (g->generate) {
-            os << indent(2) << "generate {\n";
-            for (auto& c : g->generate->comments)
-                os << indent(3) << "Comment " << c->instance_name << " = " << quote(c->text) << "\n";
-            for (auto& m : g->generate->metadata)
-                os << indent(3) << m->scope << ":" << m->node << "." << m->property
-                   << "(" << m->value << ")\n";
-            os << indent(2) << "}\n";
-        }
-
-        os << indent(1) << "}\n";
-    }
-
-    os << "}\n";
-    return os.str();
-}
+static std::string pin_kind_str(uint8_t k) { return k == 0 ? "Exec" : "Data"; }
+static std::string pin_dir_str(uint8_t d) { return d == 0 ? "Input" : "Output"; }
 
 // ─── dump_module ───────────────────────────────────────────────────
 

@@ -5,15 +5,11 @@
 
 namespace gs {
 
-struct ModuleNode;
 struct Module;
 class  EditGraph;
 class  RuntimeGraph;
 
 namespace debug {
-
-/// Dumps AST (ModuleNode) to human-readable hierarchical text.
-std::string dump_ast(const ModuleNode& mod);
 
 /// Dumps compiled Module (IR) to human-readable hierarchical text.
 std::string dump_module(const Module& mod);

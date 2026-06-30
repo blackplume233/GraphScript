@@ -1,0 +1,10 @@
+D	include/graphscript/compile/compiler.h
+D	include/graphscript/emit/emitter.h
+D	include/graphscript/parse/ast.h
+D	include/graphscript/parse/lexer.h
+D	include/graphscript/parse/parser.h
+D	include/graphscript/parse/token.h
+D	src/compile/compiler.cpp
+D	src/emit/emitter.cpp
+D	src/parse/lexer.cpp
+D	src/parse/parser.cpp

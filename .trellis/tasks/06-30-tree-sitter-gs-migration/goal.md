@@ -4,9 +4,9 @@ updated_at: 2026-06-30
 artifact_language: zh-CN
 execution_mode: native-codex-goal
 native_goal_id: codex_019f188c-0800-7041-9d48-9a868ddcb496
-current_loop: loops/loop-021.md
-next_sub_goal: Loop 021：继续 Phase 5，在测试层旧 parse/compiler/emitter 依赖清零后，扫描并删除 legacy parse/compile/emit 源码与头文件，处理 debug dump/docs/CMake 影响并跑全量验证
-last_verified_loop: loops/loop-020.md
+current_loop: loops/loop-022.md
+next_sub_goal: Loop 022：进入 Phase 6/后续清理，扫描并处理 remaining legacy-only surface，包括文档旧 .sc/.d.sc、旧架构 parser/compiler/emitter 描述、测试 suite 命名噪声、RuntimeGraph replacement 前置评估与 webapp build/lint 验证
+last_verified_loop: loops/loop-021.md
 references: references.md
 ---
 
