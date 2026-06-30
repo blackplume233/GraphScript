@@ -2899,6 +2899,8 @@ function IntrinsicPropertyRow({
     <div
       className="space-y-1 rounded-md border border-border/35 bg-background/25 p-1.5"
       data-node-intrinsic-property-row={property.name}
+      data-node-intrinsic-property-source={property.source_file || 'inline'}
+      data-node-intrinsic-property-default={property.default || ''}
     >
       <div className="flex min-w-0 items-center gap-1.5">
         <div
@@ -2950,6 +2952,17 @@ function IntrinsicPropertyRow({
             onClick={() => onExec(`unset_init ${nodeInstance} ${property.name}`)}
           />
         )}
+      </div>
+      <div className="flex min-w-0 items-center justify-between gap-2 rounded-[4px] bg-background/30 px-1.5 py-1">
+        <span className="min-w-0 truncate font-mono text-[9px] text-muted-foreground/55">
+          default: {property.default || 'inherited'}
+        </span>
+        <span
+          className="max-w-[7rem] truncate text-[9px] text-muted-foreground/45"
+          title={property.source_file || 'inline declaration'}
+        >
+          {property.source_file || 'inline'}
+        </span>
       </div>
       <form className="flex gap-1.5" onSubmit={submitValue}>
         <Input

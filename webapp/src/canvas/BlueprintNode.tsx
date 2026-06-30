@@ -13,6 +13,8 @@ export interface BlueprintIntrinsicProperty {
   value: string
   defaultValue: string
   overridden: boolean
+  declared: boolean
+  sourceFile?: string
 }
 
 export interface BlueprintConnectionPreview {
@@ -30,6 +32,9 @@ export interface BlueprintNodeData extends Record<string, unknown> {
   typeName: string
   instanceName: string
   init: string
+  category: string
+  sourceGraph: string
+  isNative: boolean
   pins: PinDef[]
   intrinsicProperties: BlueprintIntrinsicProperty[]
   diagnostic?: DiagnosticHighlightData
@@ -162,24 +167,46 @@ function PinRow({
   )
 }
 
+function headerStyleForNode(category: string, hasExec: boolean, isNative: boolean) {
+  const normalized = category.trim().toLowerCase()
+  if (normalized.includes('event')) return NODE_HEADER_COLORS.event
+  if (normalized.includes('function')) return NODE_HEADER_COLORS.function
+  if (normalized.includes('math')) return NODE_HEADER_COLORS.math
+  if (normalized.includes('logic') || normalized.includes('branch') || normalized.includes('flow')) return NODE_HEADER_COLORS.logic
+  if (normalized.includes('io') || normalized.includes('print') || normalized.includes('debug')) return NODE_HEADER_COLORS.io
+  if (normalized.includes('field') || normalized.includes('property')) return NODE_HEADER_COLORS.field
+  if (!isNative) return NODE_HEADER_COLORS.graph
+  return hasExec ? NODE_HEADER_COLORS.flow : NODE_HEADER_COLORS.pure
+}
+
 function PropertyPreviewRow({ property }: { property: BlueprintIntrinsicProperty }) {
+  const displayedValue = property.value || property.defaultValue || 'inherited'
   return (
     <div
       className="flex min-w-0 items-center gap-1.5 rounded-[4px] border border-border/25 bg-background/35 px-1.5 py-1"
       data-node-intrinsic-property={property.name}
+      data-node-intrinsic-property-source={property.sourceFile || 'fallback'}
+      data-node-intrinsic-property-default={property.defaultValue || ''}
     >
       <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground/70">
         {property.name}
       </span>
-      <span className="max-w-[92px] truncate font-mono text-[10px] text-foreground/80">
-        {property.value || property.defaultValue || 'default'}
+      <span
+        className="max-w-[92px] truncate font-mono text-[10px] text-foreground/80"
+        title={property.defaultValue ? `default: ${property.defaultValue}` : 'inherited default'}
+      >
+        {displayedValue}
       </span>
-      {property.overridden && (
-        <span
-          className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
-          title="Overridden in node initializer"
-        />
-      )}
+      <span
+        className="shrink-0 rounded-[3px] border border-border/35 px-1 text-[8px] uppercase leading-3 text-muted-foreground/55"
+        title={property.declared ? `Declared${property.sourceFile ? ` in ${property.sourceFile}` : ''}` : 'Fallback from data input pin'}
+      >
+        {property.declared ? 'field' : 'pin'}
+      </span>
+      <span
+        className={`h-1.5 w-1.5 shrink-0 rounded-full ${property.overridden ? 'bg-primary' : 'bg-muted-foreground/35'}`}
+        title={property.overridden ? 'Overridden in node initializer' : 'Using declaration default'}
+      />
     </div>
   )
 }
@@ -188,13 +215,14 @@ export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlo
   const pins = data.pins ?? []
   const label = data.instanceName || data.label
   const typeName = data.typeName ?? ''
+  const category = data.category || (data.isNative ? 'Native' : 'Graph')
   const intrinsicProperties = data.intrinsicProperties ?? []
   const execIn = pins.filter(pin => pin.kind === 'exec' && pin.direction === 'in')
   const execOut = pins.filter(pin => pin.kind === 'exec' && pin.direction === 'out')
   const dataIn = pins.filter(pin => pin.kind === 'data' && pin.direction === 'in')
   const dataOut = pins.filter(pin => pin.kind === 'data' && pin.direction === 'out')
   const hasExec = execIn.length > 0 || execOut.length > 0
-  const headerStyle = hasExec ? NODE_HEADER_COLORS.exec : NODE_HEADER_COLORS.pure
+  const headerStyle = headerStyleForNode(category, hasExec, data.isNative)
   const diagnostic = data.diagnostic
   const connectionPreview = data.connectionPreview ?? null
   const nodeBorder = diagnostic ? diagnosticBorderColor(diagnostic) : selected ? 'var(--color-primary)' : 'var(--color-border)'
@@ -237,6 +265,13 @@ export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlo
         )}
         <span className="text-[12px] font-semibold truncate text-foreground/90">
           {label}
+        </span>
+        <span
+          className="shrink-0 rounded-[3px] border border-white/10 bg-black/20 px-1 text-[8px] font-semibold uppercase tracking-[0.08em] text-white/55"
+          data-node-category={category}
+          title={data.sourceGraph ? `Graph source: ${data.sourceGraph}` : data.isNative ? 'Native declaration' : 'Graph declaration'}
+        >
+          {category}
         </span>
         {diagnostic && (
           <span

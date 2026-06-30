@@ -62,6 +62,13 @@ interface FlowPosition {
   y: number
 }
 
+interface FlowBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 interface CanvasContextMenu {
   localX: number
   localY: number
@@ -95,6 +102,25 @@ interface SelectionSnapshot {
 interface ManualReconnectState {
   edge: EdgeEditPayload
   endpoint: 'source' | 'target'
+}
+
+interface CommentBoxResizeState {
+  annotationName: string
+  startClientX: number
+  startClientY: number
+  startWidth: number
+  startHeight: number
+}
+
+interface CommentBoxDragState {
+  annotationName: string
+  startX: number
+  startY: number
+  wrappedNodes: Array<{
+    id: string
+    x: number
+    y: number
+  }>
 }
 
 type NodeAlignment = 'left' | 'right' | 'top' | 'bottom' | 'middle' | 'center'
@@ -184,7 +210,7 @@ function intrinsicPropertiesForNode(node: NodeInst, nodeFields: NodeFieldDef[], 
     ? nodeFields
     : pins
       .filter(pin => pin.kind === 'data' && pin.direction === 'in')
-      .map(pin => ({ name: pin.name, type: pin.type, default: '' }))
+      .map(pin => ({ name: pin.name, type: pin.type, default: '', source_file: pin.source_file }))
   return declaredFields
     .map(field => {
       const value = initializerFields.get(field.name) ?? ''
@@ -194,6 +220,8 @@ function intrinsicPropertiesForNode(node: NodeInst, nodeFields: NodeFieldDef[], 
         value,
         defaultValue: field.default ?? '',
         overridden: initializerFields.has(field.name),
+        declared: nodeFields.length > 0,
+        sourceFile: field.source_file,
       }
     })
 }
@@ -221,6 +249,35 @@ function graphNodeMeasuredWidth(node: GraphScriptNode): number {
 function graphNodeMeasuredHeight(node: GraphScriptNode): number {
   if (node.type === 'commentBox') return node.data.height
   return nodeMeasuredHeight(node)
+}
+
+function blueprintNodeBounds(nodes: BlueprintFlowNode[]): FlowBounds | null {
+  if (nodes.length === 0) return null
+  const left = Math.min(...nodes.map(node => node.position.x))
+  const top = Math.min(...nodes.map(node => node.position.y))
+  const right = Math.max(...nodes.map(node => node.position.x + nodeMeasuredWidth(node)))
+  const bottom = Math.max(...nodes.map(node => node.position.y + nodeMeasuredHeight(node)))
+  return {
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+  }
+}
+
+function blueprintNodeFullyInsideBox(node: BlueprintFlowNode, box: CommentBoxFlowNode): boolean {
+  const nodeLeft = node.position.x
+  const nodeTop = node.position.y
+  const nodeRight = nodeLeft + nodeMeasuredWidth(node)
+  const nodeBottom = nodeTop + nodeMeasuredHeight(node)
+  const boxLeft = box.position.x
+  const boxTop = box.position.y
+  const boxRight = boxLeft + box.data.width
+  const boxBottom = boxTop + box.data.height
+  return nodeLeft >= boxLeft &&
+    nodeTop >= boxTop &&
+    nodeRight <= boxRight &&
+    nodeBottom <= boxBottom
 }
 
 function annotationArg(annotation: Annotation, name: string): string | undefined {
@@ -547,9 +604,28 @@ function BlueprintEdge({
 }
 
 function CommentBoxNode({ data, selected }: NodeProps<CommentBoxFlowNode>) {
+  const [editing, setEditing] = useState(false)
+  const [draftText, setDraftText] = useState(data.text || 'Comment')
+
+  useEffect(() => {
+    setDraftText(data.text || 'Comment')
+  }, [data.text])
+
+  const commitText = useCallback(() => {
+    const nextText = draftText.trim() || 'Comment'
+    setEditing(false)
+    if (nextText === (data.text || 'Comment')) return
+    window.dispatchEvent(new CustomEvent('graphscript:comment-box-text-commit', {
+      detail: {
+        annotationName: data.annotationName,
+        text: nextText,
+      },
+    }))
+  }, [data.annotationName, data.text, draftText])
+
   return (
     <div
-      className="rounded-[6px] border px-3 py-2 text-[12px] font-semibold text-foreground/80 shadow-sm"
+      className="relative rounded-[6px] border px-3 py-2 text-[12px] font-semibold text-foreground/80 shadow-sm"
       data-comment-box={data.annotationName}
       style={{
         width: data.width,
@@ -561,9 +637,62 @@ function CommentBoxNode({ data, selected }: NodeProps<CommentBoxFlowNode>) {
           : '0 6px 18px oklch(0 0 0 / 0.24)',
       }}
     >
-      <div className="truncate uppercase tracking-[0.08em] text-[10px] text-yellow-200/80">
-        {data.text || 'Comment'}
-      </div>
+      {editing ? (
+        <input
+          className="nodrag nopan h-6 w-full rounded-sm border border-yellow-300/55 bg-background/90 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-yellow-100 outline-none"
+          data-comment-box-title-input={data.annotationName}
+          value={draftText}
+          autoFocus
+          onChange={event => setDraftText(event.target.value)}
+          onBlur={commitText}
+          onClick={event => event.stopPropagation()}
+          onDoubleClick={event => event.stopPropagation()}
+          onPointerDown={event => event.stopPropagation()}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              commitText()
+            } else if (event.key === 'Escape') {
+              event.preventDefault()
+              setDraftText(data.text || 'Comment')
+              setEditing(false)
+            }
+          }}
+        />
+      ) : (
+        <div
+          className="truncate uppercase tracking-[0.08em] text-[10px] text-yellow-200/80"
+          data-comment-box-title={data.annotationName}
+          onDoubleClick={event => {
+            event.preventDefault()
+            event.stopPropagation()
+            setEditing(true)
+          }}
+        >
+          {data.text || 'Comment'}
+        </div>
+      )}
+      <button
+        type="button"
+        className="nodrag nopan absolute bottom-1 right-1 h-4 w-4 cursor-nwse-resize rounded-[2px] border border-yellow-200/50 bg-yellow-200/15 hover:bg-yellow-200/25"
+        data-comment-box-resize={data.annotationName}
+        aria-label="Resize comment box"
+        onPointerDown={event => {
+          event.preventDefault()
+          event.stopPropagation()
+          window.dispatchEvent(new CustomEvent('graphscript:comment-box-resize-start', {
+            detail: {
+              annotationName: data.annotationName,
+              startClientX: event.clientX,
+              startClientY: event.clientY,
+              startWidth: data.width,
+              startHeight: data.height,
+            },
+          }))
+        }}
+      >
+        <span className="pointer-events-none absolute bottom-[3px] right-[3px] h-[7px] w-[7px] border-b border-r border-yellow-100/80" />
+      </button>
     </div>
   )
 }
@@ -610,6 +739,9 @@ function toReactFlowNodes(
       typeName: node.type,
       instanceName: node.instance,
       init: node.init,
+      category: typeDef ? nodeTypeCategory(typeDef) : 'Unknown',
+      sourceGraph: typeDef?.source_graph ?? '',
+      isNative: typeDef?.is_native ?? false,
       pins,
       intrinsicProperties: intrinsicPropertiesForNode(node, typeDef?.fields ?? [], pins),
       diagnostic: diagnostics?.nodes[node.instance],
@@ -767,6 +899,8 @@ function FlowCanvasInner({
   const pendingConnectionRef = useRef<PendingConnection | null>(null)
   const selectionSnapshotRef = useRef<SelectionSnapshot | null>(null)
   const manualReconnectRef = useRef<ManualReconnectState | null>(null)
+  const commentBoxResizeRef = useRef<CommentBoxResizeState | null>(null)
+  const commentBoxDragRef = useRef<CommentBoxDragState | null>(null)
 
   const initialNodes = useMemo(() => {
     if (!state || !graph) return []
@@ -784,6 +918,7 @@ function FlowCanvasInner({
   const [nodes, setNodes] = useState<GraphScriptNode[]>(initialNodes)
   const [edges, setEdges] = useState<GraphScriptEdge[]>(initialEdges)
   const [connectionFeedback, setConnectionFeedback] = useState<ConnectionFeedback | null>(null)
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 })
   const nodesRef = useRef<GraphScriptNode[]>(nodes)
   const feedbackTimerRef = useRef<number | null>(null)
 
@@ -818,6 +953,85 @@ function FlowCanvasInner({
   }, [])
 
   useEffect(() => {
+    function onCommentBoxTextCommit(event: Event) {
+      const detail = (event as CustomEvent<{ annotationName?: string, text?: string }>).detail
+      if (!detail?.annotationName) return
+      const nextText = detail.text?.trim() || 'Comment'
+      const commentBox = nodesRef.current.find((node): node is CommentBoxFlowNode =>
+        node.type === 'commentBox' && node.data.annotationName === detail.annotationName)
+      if (!commentBox) return
+      setNodes(current => current.map(node => {
+        if (node.type !== 'commentBox' || node.data.annotationName !== detail.annotationName) return node
+        return { ...node, data: { ...node.data, text: nextText } }
+      }))
+      void onCommentBoxMove?.({
+        annotationName: commentBox.data.annotationName,
+        text: nextText,
+        x: Math.round(commentBox.position.x),
+        y: Math.round(commentBox.position.y),
+        width: commentBox.data.width,
+        height: commentBox.data.height,
+      })
+    }
+
+    window.addEventListener('graphscript:comment-box-text-commit', onCommentBoxTextCommit)
+    return () => window.removeEventListener('graphscript:comment-box-text-commit', onCommentBoxTextCommit)
+  }, [onCommentBoxMove])
+
+  useEffect(() => {
+    function onCommentBoxResizeStart(event: Event) {
+      const detail = (event as CustomEvent<CommentBoxResizeState>).detail
+      if (!detail?.annotationName) return
+      commentBoxResizeRef.current = detail
+    }
+
+    function onPointerMove(event: PointerEvent) {
+      const resizing = commentBoxResizeRef.current
+      if (!resizing) return
+      event.preventDefault()
+      const zoom = Math.max(reactFlow.getViewport().zoom, 0.01)
+      const nextWidth = Math.max(160, Math.round(resizing.startWidth + (event.clientX - resizing.startClientX) / zoom))
+      const nextHeight = Math.max(100, Math.round(resizing.startHeight + (event.clientY - resizing.startClientY) / zoom))
+      setNodes(current => {
+        const next = current.map(node => {
+          if (node.type !== 'commentBox' || node.data.annotationName !== resizing.annotationName) return node
+          return { ...node, data: { ...node.data, width: nextWidth, height: nextHeight } }
+        })
+        nodesRef.current = next
+        return next
+      })
+    }
+
+    function onPointerUp() {
+      const resizing = commentBoxResizeRef.current
+      if (!resizing) return
+      commentBoxResizeRef.current = null
+      const commentBox = nodesRef.current.find((node): node is CommentBoxFlowNode =>
+        node.type === 'commentBox' && node.data.annotationName === resizing.annotationName)
+      if (!commentBox) return
+      void onCommentBoxMove?.({
+        annotationName: commentBox.data.annotationName,
+        text: commentBox.data.text,
+        x: Math.round(commentBox.position.x),
+        y: Math.round(commentBox.position.y),
+        width: commentBox.data.width,
+        height: commentBox.data.height,
+      })
+    }
+
+    window.addEventListener('graphscript:comment-box-resize-start', onCommentBoxResizeStart)
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerUp)
+    return () => {
+      window.removeEventListener('graphscript:comment-box-resize-start', onCommentBoxResizeStart)
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerUp)
+    }
+  }, [onCommentBoxMove, reactFlow])
+
+  useEffect(() => {
     setNodes(current => preserveNodeSelection(initialNodes, current))
   }, [initialNodes])
 
@@ -836,6 +1050,21 @@ function FlowCanvasInner({
   }, [contextMenu?.pendingConnection, contextMenu?.query, state?.types])
 
   const contextNodeGroups = useMemo(() => groupContextNodeTypes(contextNodeTypes), [contextNodeTypes])
+
+  const selectedGroupOutline = useMemo(() => {
+    const selectedBlueprintNodes = nodes.filter((node): node is BlueprintFlowNode => node.type === 'blueprint' && Boolean(node.selected))
+    if (selectedBlueprintNodes.length < 2) return null
+    const bounds = blueprintNodeBounds(selectedBlueprintNodes)
+    if (!bounds) return null
+    const padding = 12
+    return {
+      count: selectedBlueprintNodes.length,
+      left: bounds.x * viewport.zoom + viewport.x - padding,
+      top: bounds.y * viewport.zoom + viewport.y - padding,
+      width: bounds.width * viewport.zoom + padding * 2,
+      height: bounds.height * viewport.zoom + padding * 2,
+    }
+  }, [nodes, viewport])
 
   const showConnectionFeedback = useCallback((clientX: number, clientY: number, message: string, tone: ConnectionFeedback['tone'] = 'warning') => {
     if (!wrapperRef.current) return
@@ -1038,6 +1267,46 @@ function FlowCanvasInner({
     onEdgeSelect?.(null)
   }, [onCommentBoxDelete, onEdgeSelect, onNodeDelete, onNodeSelect])
 
+  const onNodeDragStart = useCallback((_event: globalThis.MouseEvent | TouchEvent, node: GraphScriptNode) => {
+    if (node.type !== 'commentBox') {
+      commentBoxDragRef.current = null
+      return
+    }
+    const wrappedNodes = nodesRef.current
+      .filter((item): item is BlueprintFlowNode => item.type === 'blueprint' && blueprintNodeFullyInsideBox(item, node))
+      .map(item => ({
+        id: item.id,
+        x: item.position.x,
+        y: item.position.y,
+      }))
+    commentBoxDragRef.current = {
+      annotationName: node.data.annotationName,
+      startX: node.position.x,
+      startY: node.position.y,
+      wrappedNodes,
+    }
+  }, [])
+
+  const onNodeDrag = useCallback((_event: globalThis.MouseEvent | TouchEvent, node: GraphScriptNode) => {
+    const dragState = commentBoxDragRef.current
+    if (node.type !== 'commentBox' || !dragState || dragState.annotationName !== node.data.annotationName) return
+    if (dragState.wrappedNodes.length === 0) return
+    const dx = node.position.x - dragState.startX
+    const dy = node.position.y - dragState.startY
+    const nextPositions = new Map(dragState.wrappedNodes.map(item => [
+      item.id,
+      { x: item.x + dx, y: item.y + dy },
+    ]))
+    setNodes(current => {
+      const nextNodes = current.map(item => {
+        const next = nextPositions.get(item.id)
+        return next ? { ...item, position: next } : item
+      })
+      nodesRef.current = nextNodes
+      return nextNodes
+    })
+  }, [])
+
   const onNodeDragStop = useCallback((_event: globalThis.MouseEvent | TouchEvent, node: GraphScriptNode) => {
     if (node.type === 'commentBox') {
       void onCommentBoxMove?.({
@@ -1048,6 +1317,25 @@ function FlowCanvasInner({
         width: node.data.width,
         height: node.data.height,
       })
+      const dragState = commentBoxDragRef.current
+      commentBoxDragRef.current = null
+      if (dragState && dragState.annotationName === node.data.annotationName) {
+        const dx = node.position.x - dragState.startX
+        const dy = node.position.y - dragState.startY
+        const nextPositions = new Map(dragState.wrappedNodes.map(item => [
+          item.id,
+          roundPosition({ x: item.x + dx, y: item.y + dy }),
+        ]))
+        if (nextPositions.size > 0) {
+          setNodes(current => current.map(item => {
+            const next = nextPositions.get(item.id)
+            return next ? { ...item, position: next } : item
+          }))
+          for (const [nodeId, position] of nextPositions) {
+            void onNodeMove?.(nodeId, position.x, position.y)
+          }
+        }
+      }
       return
     }
 
@@ -1060,7 +1348,7 @@ function FlowCanvasInner({
       const position = roundPosition(item.position)
       void onNodeMove?.(item.id, position.x, position.y)
     }
-  }, [nodes, onNodeMove])
+  }, [nodes, onCommentBoxMove, onNodeMove])
 
   const onNodeClick = useCallback<NodeMouseHandler<GraphScriptNode>>((event, node) => {
     if (node.type === 'commentBox') {
@@ -1448,7 +1736,7 @@ function FlowCanvasInner({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [alignSelectedNodes, distributeSelectedNodes, edges, nodes, onNodesDuplicate, reactFlow, straightenSelectedEdges])
+  }, [alignSelectedNodes, distributeSelectedNodes, edges, nodes, onCommentBoxCreate, onNodesDuplicate, reactFlow, straightenSelectedEdges])
 
   if (!state || !graph) {
     return (
@@ -1485,10 +1773,13 @@ function FlowCanvasInner({
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
         onSelectionChange={onSelectionChange}
+        onMove={(_, nextViewport) => setViewport(nextViewport)}
         onPaneClick={() => {
           setNodes(current => current.map(node => node.selected ? { ...node, selected: false } : node))
           onNodeSelect?.(null)
@@ -1540,6 +1831,24 @@ function FlowCanvasInner({
           maskColor="oklch(0 0 0 / 0.45)"
         />
       </ReactFlow>
+
+      {selectedGroupOutline && (
+        <div
+          className="pointer-events-none absolute z-20 rounded-[6px] border border-primary/80 bg-primary/5 shadow-[0_0_18px_oklch(0.65_0.18_240_/_0.22)]"
+          data-multi-select-outline="true"
+          data-multi-select-count={selectedGroupOutline.count}
+          style={{
+            left: selectedGroupOutline.left,
+            top: selectedGroupOutline.top,
+            width: selectedGroupOutline.width,
+            height: selectedGroupOutline.height,
+          }}
+        >
+          <div className="absolute -top-5 left-0 rounded-[3px] border border-primary/45 bg-card/95 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-primary shadow">
+            {selectedGroupOutline.count} selected
+          </div>
+        </div>
+      )}
 
       {!activeLogicBlock && (
         <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-md border border-warning/25 bg-card/90 px-3 py-2 text-[11px] text-warning shadow-lg">

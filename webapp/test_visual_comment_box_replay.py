@@ -32,10 +32,32 @@ def drag_comment_box(page, annotation_name, dx, dy):
     page.mouse.up()
 
 
+def resize_comment_box(page, annotation_name, dx, dy):
+    handle = page.locator(f'[data-comment-box-resize="{annotation_name}"]').first
+    handle.wait_for(state="visible", timeout=10000)
+    rect = handle.bounding_box()
+    if not rect:
+        raise RuntimeError("Comment box resize handle has no visible box")
+    start_x = rect["x"] + rect["width"] / 2
+    start_y = rect["y"] + rect["height"] / 2
+    page.mouse.move(start_x, start_y)
+    page.mouse.down()
+    page.mouse.move(start_x + dx, start_y + dy, steps=12)
+    page.mouse.up()
+
+
 def annotation_args(state, annotation_name):
     graph = visual.current_graph(state)
     annotation = next(item for item in graph["annotations"] if item["name"] == annotation_name)
     return {arg["name"]: arg["value"] for arg in annotation["args"]}
+
+
+def node_position(state, instance_name):
+    graph = visual.current_graph(state)
+    node = next(item for item in graph["nodes"] if item["instance"] == instance_name)
+    position = next(item for item in node["annotations"] if item["name"] == "Position")
+    args = {arg["name"]: arg["value"] for arg in position["args"]}
+    return {"x": int(args["X"]), "y": int(args["Y"])}
 
 
 def main():
@@ -44,9 +66,16 @@ def main():
     proc = visual.start_vite()
     results = []
     current_graph_text_after_create = ""
+    current_graph_text_after_edit = ""
     current_graph_text_after_delete = ""
     created_args = {}
+    edited_args = {}
+    resized_args = {}
     moved_args = {}
+    branch_before_move = {}
+    printer_before_move = {}
+    branch_after_move = {}
+    printer_after_move = {}
     comment_visible_after_create = False
     try:
         with sync_playwright() as p:
@@ -102,10 +131,29 @@ def main():
             current_graph_text_after_create = page.locator('[data-current-graph-source="true"]').input_value(timeout=3000)
             page.screenshot(path=OUT / "02_after_comment_create.png", full_page=True)
 
+            page.locator('[data-comment-box-title="CommentBox_1"]').dblclick()
+            title_input = page.locator('[data-comment-box-title-input="CommentBox_1"]')
+            title_input.wait_for(state="visible", timeout=10000)
+            title_input.fill("Edited")
+            title_input.press("Enter")
+            page.wait_for_timeout(600)
+            edited_args = annotation_args(state, "CommentBox_1")
+            current_graph_text_after_edit = page.locator('[data-current-graph-source="true"]').input_value(timeout=3000)
+            page.screenshot(path=OUT / "03_after_comment_edit.png", full_page=True)
+
+            resize_comment_box(page, "CommentBox_1", 120, 80)
+            page.wait_for_timeout(700)
+            resized_args = annotation_args(state, "CommentBox_1")
+            page.screenshot(path=OUT / "04_after_comment_resize.png", full_page=True)
+
+            branch_before_move = node_position(state, "branch")
+            printer_before_move = node_position(state, "printer")
             drag_comment_box(page, "CommentBox_1", 80, 60)
             page.wait_for_timeout(900)
             moved_args = annotation_args(state, "CommentBox_1")
-            page.screenshot(path=OUT / "03_after_comment_move.png", full_page=True)
+            branch_after_move = node_position(state, "branch")
+            printer_after_move = node_position(state, "printer")
+            page.screenshot(path=OUT / "05_after_comment_move.png", full_page=True)
 
             page.locator('[data-comment-box="CommentBox_1"]').click(force=True)
             page.keyboard.press("Delete")
@@ -119,9 +167,16 @@ def main():
                 ("comment annotation created", created_args.get("Text") == "Comment"),
                 ("comment box rendered after create", comment_visible_after_create),
                 ("current graph text had comment annotation", "[CommentBox_1(" in current_graph_text_after_create),
-                ("comment move command replayed", any(cmd.startswith("annotate graph CommentBox_1 Text=Comment") and cmd != exec_commands[0] for cmd in exec_commands)),
+                ("comment title edit command replayed", any(cmd.startswith("annotate graph CommentBox_1 Text=Edited") for cmd in exec_commands)),
+                ("comment title annotation updated", edited_args.get("Text") == "Edited"),
+                ("current graph text had edited comment", 'Text = "Edited"' in current_graph_text_after_edit),
+                ("comment resize command replayed", int(resized_args.get("W", "0")) > int(created_args.get("W", "0")) and int(resized_args.get("H", "0")) > int(created_args.get("H", "0"))),
+                ("comment move command replayed", any(cmd.startswith("annotate graph CommentBox_1 Text=Edited") and cmd != exec_commands[0] for cmd in exec_commands)),
                 ("comment x moved", int(moved_args.get("X", "0")) > int(created_args.get("X", "0"))),
                 ("comment y moved", int(moved_args.get("Y", "0")) > int(created_args.get("Y", "0"))),
+                ("wrapped branch moved with comment", branch_after_move["x"] > branch_before_move["x"] and branch_after_move["y"] > branch_before_move["y"]),
+                ("wrapped printer moved with comment", printer_after_move["x"] > printer_before_move["x"] and printer_after_move["y"] > printer_before_move["y"]),
+                ("wrapped node position commands replayed", any(cmd.startswith("annotate node branch Position") for cmd in exec_commands) and any(cmd.startswith("annotate node printer Position") for cmd in exec_commands)),
                 ("comment delete command replayed", exec_commands[-1] == "unannotate graph CommentBox_1"),
                 ("comment box removed from canvas", page.locator('[data-comment-box="CommentBox_1"]').count() == 0),
                 ("comment annotation deleted", not any(item["name"] == "CommentBox_1" for item in graph["annotations"])),
@@ -141,7 +196,11 @@ def main():
     for name, ok in results:
         print(f"  {'PASS' if ok else 'FAIL'} {name}")
     print(f"Created args: {created_args}")
+    print(f"Edited args: {edited_args}")
+    print(f"Resized args: {resized_args}")
     print(f"Moved args: {moved_args}")
+    print(f"Branch moved: {branch_before_move} -> {branch_after_move}")
+    print(f"Printer moved: {printer_before_move} -> {printer_after_move}")
     print(f"Screenshots: {OUT}")
     if failed:
         print("Commands:")
