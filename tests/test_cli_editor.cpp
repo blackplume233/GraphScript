@@ -87,6 +87,39 @@ TEST(CLIEditor, ExplicitWebAliasesExecuteSuccessfully) {
     EXPECT_EQ(session.module().graphs.size(), 1u);
 }
 
+TEST(CLIEditor, DiagramCommandUsesAssetProjection) {
+    Environment env;
+    EditSession session(env);
+    CLIEditor editor(session);
+
+    const std::string source = R"(graph DiagramCli {
+    schema TraceGraph;
+    @graph.input
+    param message: FString;
+    node printer {
+        type PrintString;
+    }
+    event OnStart {
+        connect(context.start, printer.enter);
+        bind(message, printer.message);
+    }
+}
+)";
+    auto loaded = session.load_source(source, "diagram_cli.gs");
+    ASSERT_TRUE(loaded.is_ok()) << loaded.error();
+
+    testing::internal::CaptureStdout();
+    EXPECT_TRUE(editor.execute("diagram"));
+    const std::string output = testing::internal::GetCapturedStdout();
+
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_EQ(output.find("Warning: asset projection unavailable"), std::string::npos);
+    EXPECT_NE(output.find("## DiagramCli : TraceGraph"), std::string::npos);
+    EXPECT_NE(output.find("in message : FString"), std::string::npos);
+    EXPECT_NE(output.find("context ==>|\"context.start"), std::string::npos);
+    EXPECT_NE(output.find("message -.->|\"message"), std::string::npos);
+}
+
 TEST(CLIEditor, AnnotatesTopLevelImportAndLet) {
     Environment env;
     EditSession session(env);

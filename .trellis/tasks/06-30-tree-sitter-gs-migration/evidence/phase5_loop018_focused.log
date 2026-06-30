@@ -1,0 +1,36 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = Emitter.*:DebugDiagram.*:CLIEditor.DiagramCommandUsesAssetProjection
+[==========] Running 10 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from CLIEditor
+[ RUN      ] CLIEditor.DiagramCommandUsesAssetProjection
+[       OK ] CLIEditor.DiagramCommandUsesAssetProjection (2 ms)
+[----------] 1 test from CLIEditor (2 ms total)
+
+[----------] 2 tests from DebugDiagram
+[ RUN      ] DebugDiagram.EmitsMermaidFromGraphWithoutLegacyEmitter
+[       OK ] DebugDiagram.EmitsMermaidFromGraphWithoutLegacyEmitter (0 ms)
+[ RUN      ] DebugDiagram.EmitsMermaidFromAssetFlowGraph
+[       OK ] DebugDiagram.EmitsMermaidFromAssetFlowGraph (0 ms)
+[----------] 2 tests from DebugDiagram (0 ms total)
+
+[----------] 7 tests from Emitter
+[ RUN      ] Emitter.EmitMinimalAssetGraph
+[       OK ] Emitter.EmitMinimalAssetGraph (0 ms)
+[ RUN      ] Emitter.EmitSchemaDirective
+[       OK ] Emitter.EmitSchemaDirective (0 ms)
+[ RUN      ] Emitter.EmitTopLevelConstBody
+[       OK ] Emitter.EmitTopLevelConstBody (0 ms)
+[ RUN      ] Emitter.EmitGenerateBlock
+[       OK ] Emitter.EmitGenerateBlock (0 ms)
+[ RUN      ] Emitter.EmitAnnotationConstructorValueRaw
+[       OK ] Emitter.EmitAnnotationConstructorValueRaw (0 ms)
+[ RUN      ] Emitter.EmitConstructorStringArgumentsRoundTrip
+[       OK ] Emitter.EmitConstructorStringArgumentsRoundTrip (0 ms)
+[ RUN      ] Emitter.EmitFunctionAndVarParam
+[       OK ] Emitter.EmitFunctionAndVarParam (0 ms)
+[----------] 7 tests from Emitter (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 10 tests from 3 test suites ran. (3 ms total)
+[  PASSED  ] 10 tests.

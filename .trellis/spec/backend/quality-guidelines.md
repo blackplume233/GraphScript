@@ -93,6 +93,15 @@ adapter, preserve body properties in `LetDecl::initializer_fields`; otherwise a
 later edit that clears the source cache can silently save an empty const body.
 Add regression tests that perform `emit -> load_source` after the edit.
 
+### CLI Diagram Accidentally Reuses Legacy Emitter
+
+The `diagram` editor command is a debug/view output, not a reason to keep the
+legacy source emitter in the CLI. Prefer `asset::Parser` plus
+`asset::FlowGraphProjector` for current `.gs` source, and route Mermaid output
+through `debug::emit_mermaid_flow_graph_diagram()`. If projection is temporarily
+unavailable during migration, an explicit warning plus a session-graph fallback
+is acceptable, but `cli/editor.cpp` must not include `graphscript/emit/emitter.h`.
+
 ### Running Server During Rebuild
 
 On Windows, a running `gs serve` can lock `gs.exe` and cause `LNK1104`. Stop the

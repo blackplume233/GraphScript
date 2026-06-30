@@ -1,0 +1,188 @@
+cli\source_diagnostics.cpp:244:    asset::Parser parser(source, source_name);
+cli\editor.cpp:1190:    asset::Parser parser(source, path);
+cli\editor.cpp:3122:    asset::Parser parser(source, session_.file_path().empty() ? "<session>" : session_.file_path());
+tests\test_asset_language.cpp:97:    Parser parser(kDecl, "ability_core.d.gs");
+tests\test_asset_language.cpp:118:    Parser parser(kDecl, "ability_core.d.gs");
+tests\test_asset_language.cpp:144:    Parser parser(source, "preset.d.gs");
+tests\test_asset_language.cpp:169:    Parser parser(source, "broken.d.gs");
+tests\test_asset_language.cpp:179:    Parser parser(kGraph, "Fireball.gs");
+tests\test_asset_language.cpp:220:    Parser decl_parser(kDecl, "ability_core.d.gs");
+tests\test_asset_language.cpp:222:    Parser graph_parser(kGraph, "Fireball.gs");
+tests\test_asset_language.cpp:273:    Parser parser(source, "BrokenData.gs");
+tests\test_asset_language.cpp:293:    Parser parser(source, "BrokenDataTarget.gs");
+tests\test_asset_language.cpp:314:    Parser parser(source, "Broken.gs");
+tests\test_asset_language.cpp:341:    Parser parser(source, "FunctionScope.gs");
+tests\test_asset_language.cpp:365:    Parser parser(source, "ConflictingParamDirection.gs");
+tests\test_asset_language.cpp:386:    Parser node_parser(duplicate_nodes, "DuplicateNodes.gs");
+tests\test_asset_language.cpp:401:    Parser mixed_parser(duplicate_const_and_node, "DuplicateMixed.gs");
+tests\test_asset_language.cpp:418:    Parser parser(source, "LegacyConnect.gs");
+tests\test_asset_language.cpp:437:    Parser parser(source, "QualifiedTypes.gs");
+tests\test_asset_language.cpp:449:    Parser parser(kGraph, "Fireball.gs");
+tests\test_asset_language.cpp:464:    Parser reparsed(with_node.value(), "Fireball.gs");
+tests\test_asset_language.cpp:472:    Parser edge_parser(with_edge.value(), "Fireball.gs");
+tests\test_asset_language.cpp:481:    Parser rename_parser(with_property.value(), "Fireball.gs");
+tests\test_asset_language.cpp:491:    Parser disconnect_parser(with_rename.value(), "Fireball.gs");
+tests\test_asset_language.cpp:502:    Parser parser(kGraph, "Fireball.gs");
+tests\test_asset_language.cpp:511:    Parser block_parser(with_scope.value(), "Fireball.gs");
+tests\test_asset_language.cpp:519:    Parser attr_parser(with_attr.value(), "Fireball.gs");
+tests\test_asset_language.cpp:543:    Parser parser(source, "Broken.gs");
+tests\test_compiler.cpp:4:#include "graphscript/parse/lexer.h"
+tests\test_compiler.cpp:5:#include "graphscript/parse/parser.h"
+tests\test_compiler.cpp:6:#include "graphscript/compile/compiler.h"
+tests\test_compiler.cpp:84:static std::unique_ptr<ModuleNode> parse(std::string_view src) {
+tests\test_compiler.cpp:85:    Lexer lexer(src);
+tests\test_compiler.cpp:87:    Parser parser(std::move(tokens));
+tests\test_compiler.cpp:93:TEST(Compiler, CompileDeclareTypes) {
+tests\test_compiler.cpp:98:    Compiler compiler(env);
+tests\test_compiler.cpp:115:TEST(Compiler, CompileDeclareNodes) {
+tests\test_compiler.cpp:120:    Compiler compiler(env);
+tests\test_compiler.cpp:141:TEST(Compiler, CompileDeclareSchemas) {
+tests\test_compiler.cpp:146:    Compiler compiler(env);
+tests\test_compiler.cpp:161:TEST(Compiler, CompileMinimalGraph) {
+tests\test_compiler.cpp:163:    Compiler compiler(env);
+tests\test_compiler.cpp:181:TEST(Compiler, GraphAsNodeDerivation) {
+tests\test_compiler.cpp:183:    Compiler compiler(env);
+tests\test_compiler.cpp:237:TEST(Compiler, GraphWithBaseType) {
+tests\test_compiler.cpp:239:    Compiler compiler(env);
+tests\test_compiler.cpp:257:TEST(Compiler, LetDeclarations) {
+tests\test_compiler.cpp:259:    Compiler compiler(env);
+tests\test_compiler.cpp:275:TEST(Compiler, ImportDeclarations) {
+tests\test_compiler.cpp:277:    Compiler compiler(env);
+tests\test_compiler.cpp:291:TEST(Compiler, FlowConnections) {
+tests\test_compiler.cpp:293:    Compiler compiler(env);
+tests\test_compiler.cpp:311:TEST(Compiler, VarParamExcludedFromDerivation) {
+tests\test_compiler.cpp:313:    Compiler compiler(env);
+tests\test_compiler.cpp:342:TEST(Compiler, StructuredDiagnosticForUnknownEventReference) {
+tests\test_compiler.cpp:344:    Compiler compiler(env);
+tests\test_compiler.cpp:373:TEST(Compiler, StructuredDiagnosticForFunctionNodeReference) {
+tests\test_compiler.cpp:375:    Compiler compiler(env);
+tests\test_blueprint_scenarios.cpp:8:#include "graphscript/parse/lexer.h"
+tests\test_blueprint_scenarios.cpp:9:#include "graphscript/parse/parser.h"
+tests\test_blueprint_scenarios.cpp:10:#include "graphscript/compile/compiler.h"
+tests\test_blueprint_scenarios.cpp:14:#include "graphscript/emit/emitter.h"
+tests\test_blueprint_scenarios.cpp:35:static std::unique_ptr<ModuleNode> do_parse(const std::string& src) {
+tests\test_blueprint_scenarios.cpp:36:    Lexer lexer(src);
+tests\test_blueprint_scenarios.cpp:38:    Parser parser(std::move(tokens));
+tests\test_blueprint_scenarios.cpp:47:    Compiler compiler(env);
+tests\test_blueprint_scenarios.cpp:80:    Emitter emitter;
+tests\test_blueprint_scenarios.cpp:85:    Compiler c(env);
+tests\test_blueprint_scenarios.cpp:222:    SpawnEmitterAtLocation spawnFX{};
+tests\test_blueprint_scenarios.cpp:486:    SpawnEmitterAtLocation impactFX{};
+tests\test_debug_diagram.cpp:9:TEST(DebugDiagram, EmitsMermaidFromGraphWithoutLegacyEmitter) {
+tests\test_debug_diagram.cpp:56:    asset::Parser parser(source, "Hello.gs");
+tests\test_emitter.cpp:19:TEST(Emitter, EmitMinimalAssetGraph) {
+tests\test_emitter.cpp:49:TEST(Emitter, EmitSchemaDirective) {
+tests\test_emitter.cpp:64:TEST(Emitter, EmitTopLevelConstBody) {
+tests\test_emitter.cpp:83:TEST(Emitter, EmitGenerateBlock) {
+tests\test_emitter.cpp:105:TEST(Emitter, EmitAnnotationConstructorValueRaw) {
+tests\test_emitter.cpp:123:TEST(Emitter, EmitConstructorStringArgumentsRoundTrip) {
+tests\test_emitter.cpp:152:TEST(Emitter, EmitFunctionAndVarParam) {
+tests\test_integration_deep.cpp:8:#include "graphscript/parse/lexer.h"
+tests\test_integration_deep.cpp:9:#include "graphscript/parse/parser.h"
+tests\test_integration_deep.cpp:10:#include "graphscript/compile/compiler.h"
+tests\test_integration_deep.cpp:14:#include "graphscript/emit/emitter.h"
+tests\test_integration_deep.cpp:35:static std::unique_ptr<ModuleNode> do_parse(std::string_view src) {
+tests\test_integration_deep.cpp:36:    Lexer lexer(src);
+tests\test_integration_deep.cpp:38:    Parser parser(std::move(tokens));
+tests\test_integration_deep.cpp:47:    Compiler compiler(env);
+tests\test_integration_deep.cpp:85:    Emitter emitter;
+tests\test_integration_deep.cpp:87:    ASSERT_FALSE(emitted.empty()) << "Emitter produced empty output";
+tests\test_integration_deep.cpp:92:    Compiler compiler2(fresh_env);
+tests\test_integration_deep.cpp:719:    Emitter emitter;
+tests\test_integration_deep.cpp:726:    Compiler c2(env2);
+tests\test_integration_deep.cpp:764:        Compiler compiler(env);
+tests\test_lexer.cpp:2:#include "graphscript/parse/lexer.h"
+tests\test_lexer.cpp:7:    return Lexer(src).tokenize();
+tests\test_lexer.cpp:10:TEST(Lexer, EmptyInput) {
+tests\test_lexer.cpp:16:TEST(Lexer, WhitespaceOnly) {
+tests\test_lexer.cpp:22:TEST(Lexer, Keywords) {
+tests\test_lexer.cpp:46:TEST(Lexer, BoolLiterals) {
+tests\test_lexer.cpp:55:TEST(Lexer, IntLiteral) {
+tests\test_lexer.cpp:65:TEST(Lexer, FloatLiteral) {
+tests\test_lexer.cpp:73:TEST(Lexer, StringLiteral) {
+tests\test_lexer.cpp:81:TEST(Lexer, Identifier) {
+tests\test_lexer.cpp:91:TEST(Lexer, Symbols) {
+tests\test_lexer.cpp:108:TEST(Lexer, LineComment) {
+tests\test_lexer.cpp:115:TEST(Lexer, BlockComment) {
+tests\test_lexer.cpp:122:TEST(Lexer, SourceLocation) {
+tests\test_lexer.cpp:130:TEST(Lexer, DeclareTypeStatement) {
+tests\test_lexer.cpp:141:TEST(Lexer, DeclareNodeBlock) {
+tests\test_lexer.cpp:158:TEST(Lexer, ImportStatement) {
+tests\test_lexer.cpp:166:TEST(Lexer, GraphWithBaseType) {
+tests\test_lexer.cpp:177:TEST(Lexer, TokenTypeName) {
+tests\test_lexer.cpp:184:TEST(Lexer, UnterminatedBlockComment) {
+tests\test_lexer.cpp:193:TEST(Lexer, NegativeNumberVsMinusIdentifier) {
+tests\test_lexer.cpp:199:TEST(Lexer, DeclareSchemaBlock) {
+tests\test_qa_loop.cpp:9:#include "graphscript/parse/lexer.h"
+tests\test_qa_loop.cpp:10:#include "graphscript/parse/parser.h"
+tests\test_qa_loop.cpp:11:#include "graphscript/compile/compiler.h"
+tests\test_qa_loop.cpp:15:#include "graphscript/emit/emitter.h"
+tests\test_qa_loop.cpp:36:static std::unique_ptr<ModuleNode> do_parse(const std::string& src) {
+tests\test_qa_loop.cpp:37:    Lexer lexer(src);
+tests\test_qa_loop.cpp:39:    Parser parser(std::move(tokens));
+tests\test_qa_loop.cpp:48:    Compiler compiler(env);
+tests\test_qa_loop.cpp:101:    Emitter emitter;
+tests\test_qa_loop.cpp:103:    ASSERT_FALSE(emitted.empty()) << "Emitter produced empty output";
+tests\test_qa_loop.cpp:108:    Compiler c2(fresh_env);
+tests\test_parser.cpp:5:#include "graphscript/parse/lexer.h"
+tests\test_parser.cpp:6:#include "graphscript/parse/parser.h"
+tests\test_parser.cpp:27:static Result<std::unique_ptr<ModuleNode>, std::string> parse_source(std::string_view src) {
+tests\test_parser.cpp:28:    Lexer lexer(src);
+tests\test_parser.cpp:30:    Parser parser(std::move(tokens));
+tests\test_parser.cpp:51:TEST(Parser, DeclareType) {
+tests\test_parser.cpp:60:TEST(Parser, DeclareTypeNonConstructible) {
+tests\test_parser.cpp:69:TEST(Parser, DeclareNode) {
+tests\test_parser.cpp:97:TEST(Parser, DeclareSchema) {
+tests\test_parser.cpp:127:TEST(Parser, AssetUeCorePreset) {
+tests\test_parser.cpp:130:    asset::Parser parser(src, "ue_core.d.gs");
+tests\test_parser.cpp:137:TEST(Parser, AssetHtnNodesPreset) {
+tests\test_parser.cpp:140:    asset::Parser parser(src, "htn_nodes.d.gs");
+tests\test_parser.cpp:147:TEST(Parser, AssetTaskNodesPreset) {
+tests\test_parser.cpp:150:    asset::Parser parser(src, "task_nodes.d.gs");
+tests\test_parser.cpp:157:TEST(Parser, AssetLevelScriptNodesPreset) {
+tests\test_parser.cpp:160:    asset::Parser parser(src, "levelscript_nodes.d.gs");
+tests\test_parser.cpp:169:TEST(Parser, Import) {
+tests\test_parser.cpp:177:TEST(Parser, LetDecl) {
+tests\test_parser.cpp:187:TEST(Parser, MinimalGraph) {
+tests\test_parser.cpp:202:TEST(Parser, GraphWithBaseType) {
+tests\test_parser.cpp:213:TEST(Parser, TaskBasicFixture) {
+tests\test_parser.cpp:226:TEST(Parser, LevelScriptBasicFixture) {
+tests\test_parser.cpp:233:TEST(Parser, GraphAsNodeFixture) {
+tests\test_parser.cpp:244:TEST(Parser, InvalidConnectionFixture) {
+tests\test_parser.cpp:251:TEST(Parser, RoundTripFixture) {
+tests\test_parser.cpp:275:TEST(Parser, FlowAndLinkStatements) {
+tests\test_parser.cpp:302:TEST(Parser, LegacyLinkKeywordStillParses) {
+tests\test_parser.cpp:319:TEST(Parser, GenerateBlock) {
+tests\test_parser.cpp:349:TEST(Parser, LegacyGenerateBlockSourceRanges) {
+tests\test_parser.cpp:378:TEST(Parser, ErrorOnBadInput) {
+tests\test_parser.cpp:383:TEST(Parser, StructuredDiagnosticForExpectedToken) {
+tests\test_parser.cpp:389:    Lexer lexer(source);
+tests\test_parser.cpp:390:    Parser parser(lexer.tokenize());
+tests\test_parser.cpp:422:TEST(Parser, StructuredDiagnosticForUnexpectedTopLevelToken) {
+tests\test_parser.cpp:423:    Lexer lexer("@");
+tests\test_parser.cpp:424:    Parser parser(lexer.tokenize());
+tests\test_parser.cpp:438:TEST(Parser, ParamWithDefault) {
+tests\test_parser.cpp:451:TEST(Parser, ConstructorStringArgumentsStayQuotedInExpressions) {
+tests\test_qa_stress.cpp:11:#include "graphscript/parse/lexer.h"
+tests\test_qa_stress.cpp:12:#include "graphscript/parse/parser.h"
+tests\test_qa_stress.cpp:13:#include "graphscript/compile/compiler.h"
+tests\test_qa_stress.cpp:17:#include "graphscript/emit/emitter.h"
+tests\test_qa_stress.cpp:38:static std::unique_ptr<ModuleNode> do_parse(const std::string& src) {
+tests\test_qa_stress.cpp:39:    Lexer lexer(src);
+tests\test_qa_stress.cpp:41:    Parser parser(std::move(tokens));
+tests\test_qa_stress.cpp:50:    Compiler compiler(env);
+tests\test_qa_stress.cpp:79:    Emitter emitter;
+tests\test_qa_stress.cpp:81:    if (emitted.empty()) { ADD_FAILURE_AT(file, line) << "Emitter produced empty output"; return; }
+tests\test_qa_stress.cpp:86:    Compiler c2(fresh_env);
+tests\test_qa_stress.cpp:164:    Emitter emitter;
+tests\test_qa_stress.cpp:229:    Emitter emitter;
+tests\test_qa_stress.cpp:233:    Compiler c2(env2);
+tests\test_qa_stress.cpp:315:        Emitter emitter;
+tests\test_qa_stress.cpp:341:        Emitter emitter;
+tests\test_qa_stress.cpp:459:    Emitter emitter;
+tests\test_qa_stress.cpp:463:    Compiler c(env2);
+tests\test_qa_stress.cpp:761:        Emitter emitter;
+tests\test_qa_stress.cpp:913:    Emitter emitter;
+tests\test_qa_stress.cpp:933:        Lexer lexer(emitted);
+tests\test_qa_stress.cpp:935:        Parser parser(std::move(tokens));
+tests\test_qa_stress.cpp:939:        Compiler compiler(env2);

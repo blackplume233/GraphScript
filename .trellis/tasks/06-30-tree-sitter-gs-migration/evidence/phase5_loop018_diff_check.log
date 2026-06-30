@@ -1,0 +1,4 @@
+warning: in the working copy of '.trellis/spec/backend/quality-guidelines.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'cli/editor.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_cli_editor.cpp', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/test_emitter.cpp', LF will be replaced by CRLF the next time Git touches it

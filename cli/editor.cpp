@@ -1,7 +1,7 @@
 #include "editor.h"
 #include "source_diagnostics.h"
 #include "graphscript/asset/language.h"
-#include "graphscript/emit/emitter.h"
+#include "graphscript/debug/diagram.h"
 #include "graphscript/runtime/runtime_graph.h"
 #include <iostream>
 #include <sstream>
@@ -3115,10 +3115,29 @@ void CLIEditor::cmd_emit() {
 }
 
 void CLIEditor::cmd_diagram() {
-    Emitter emitter;
     auto* g = session_.active_graph();
     if (!g) { print_ok("(no active graph)"); return; }
-    std::cout << "\n" << emitter.emit_graph_diagram(*g) << "\n";
+
+    const std::string source = session_.emit();
+    asset::Parser parser(source, session_.file_path().empty() ? "<session>" : session_.file_path());
+    auto parsed = parser.parse();
+    bool has_error = false;
+    for (const auto& diagnostic : parsed.diagnostics) {
+        if (diagnostic.severity == Severity::Error) {
+            has_error = true;
+            break;
+        }
+    }
+    if (!has_error) {
+        auto projected = asset::FlowGraphProjector::project(parsed.module, g->name);
+        if (projected.is_ok()) {
+            std::cout << "\n" << debug::emit_mermaid_flow_graph_diagram(projected.value()) << "\n";
+            return;
+        }
+    }
+
+    print_ok("Warning: asset projection unavailable; using session graph diagram");
+    std::cout << "\n" << debug::emit_mermaid_graph_diagram(*g) << "\n";
 }
 
 void CLIEditor::cmd_validate() {
