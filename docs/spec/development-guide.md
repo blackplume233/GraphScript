@@ -58,10 +58,10 @@ cmake --build build --config Release --target gs
 
 | File | Suite | Count | What it tests |
 |------|-------|-------|---------------|
-| `test_lexer.cpp` | Lexer | 20 | Tokenization of all syntax |
-| `test_parser.cpp` | Parser | 21 | AST construction from tokens |
-| `test_compiler.cpp` | Compiler | 10 | AST → Module compilation |
-| `test_emitter.cpp` | Emitter | 8 | Module → .gs text round-trip |
+| `test_asset_lexical_surface.cpp` | AssetLexicalSurface | 5 | Asset syntax lexical surface coverage |
+| `test_asset_parser.cpp` | AssetParser | 7 | Asset CST/module parsing |
+| `test_asset_projection.cpp` | AssetProjection | 6 | Asset declarations and graph projection |
+| `test_asset_source_emission.cpp` | AssetSourceEmission | 7 | Asset source emission and reparse |
 | `test_result.cpp` | Result | 6 | Result<T,E> monad |
 | `test_node_registry.cpp` | NodeDefinition, NodeRegistry | 9 | Node type management |
 | `test_connection_policy.cpp` | ConnectionPolicy | 4 | Schema policy values |
@@ -69,7 +69,7 @@ cmake --build build --config Release --target gs
 | `test_slotmap.cpp` | Handle, SlotMap | 12 | Generational handle system |
 | `test_editgraph.cpp` | EditGraph | 18 | Mutable graph operations |
 | `test_edit_session.cpp` | EditSession | 25 | Full editing workflow |
-| `test_runtimegraph.cpp` | RuntimeGraph | 9 | Bake pipeline |
+| `test_graph_runtime_ir.cpp` | GraphRuntimeIR | 10 | Asset projection bake pipeline |
 | `test_validator.cpp` | Diagnostic, Validator | 2 | Validation framework |
 | `test_integration_deep.cpp` | DeepCycle | 23 | End-to-end fixture tests |
 
@@ -278,11 +278,9 @@ Get-Process gs -ErrorAction SilentlyContinue | Stop-Process -Force
 GraphScript/
 ├── include/graphscript/    # Public headers (the API surface)
 │   ├── core/               # Fundamental types: Graph, Node, Pin, Connection, Result
-│   ├── parse/              # Lexer, Parser, AST, Token
-│   ├── compile/            # Compiler, Module, ImportDecl, LetDecl
-│   ├── emit/               # Emitter (graph → text)
 │   ├── edit/               # EditGraph (SlotMap), EditSession, Handle
-│   ├── runtime/            # RuntimeGraph (baked)
+│   ├── asset/              # Tree-sitter asset parser, linter, projector, patcher
+│   ├── graph/              # GraphRuntimeIR (baked graph runtime IR)
 │   ├── registry/           # Environment (TypeRegistry, NodeRegistry, SchemaRegistry)
 │   └── schema/             # ConnectionPolicy, GraphSchema, Validator
 ├── src/                    # Implementation files (mirror include/ structure)
@@ -298,7 +296,7 @@ GraphScript/
 
 - **Headers**: `snake_case.h` in nested namespace dirs
 - **Sources**: `snake_case.cpp` matching header structure
-- **Classes**: `PascalCase` (`EditSession`, `RuntimeGraph`)
+- **Classes**: `PascalCase` (`EditSession`, `GraphRuntimeIR`)
 - **Functions**: `snake_case` (`add_node`, `compile_graph`)
 - **Members**: `snake_case_` with trailing underscore
 - **Test names**: `TEST(Suite, DescriptiveTestName)` in PascalCase

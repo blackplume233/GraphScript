@@ -4,7 +4,7 @@
 
 #include "graphscript/asset/language.h"
 #include "graphscript/edit/edit_session.h"
-#include "graphscript/runtime/runtime_graph.h"
+#include "graphscript/graph/runtime_ir.h"
 
 using namespace gs;
 
@@ -118,7 +118,7 @@ TEST(DeepCycle, AssetFlowGraphProjectionKeepsFlowAndDataEdges) {
     EXPECT_EQ(graph.data_edges[0].target, "location.target");
 }
 
-TEST(DeepCycle, EditGraphAndRuntimeBakeFromAssetSession) {
+TEST(DeepCycle, GraphRuntimeIRBakeFromAssetProjection) {
     Environment env;
     const std::string source = R"(graph RuntimeReady {
     node logger {
@@ -140,7 +140,12 @@ TEST(DeepCycle, EditGraphAndRuntimeBakeFromAssetSession) {
     EXPECT_EQ(edit_graph->node_count(), 2u);
     EXPECT_EQ(edit_graph->connection_count(), 1u);
 
-    auto runtime = RuntimeGraph::bake(*edit_graph);
+    asset::Parser parser(session.emit(), "runtime_deep_asset.gs");
+    auto parsed = parser.parse();
+    ASSERT_TRUE(parsed.diagnostics.empty());
+    auto projected = asset::FlowGraphProjector::project(parsed.module, "RuntimeReady");
+    ASSERT_TRUE(projected.is_ok()) << projected.error();
+    auto runtime = GraphRuntimeIR::bake(projected.value());
     EXPECT_EQ(runtime.name(), "RuntimeReady");
     EXPECT_EQ(runtime.node_count(), 2u);
     EXPECT_EQ(runtime.flow_edge_count(), 1u);

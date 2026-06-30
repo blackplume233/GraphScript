@@ -1,0 +1,45 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = GraphRuntimeIR.*:Blueprint.AssetRuntimeBakeUsesBlueprintPresets:DeepCycle.EditGraphAndRuntimeBakeFromAssetSession:QAStress.RuntimeBakeLargeAssetSession
+[==========] Running 13 tests from 4 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from Blueprint
+[ RUN      ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets
+[       OK ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets (2 ms)
+[----------] 1 test from Blueprint (2 ms total)
+
+[----------] 10 tests from GraphRuntimeIR
+[ RUN      ] GraphRuntimeIR.BakeEmpty
+[       OK ] GraphRuntimeIR.BakeEmpty (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeWithNodes
+[       OK ] GraphRuntimeIR.BakeWithNodes (0 ms)
+[ RUN      ] GraphRuntimeIR.BakePreservesNodeData
+[       OK ] GraphRuntimeIR.BakePreservesNodeData (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeFlowEdges
+[       OK ] GraphRuntimeIR.BakeFlowEdges (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeDataEdges
+[       OK ] GraphRuntimeIR.BakeDataEdges (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeWithSchema
+[       OK ] GraphRuntimeIR.BakeWithSchema (0 ms)
+[ RUN      ] GraphRuntimeIR.FindNode
+[       OK ] GraphRuntimeIR.FindNode (0 ms)
+[ RUN      ] GraphRuntimeIR.FindPinIndex
+[       OK ] GraphRuntimeIR.FindPinIndex (0 ms)
+[ RUN      ] GraphRuntimeIR.PinData
+[       OK ] GraphRuntimeIR.PinData (0 ms)
+[ RUN      ] GraphRuntimeIR.DebugDumpUsesRuntimeIRTerminology
+[       OK ] GraphRuntimeIR.DebugDumpUsesRuntimeIRTerminology (0 ms)
+[----------] 10 tests from GraphRuntimeIR (0 ms total)
+
+[----------] 1 test from DeepCycle
+[ RUN      ] DeepCycle.EditGraphAndRuntimeBakeFromAssetSession
+[       OK ] DeepCycle.EditGraphAndRuntimeBakeFromAssetSession (0 ms)
+[----------] 1 test from DeepCycle (0 ms total)
+
+[----------] 1 test from QAStress
+[ RUN      ] QAStress.RuntimeBakeLargeAssetSession
+[       OK ] QAStress.RuntimeBakeLargeAssetSession (3 ms)
+[----------] 1 test from QAStress (3 ms total)
+
+[----------] Global test environment tear-down
+[==========] 13 tests from 4 test suites ran. (7 ms total)
+[  PASSED  ] 13 tests.

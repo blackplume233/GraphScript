@@ -1,11 +1,11 @@
 /// Debug dump & diff utilities for GraphScript data structures.
-/// Produces human-readable hierarchical text from Module, EditGraph, and RuntimeGraph.
+/// Produces human-readable hierarchical text from Module, EditGraph, and graph runtime IR.
 
 #include "graphscript/debug/dump.h"
 
 #include "graphscript/core/module.h"
 #include "graphscript/edit/edit_graph.h"
-#include "graphscript/runtime/runtime_graph.h"
+#include "graphscript/graph/runtime_ir.h"
 
 #include <sstream>
 #include <algorithm>
@@ -196,11 +196,11 @@ std::string dump_edit_graph(const EditGraph& eg) {
     return os.str();
 }
 
-// ─── dump_runtime_graph ────────────────────────────────────────────
+// ─── dump_graph_runtime_ir ─────────────────────────────────────────
 
-std::string dump_runtime_graph(const RuntimeGraph& rg) {
+std::string dump_graph_runtime_ir(const GraphRuntimeIR& rg) {
     std::ostringstream os;
-    os << "RuntimeGraph " << quote(rg.name()) << " {\n";
+    os << "GraphRuntimeIR " << quote(rg.name()) << " {\n";
     if (!rg.domain_name().empty())
         os << indent(1) << "domain: " << quote(rg.domain_name()) << "\n";
 

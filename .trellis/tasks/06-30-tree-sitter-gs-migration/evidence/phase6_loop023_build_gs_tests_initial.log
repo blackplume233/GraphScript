@@ -1,0 +1,10 @@
+适用于 .NET Framework MSBuild 版本 18.7.8+1ac568fee
+
+  tree_sitter_graphscript_asset.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\tree_sitter_graphscript_asset.lib
+  tree_sitter_runtime.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\Release\tree_sitter_runtime.lib
+  dump.cpp
+  runtime_ir.cpp
+  正在生成代码...
+G:\Workspace\PluginDevelop\Plugins\GraphScript\src\graph\runtime_ir.cpp(1,1): error C1083: 无法打开编译器生成的文件: “G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\graphscript_core.dir\Release\runtime_ir.obj”: Permission denied [G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\graphscript_core.vcxproj]
+  gtest.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\lib\Release\gtest.lib
+  gtest_main.vcxproj -> G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\lib\Release\gtest_main.lib

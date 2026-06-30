@@ -1909,7 +1909,7 @@ PinDefinition
 GraphSchema
 ConnectionPolicy
 EditGraph
-RuntimeGraph
+GraphRuntimeIR
 Validator
 ```
 
@@ -2049,7 +2049,7 @@ Table projection 可以把同样的通用 object/property 解释成表行和单�
 FlowGraph runtime 可以把 GraphProjection bake 成：
 
 ```text
-RuntimeGraph
+GraphRuntimeIR
   flat node array
   flat pin array
   edge adjacency

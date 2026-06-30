@@ -7,7 +7,7 @@ namespace gs {
 
 struct Module;
 class  EditGraph;
-class  RuntimeGraph;
+class  GraphRuntimeIR;
 
 namespace debug {
 
@@ -17,8 +17,8 @@ std::string dump_module(const Module& mod);
 /// Dumps EditGraph (mutable editor representation) to text.
 std::string dump_edit_graph(const EditGraph& eg);
 
-/// Dumps RuntimeGraph (baked flat arrays) to text.
-std::string dump_runtime_graph(const RuntimeGraph& rg);
+/// Dumps graph runtime IR (baked flat arrays) to text.
+std::string dump_graph_runtime_ir(const GraphRuntimeIR& ir);
 
 /// Result of a structural diff between two Modules.
 struct DiffResult {

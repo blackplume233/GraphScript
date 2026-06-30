@@ -2499,7 +2499,7 @@ TEST(EditSession, LetDeclaration) {
 // Build + Validate + Bake via session
 // ═══════════════════════════════════════════════════════════════════
 
-TEST(EditSession, BuildEditGraphAndBake) {
+TEST(EditSession, BuildEditGraphAndValidate) {
     Environment env;
     EditSession s(env);
     load_core(s);

@@ -4,7 +4,7 @@
 
 #include "graphscript/asset/language.h"
 #include "graphscript/edit/edit_session.h"
-#include "graphscript/runtime/runtime_graph.h"
+#include "graphscript/graph/runtime_ir.h"
 
 using namespace gs;
 
@@ -104,10 +104,13 @@ TEST(Blueprint, AssetRuntimeBakeUsesBlueprintPresets) {
 }
 )";
     auto session = load_blueprint_source(env, source);
-    auto edit_graph = session.build_edit_graph();
-    ASSERT_TRUE(edit_graph.has_value());
 
-    auto runtime = RuntimeGraph::bake(*edit_graph);
+    asset::Parser parser(session.emit(), "runtime_blueprint_asset.gs");
+    auto parsed = parser.parse();
+    ASSERT_TRUE(parsed.diagnostics.empty());
+    auto projected = asset::FlowGraphProjector::project(parsed.module, "RuntimeBlueprint");
+    ASSERT_TRUE(projected.is_ok()) << projected.error();
+    auto runtime = GraphRuntimeIR::bake(projected.value());
     EXPECT_EQ(runtime.node_count(), 2u);
     EXPECT_EQ(runtime.flow_edge_count(), 1u);
 }

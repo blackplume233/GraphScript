@@ -1,0 +1,35 @@
+Running main() from G:\Workspace\PluginDevelop\Plugins\GraphScript\build-codex\_deps\googletest-src\googletest\src\gtest_main.cc
+Note: Google Test filter = GraphRuntimeIR.*:Blueprint.AssetRuntimeBakeUsesBlueprintPresets:DeepCycle.GraphRuntimeIRBakeFromAssetProjection:QAStress.GraphRuntimeIRBakeLargeAssetProjection:EditSession.BuildEditGraphAndValidate
+[==========] Running 11 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from Blueprint
+[ RUN      ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets
+[       OK ] Blueprint.AssetRuntimeBakeUsesBlueprintPresets (2 ms)
+[----------] 1 test from Blueprint (2 ms total)
+
+[----------] 10 tests from GraphRuntimeIR
+[ RUN      ] GraphRuntimeIR.BakeEmpty
+[       OK ] GraphRuntimeIR.BakeEmpty (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeWithNodes
+[       OK ] GraphRuntimeIR.BakeWithNodes (0 ms)
+[ RUN      ] GraphRuntimeIR.BakePreservesNodeData
+[       OK ] GraphRuntimeIR.BakePreservesNodeData (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeFlowEdges
+[       OK ] GraphRuntimeIR.BakeFlowEdges (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeDataEdges
+[       OK ] GraphRuntimeIR.BakeDataEdges (0 ms)
+[ RUN      ] GraphRuntimeIR.BakeWithSchema
+[       OK ] GraphRuntimeIR.BakeWithSchema (0 ms)
+[ RUN      ] GraphRuntimeIR.FindNode
+[       OK ] GraphRuntimeIR.FindNode (0 ms)
+[ RUN      ] GraphRuntimeIR.FindPinIndex
+[       OK ] GraphRuntimeIR.FindPinIndex (0 ms)
+[ RUN      ] GraphRuntimeIR.PinData
+[       OK ] GraphRuntimeIR.PinData (0 ms)
+[ RUN      ] GraphRuntimeIR.DebugDumpUsesRuntimeIRTerminology
+[       OK ] GraphRuntimeIR.DebugDumpUsesRuntimeIRTerminology (0 ms)
+[----------] 10 tests from GraphRuntimeIR (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 11 tests from 2 test suites ran. (3 ms total)
+[  PASSED  ] 11 tests.

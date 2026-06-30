@@ -7,7 +7,7 @@
 
 #include "graphscript/asset/language.h"
 #include "graphscript/edit/edit_session.h"
-#include "graphscript/runtime/runtime_graph.h"
+#include "graphscript/graph/runtime_ir.h"
 
 using namespace gs;
 
@@ -95,19 +95,22 @@ TEST(QAStress, EditSessionLoadsEmitsAndReloadsLargeAssetGraph) {
     EXPECT_EQ(reparsed.module().graphs[0].node_instances.size(), 120u);
 }
 
-TEST(QAStress, RuntimeBakeLargeAssetSession) {
+TEST(QAStress, GraphRuntimeIRBakeLargeAssetProjection) {
     Environment env;
     EditSession session(env);
     load_stress_core(session);
     auto loaded = session.load_source(make_large_asset_graph(80), "large_runtime_asset.gs");
     ASSERT_TRUE(loaded.is_ok()) << loaded.error();
 
-    auto edit_graph = session.build_edit_graph();
-    ASSERT_TRUE(edit_graph.has_value());
-    auto runtime = RuntimeGraph::bake(*edit_graph);
+    asset::Parser parser(session.emit(), "large_runtime_asset.gs");
+    auto parsed = parser.parse();
+    ASSERT_TRUE(parsed.diagnostics.empty());
+    auto projected = asset::FlowGraphProjector::project(parsed.module, "Thousand");
+    ASSERT_TRUE(projected.is_ok()) << projected.error();
+    auto runtime = GraphRuntimeIR::bake(projected.value());
     EXPECT_EQ(runtime.node_count(), 80u);
     EXPECT_EQ(runtime.flow_edge_count(), 79u);
-    // Current RuntimeGraph bake only materializes node-to-node data links; bare
+    // Runtime IR bake only materializes node-to-node data links; bare
     // parameter links remain covered by asset projection and Module round-trip.
     EXPECT_EQ(runtime.data_edge_count(), 0u);
 }

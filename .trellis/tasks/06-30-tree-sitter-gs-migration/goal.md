@@ -4,9 +4,9 @@ updated_at: 2026-06-30
 artifact_language: zh-CN
 execution_mode: native-codex-goal
 native_goal_id: codex_019f188c-0800-7041-9d48-9a868ddcb496
-current_loop: loops/loop-023.md
-next_sub_goal: Loop 023：替换 RuntimeGraph 为新的 graph runtime IR，先建立 projection/model 输入的新 runtime 类型与 bake 路径，再迁移 CLI bake、debug dump 和 RuntimeGraph 测试依赖
-last_verified_loop: loops/loop-022.md
+current_loop: loops/loop-024.md
+next_sub_goal: Loop 024：补齐 GraphRuntimeIR bake 的 imported declaration / Environment pin enrichment，并清理剩余当前文档与前后端合约中的旧 compile/emit 命名噪声
+last_verified_loop: loops/loop-023.md
 references: references.md
 ---
 

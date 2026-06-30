@@ -17,8 +17,8 @@
 │  (schema/)  — defines rule containers, no concrete rules            │
 ├─────────────────────────────────────────────────────────────────────┤
 │                        Core Engine                                  │
-│  Parse · Compile · EditGraph · EditSession · RuntimeGraph · Emitter │
-│  (parse/ compile/ edit/ runtime/ emit/ core/ registry/)             │
+│  Asset Parser · Projection · EditSession · GraphRuntimeIR           │
+│  (asset/ edit/ graph/ core/ registry/)                              │
 ├─────────────────────────────────────────────────────────────────────┤
 │                       CLI / Web Frontend                            │
 │  gs CLI · CLIEditor · WebServer · LiteGraph.js UI                   │
@@ -44,7 +44,7 @@ Source (.gs)
   Parser        → ModuleNode (AST)      (parse/parser.h)
     │
     ▼
-  Compiler      → Module (IR)           (compile/compiler.h)
+  Compiler      → Module (IR)           (core/module.h)
     │               │
     │               ├── Module.graphs[]    → Graph objects
     │               ├── Module.imports[]   → ImportDecl
@@ -80,17 +80,20 @@ Graph (from Module)
     │               Schema-aware connection validation
     │
     ▼
-  RuntimeGraph.bake(edit_graph)
+  FlowGraphProjector.project(module)
     │
     ▼
-  RuntimeGraph  (flat arrays, integer indices, immutable)
+  GraphRuntimeIR.bake(flow_graph)
+    │
+    ▼
+  GraphRuntimeIR  (flat arrays, integer indices, immutable)
 ```
 
 ---
 
 ## Core Data Structures
 
-### Module (compile/compiler.h)
+### Module (core/module.h)
 
 The top-level compilation result. Contains everything in one `.gs` file.
 
@@ -101,7 +104,7 @@ The top-level compilation result. Contains everything in one `.gs` file.
 | `top_level_lets` | `vector<LetDecl>` | `let` declarations |
 | `graphs` | `vector<Graph>` | Compiled graphs |
 
-### ImportDecl / LetDecl (compile/compiler.h)
+### ImportDecl / LetDecl (core/module.h)
 
 Top-level declarations retain source traceability and prefix metadata.
 
@@ -168,16 +171,16 @@ Mutable, editor-friendly graph using `SlotMap` for O(1) node/connection operatio
 | Handle stability | Generational `Handle` (index + generation) |
 | Schema enforcement | `ConnectionPolicy` checked on `connect()` |
 
-### RuntimeGraph (runtime/runtime_graph.h)
+### GraphRuntimeIR (graph/runtime_ir.h)
 
 Baked, immutable, cache-friendly graph for runtime consumption.
 
 | Feature | Implementation |
 |---------|---------------|
-| Nodes | `vector<RNode>` (flat array) |
-| Pins | `vector<RPin>` (flat array) |
-| Flow edges | `vector<RFlowEdge>` (integer indices) |
-| Data edges | `vector<RDataEdge>` (integer indices) |
+| Nodes | `vector<RuntimeIRNode>` (flat array) |
+| Pins | `vector<RuntimeIRPin>` (flat array) |
+| Flow edges | `vector<RuntimeIRFlowEdge>` (integer indices) |
+| Data edges | `vector<RuntimeIRDataEdge>` (integer indices) |
 
 ### EditSession (edit/edit_session.h)
 
@@ -243,18 +246,72 @@ Schema declarations and individual schema fields can carry prefix annotations, w
 
 ## CLI Tool (`gs`)
 
-| Subcommand | Description |
-|------------|-------------|
-| `parse` | Tokenize and parse, print AST summary |
-| `compile` | Parse + compile, print Module summary |
-| `validate` | Compile + schema validate |
-| `emit` | Compile + emit back to .gs text |
-| `bake` | Compile + EditGraph.build + RuntimeGraph.bake |
-| `info` | Show environment (types, nodes, schemas) |
-| `schema` | Show registered schemas |
-| `edit` | Interactive REPL editor |
-| `serve` | Web GUI editor (HTTP server + LiteGraph.js) |
-| `diagram` | Generate Mermaid markdown diagram |
+### Scenario: tree-sitter asset CLI surface
+
+#### 1. Scope / Trigger
+
+- Trigger: migration to tree-sitter asset `.gs/.d.gs` syntax changes the supported CLI command surface.
+- Scope: user-facing `gs` subcommands. Internal editor/server code may temporarily use legacy parser/compiler paths until the editor replacement phase, but those paths are not supported CLI commands.
+
+#### 2. Signatures
+
+| Subcommand | Signature | Description |
+|------------|-----------|-------------|
+| `parse` | `gs parse -i file.gs` | Parse `.gs/.d.gs` asset syntax and print syntax summary. |
+| `lint` | `gs lint -i file.gs [-I import.d.gs...]` | Parse and lint asset syntax, returning diagnostics JSON. |
+| `project` | `gs project -i file.gs [-I import.d.gs...] --graph Name` | Project a graph block to FlowGraph JSON summary. |
+| `patch` | `gs patch -i file.gs --op <op> [patch options]` | Apply a tree-sitter-aware source patch and write to stdout or `-o`. |
+| `edit` | `gs edit [-i file.gs] [-I import.d.gs...]` | Start the interactive editor. |
+| `serve` | `gs serve [-i file.gs] [-I import.d.gs...] [-p 8080]` | Start the web editor server. |
+
+Supported patch ops: `add-import`, `add-node`, `add-block`, `add-attribute`, `connect`, `disconnect`, `rename-node`, `rename-block`, `set-property`.
+
+#### 3. Contracts
+
+- Current file suffixes are `.gs` and `.d.gs`.
+- `parse/lint/project/patch` use the tree-sitter asset parser path.
+- `project` consumes imports by merging asset declarations before graph projection.
+- `patch` prints patched source to stdout unless `-o/--output` is supplied.
+- Legacy command names are not accepted user commands: `compile`, `validate`, `emit`, `diagram`, `bake`, `info`, `schema`, and all `sc-*`.
+
+#### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+|-----------|-------------------|
+| Unknown or legacy command | Exit non-zero with `Unknown command: <name>`. |
+| Asset command without `-i` | Exit non-zero with `Error: -i <input_file> required`. |
+| Missing graph in `project`/`patch` | Exit non-zero with projection or patch error. |
+| Invalid source syntax | `parse/lint` include diagnostics and return non-zero. |
+| Patch edit outside source range | Exit non-zero with patch error. |
+
+#### 5. Good/Base/Bad Cases
+
+- Good: `gs project -i ability.gs -I ability_core.d.gs --graph Execute` returns graph name, schema, node count, edge count, and diagnostics count.
+- Base: `gs parse -i ability.d.gs` returns declaration counts and diagnostics count.
+- Bad: `gs compile -i ability.gs` returns `Unknown command: compile`.
+
+#### 6. Tests Required
+
+- CLI help smoke asserts only `edit/serve/parse/lint/project/patch` are listed.
+- Unknown-command smoke asserts removed legacy commands return `Unknown command`.
+- Parse/lint/project/patch smoke tests use `.gs/.d.gs` fixtures.
+- Full C++ test suite must pass after command-surface changes.
+
+#### 7. Wrong vs Correct
+
+Wrong:
+
+```bash
+gs compile -i ability.gs
+gs sc-project -i ability.gs --graph Execute
+```
+
+Correct:
+
+```bash
+gs lint -i ability.gs
+gs project -i ability.gs -I ability_core.d.gs --graph Execute
+```
 
 ---
 

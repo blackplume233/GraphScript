@@ -2,7 +2,7 @@
 #include "source_diagnostics.h"
 #include "graphscript/asset/language.h"
 #include "graphscript/debug/diagram.h"
-#include "graphscript/runtime/runtime_graph.h"
+#include "graphscript/graph/runtime_ir.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -2019,7 +2019,7 @@ void CLIEditor::cmd_help() {
         "  emit                     Print .gs text\n"
         "  diagram                  Print Mermaid flowchart\n"
         "  validate                 Run validation\n"
-        "  bake                     Show RuntimeGraph stats\n"
+        "  bake                     Show graph runtime IR stats\n"
         "  schemas                  List schemas\n"
         "  status                   Show session summary\n"
         "\n=== Undo/Redo ===\n"
@@ -3150,10 +3150,20 @@ void CLIEditor::cmd_validate() {
 }
 
 void CLIEditor::cmd_bake() {
-    auto eg = session_.build_edit_graph();
-    if (!eg) { print_error("No active graph to bake"); return; }
-    auto rt = RuntimeGraph::bake(*eg);
-    std::cout << "  RuntimeGraph '" << rt.name() << "'\n";
+    auto* active_graph = session_.active_graph();
+    if (!active_graph) { print_error("No active graph to bake"); return; }
+
+    asset::Parser parser(session_.emit(), session_.file_path().empty() ? "<session>" : session_.file_path());
+    auto parsed = parser.parse();
+    if (!parsed.diagnostics.empty()) {
+        print_error("Current source has syntax diagnostics; cannot bake runtime IR");
+        return;
+    }
+    auto projected = asset::FlowGraphProjector::project(parsed.module, active_graph->name);
+    if (projected.is_err()) { print_error(projected.error()); return; }
+
+    auto rt = GraphRuntimeIR::bake(projected.value());
+    std::cout << "  GraphRuntimeIR '" << rt.name() << "'\n";
     if (!rt.domain_name().empty()) std::cout << "  Domain: " << rt.domain_name() << "\n";
     std::cout << "  Nodes: " << rt.node_count() << "\n";
     std::cout << "  Pins: " << rt.pins().size() << "\n";
