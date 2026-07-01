@@ -612,6 +612,8 @@ export default function App() {
   const sourceResolverSourceRef = useRef('')
   const [sourceSyncState, setSourceSyncState] = useState<SourceSyncState>('empty')
   const [sourceSyncDetail, setSourceSyncDetail] = useState('')
+  const sourceSyncStateRef = useRef<SourceSyncState>('empty')
+  const sourceAutoSyncKeyRef = useRef('')
   const [sourcePreviewLabel, setSourcePreviewLabel] = useState('Session')
   const [sourceEditable, setSourceEditable] = useState(true)
   const [declarationRenameContext, setDeclarationRenameContext] = useState<DeclarationRenameContext | null>(null)
@@ -651,6 +653,10 @@ export default function App() {
       setSourceSyncDetail('')
     }
   }, [sourceText])
+
+  useEffect(() => {
+    sourceSyncStateRef.current = sourceSyncState
+  }, [sourceSyncState])
 
   const updatePendingSourcePatch = useCallback((text: string) => {
     const baseSource = sourceBaseTextRef.current
@@ -861,8 +867,8 @@ export default function App() {
     }
   }, [state?.file_path])
 
-  const handleCheckSourceDiagnostics = useCallback(async () => {
-    requestSourcePanel()
+  const syncSourceFromSession = useCallback(async (activatePanel: boolean, successDetail: string) => {
+    if (activatePanel) requestSourcePanel()
     try {
       setCheckingSource(true)
       setSourceSyncState('checking')
@@ -878,7 +884,7 @@ export default function App() {
       setSourceResolverEnvironment(result.environment ?? null)
       sourceResolverSourceRef.current = result.environment ? text : ''
       setSourceSyncState('session')
-      setSourceSyncDetail('Current source comes from backend /api/emit')
+      setSourceSyncDetail(successDetail)
     } catch {
       setSourceDiagnostics([])
       setSourceResolverEnvironment(null)
@@ -889,6 +895,38 @@ export default function App() {
       setCheckingSource(false)
     }
   }, [acceptSourceBaseline, refresh, requestSourcePanel, setSourcePreviewEditable, state])
+
+  const handleCheckSourceDiagnostics = useCallback(async () => {
+    await syncSourceFromSession(true, 'Current source comes from backend /api/emit')
+  }, [syncSourceFromSession])
+
+  useEffect(() => {
+    if (!state || loading || checkingSource || applyingSource || sourceNeedsBaselineConfirmation) return
+    const hasLocalSourceEdit = Boolean(
+      sourceTextRef.current &&
+      sourceBaseTextRef.current &&
+      sourceTextRef.current !== sourceBaseTextRef.current,
+    )
+    if (hasLocalSourceEdit) return
+    const syncState = sourceSyncStateRef.current
+    if (syncState !== 'empty' && syncState !== 'session' && syncState !== 'stale') return
+    if (syncState === 'stale' && countImportDeclarations(sourceTextRef.current) > 0) return
+
+    const graph = state.module.graphs[graphIndex]
+    const key = [
+      state.active_graph,
+      state.dirty ? 'dirty' : 'clean',
+      state.command_log.length,
+      state.module.graphs.length,
+      graph?.nodes.length ?? 0,
+      graph?.events.length ?? 0,
+      graph?.functions.length ?? 0,
+      graph?.parameters.length ?? 0,
+    ].join(':')
+    if (sourceAutoSyncKeyRef.current === key) return
+    sourceAutoSyncKeyRef.current = key
+    void syncSourceFromSession(false, 'Source auto-synced from backend /api/emit')
+  }, [applyingSource, checkingSource, graphIndex, loading, sourceNeedsBaselineConfirmation, state, syncSourceFromSession])
 
   const handleSourceTextChange = useCallback((text: string) => {
     setSourcePreviewEditable(true)

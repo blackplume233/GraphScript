@@ -181,44 +181,11 @@ function headerStyleForNode(category: string, hasExec: boolean, isNative: boolea
   return hasExec ? NODE_HEADER_COLORS.flow : NODE_HEADER_COLORS.pure
 }
 
-function PropertyPreviewRow({ property }: { property: BlueprintIntrinsicProperty }) {
-  const displayedValue = property.value || property.defaultValue || 'inherited'
-  return (
-    <div
-      className="flex min-w-0 items-center gap-1.5 rounded-[4px] border border-border/25 bg-background/35 px-1.5 py-1"
-      data-node-intrinsic-property={property.name}
-      data-node-intrinsic-property-source={property.sourceFile || 'fallback'}
-      data-node-intrinsic-property-default={property.defaultValue || ''}
-    >
-      <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground/70">
-        {property.name}
-      </span>
-      <span
-        className="max-w-[92px] truncate font-mono text-[10px] text-foreground/80"
-        title={property.defaultValue ? `default: ${property.defaultValue}` : 'inherited default'}
-      >
-        {displayedValue}
-      </span>
-      <span
-        className="shrink-0 rounded-[3px] border border-border/35 px-1 text-[8px] uppercase leading-3 text-muted-foreground/55"
-        title={property.declared ? `Declared${property.sourceFile ? ` in ${property.sourceFile}` : ''}` : 'Fallback from data input pin'}
-      >
-        {property.declared ? 'field' : 'pin'}
-      </span>
-      <span
-        className={`h-1.5 w-1.5 shrink-0 rounded-full ${property.overridden ? 'bg-primary' : 'bg-muted-foreground/35'}`}
-        title={property.overridden ? 'Overridden in node initializer' : 'Using declaration default'}
-      />
-    </div>
-  )
-}
-
 export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlowNode>) {
   const pins = data.pins ?? []
   const label = data.instanceName || data.label
   const typeName = data.typeName ?? ''
   const category = data.category || (data.isNative ? 'Native' : 'Graph')
-  const intrinsicProperties = data.intrinsicProperties ?? []
   const execIn = pins.filter(pin => pin.kind === 'exec' && pin.direction === 'in')
   const execOut = pins.filter(pin => pin.kind === 'exec' && pin.direction === 'out')
   const dataIn = pins.filter(pin => pin.kind === 'data' && pin.direction === 'in')
@@ -293,19 +260,6 @@ export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlo
           </span>
         )}
       </div>
-
-      {intrinsicProperties.length > 0 && (
-        <div className="space-y-1 border-b border-border/35 px-2.5 py-2">
-          {intrinsicProperties.slice(0, 4).map(property => (
-            <PropertyPreviewRow key={property.name} property={property} />
-          ))}
-          {intrinsicProperties.length > 4 && (
-            <div className="px-1.5 text-[9px] text-muted-foreground/45">
-              +{intrinsicProperties.length - 4} properties
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="flex gap-3 px-2.5 py-2 min-h-[28px]">
         <div className="flex flex-col gap-0 min-w-0">

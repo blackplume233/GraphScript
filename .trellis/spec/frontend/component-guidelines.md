@@ -26,10 +26,11 @@ authority in the browser.
   language: dark low-contrast grid, compact dark nodes, colored title strips,
   exec pins as directional triangles, data pins as small diamonds, and smooth
   Bezier wires without arrowheads.
-- Canvas layering must keep comment boxes behind nodes, normal wires behind
-  nodes, selected or diagnostic wires above ordinary wires but below node
-  bodies/pins, and transient overlays such as context menus above the graph.
-  Avoid persistent overlays like minimaps that cover editable graph content.
+- Canvas layering must keep comment boxes behind editable graph elements, wire
+  paths above node backgrounds so endpoints remain visible at pins, selected or
+  diagnostic wires above ordinary wires, and transient overlays such as context
+  menus above the graph. Keep pins visually stronger than wires. Avoid
+  persistent overlays like minimaps that cover editable graph content.
 - Selection and active wire feedback should use the FlowGraph yellow/orange
   highlight family rather than the application primary blue, so node selection,
   multi-select outlines, reconnect affordances, and highlighted wires read as a
@@ -44,6 +45,9 @@ authority in the browser.
 - Persist dock layout as UI-only state. Layout JSON in `localStorage` must not
   become graph truth and must be recoverable by falling back to the default
   workbench layout.
+- The default workbench layout should open Source on the left as an active
+  authoring panel, with Palette available as a sibling tab. Diagnostics,
+  Graph Text, and Console can remain auxiliary bottom tabs.
 - Panel activation is part of interoperation. Source-range actions should bring
   Source forward; command-log assertions and command entry should bring Console
   forward; diagnostics assertions should bring Diagnostics forward.
@@ -57,6 +61,9 @@ authority in the browser.
   diagnostics/source APIs. Monaco should call existing `onSourceChange`,
   `onApplySource`, `onRevertSource`, and source-range focus callbacks rather
   than inventing a browser-only source model.
+- Source should default to Monaco edit mode and auto-sync from backend
+  `/api/emit` when there are no local source edits. Auto-sync must not overwrite
+  local edits, synced patch/snapshot results, or import resolver metadata.
 - Source range focus must translate backend `{ line, column }` ranges into
   Monaco selections and reveal the range in view. Preview mode must continue to
   highlight backend-provided ranges without guessing semantic targets.

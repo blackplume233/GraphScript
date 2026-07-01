@@ -212,6 +212,7 @@ code, pre, .font-mono {
 
 .react-flow__handle.graphscript-pin-handle {
   cursor: crosshair;
+  z-index: 2;
 }
 
 .react-flow__handle.graphscript-pin-handle:hover {

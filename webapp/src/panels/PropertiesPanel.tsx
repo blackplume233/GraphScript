@@ -60,12 +60,14 @@ function PanelSection({
   children: React.ReactNode
 }) {
   return (
-    <div>
-      <div className="text-[9px] uppercase text-muted-foreground/50 font-bold tracking-[0.1em] mb-1.5">
+    <section className="overflow-hidden rounded-[3px] border border-border/45 bg-background/35">
+      <div className="border-b border-border/40 bg-secondary/55 px-2 py-1 text-[9px] uppercase text-muted-foreground/70 font-bold tracking-[0.08em]">
         {title}
       </div>
-      {children}
-    </div>
+      <div className="space-y-1.5 p-2">
+        {children}
+      </div>
+    </section>
   )
 }
 
@@ -3537,17 +3539,25 @@ export default function PropertiesPanel({
   const node = graph?.nodes.find(n => n.instance === selectedNode)
 
   return (
-    <div className="h-full min-h-0 overflow-auto" style={{ contain: 'layout paint' }}>
+    <div className="h-full min-h-0 overflow-auto bg-background/35" style={{ contain: 'layout paint' }}>
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b">
-        <Info className="h-3.5 w-3.5 text-primary/70" />
-        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          {node ? 'Node' : 'Graph'}
+      <div className="border-b border-border/70 bg-secondary/45 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Info className="h-3.5 w-3.5 shrink-0 text-[color:var(--color-flow-selected)] opacity-80" />
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Details
+          </span>
+          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground/85">
+            {node ? node.instance : graph?.name ?? 'Graph'}
+          </span>
+        </div>
+        <span className="mt-0.5 block truncate pl-5 font-mono text-[9px] text-muted-foreground/55">
+          {node ? node.type : 'Graph'}
         </span>
       </div>
 
       {/* Content */}
-      <div className="p-3">
+      <div className="space-y-2 p-2">
         {!state || !graph ? (
           <div className="text-[11px] text-muted-foreground/40 text-center py-8">
             No data

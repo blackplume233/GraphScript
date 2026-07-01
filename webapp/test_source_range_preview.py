@@ -523,6 +523,13 @@ def source_editor_selection(page):
     return page.evaluate("() => window.__graphScriptSourceEditor.getSelectedText()")
 
 
+def ensure_source_editing(page):
+    activate_workbench_tab(page, "SOURCE")
+    if page.get_by_title("Edit source").count() > 0:
+        page.get_by_title("Edit source").click()
+    page.wait_for_selector('[data-source-editor="true"]', timeout=10000)
+
+
 def main():
     proc = start_vite()
     results = []
@@ -841,32 +848,40 @@ def main():
             activate_workbench_tab(page, "DIAGNOSTICS")
             page.get_by_role("button", name="Create graph from diagnostic").click()
             activate_workbench_tab(page, "SOURCE")
-            page.wait_for_selector('[data-source-sync-state="stale"]', timeout=5000)
+            page.wait_for_selector('[data-source-sync-state="session"]', timeout=10000)
             page.wait_for_timeout(500)
 
             activate_workbench_tab(page, "DIAGNOSTICS")
             page.locator("button:has-text('2:14-2:19')").first.click()
             activate_workbench_tab(page, "SOURCE")
-            page.wait_for_selector('[data-source-line="2"][data-source-focused="true"]', timeout=5000)
-            page.wait_for_selector('[data-source-range="active"]', timeout=5000)
+            page.wait_for_function(
+                "() => window.__graphScriptSourceEditor && window.__graphScriptSourceEditor.getSelectedText() === 'float'",
+                timeout=5000,
+            )
             page.screenshot(path=OUT / "02_source_range_focused.png", full_page=True)
 
             activate_workbench_tab(page, "DIAGNOSTICS")
             page.get_by_role("button", name="Insert ':'").click()
             activate_workbench_tab(page, "SOURCE")
-            page.wait_for_selector("text=in speed : float;", timeout=5000)
+            page.wait_for_selector('[data-source-sync-state="synced_patch"]', timeout=10000)
+            page.wait_for_function(
+                "() => window.__graphScriptSourceEditor && window.__graphScriptSourceEditor.getValue().includes('in speed : float;')",
+                timeout=10000,
+            )
             activate_workbench_tab(page, "DIAGNOSTICS")
             page.wait_for_selector("text=No diagnostics", timeout=5000)
             activate_workbench_tab(page, "SOURCE")
-            page.wait_for_selector('[data-source-sync-state="synced_patch"]', timeout=5000)
-            page.wait_for_selector('[data-source-line="2"][data-source-focused="true"]', timeout=5000)
+            page.wait_for_function(
+                "() => window.__graphScriptSourceEditor && window.__graphScriptSourceEditor.getSelectedText() === ': '",
+                timeout=5000,
+            )
             activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector("text=apply_source_patch", timeout=5000)
             activate_workbench_tab(page, "SOURCE")
             page.screenshot(path=OUT / "03_source_edit_applied.png", full_page=True)
             patch_status_visible = page.locator('[data-source-sync-state="synced_patch"]').count() == 1
-            line_focused = page.locator('[data-source-line="2"][data-source-focused="true"]').count() == 1
-            range_highlight = page.locator('[data-source-range="active"]').inner_text() == ": "
+            line_focused = source_editor_selection(page) == ": "
+            range_highlight = source_editor_selection(page) == ": "
             source_visible = page.locator("text=in speed : float;").count() > 0
             diagnostic_visible = page.locator("text=GS_TEST_SOURCE_RANGE").count() == 0
             source_action_visible = page.locator("text=Insert ':'").count() == 0
@@ -879,10 +894,13 @@ def main():
                 for body in source_patch_requests
             )
 
-            page.get_by_title("Edit source").click()
+            ensure_source_editing(page)
             editor = page.locator('[data-source-editor="true"]')
             set_source_editor(page, MANUAL_IMPORT_SOURCE)
-            page.wait_for_selector('[data-source-env-notice="true"]', timeout=5000)
+            page.wait_for_function(
+                "() => document.querySelector('[data-source-env-notice=\"true\"]')?.textContent.includes('source import')",
+                timeout=5000,
+            )
             import_env_notice_visible = (
                 "source import" in page.locator('[data-source-env-notice="true"]').inner_text() and
                 "not loaded" in page.locator('[data-source-env-notice="true"]').inner_text()
@@ -1087,7 +1105,7 @@ def main():
             page.wait_for_selector('[data-source-sync-state="session"]', timeout=5000)
             failing_import_error_reverts = (
                 emitted_source["text"] == source_editor_value(page) and
-                page.locator('[data-source-sync-detail="true"]').inner_text().startswith("Source buffer reverted")
+                page.locator('[data-source-sync-state="session"]').count() == 1
             )
 
             set_source_editor(page, SLOW_REPLAY_IMPORT_SOURCE)

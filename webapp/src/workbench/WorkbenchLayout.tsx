@@ -4,7 +4,7 @@ import { DockviewReact } from 'dockview-react'
 import type { DockviewIDisposable } from 'dockview-react'
 import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps, SerializedDockview } from 'dockview-react'
 
-const LAYOUT_STORAGE_KEY = 'graphscript.workbench.layout.v1'
+const LAYOUT_STORAGE_KEY = 'graphscript.workbench.layout.v2'
 
 type WorkbenchPanelId =
   | 'palette'
@@ -59,11 +59,18 @@ function saveStoredLayout(api: DockviewApi) {
 function createDefaultLayout(api: DockviewApi) {
   api.addPanel({ id: 'canvas', component: 'canvas', title: 'Canvas' })
   api.addPanel({
+    id: 'source',
+    component: 'source',
+    title: 'Source',
+    initialWidth: 430,
+    position: { referencePanel: 'canvas', direction: 'left' },
+  })
+  api.addPanel({
     id: 'palette',
     component: 'palette',
     title: 'Palette',
-    initialWidth: 230,
-    position: { referencePanel: 'canvas', direction: 'left' },
+    inactive: true,
+    position: { referencePanel: 'source', direction: 'within' },
   })
   api.addPanel({
     id: 'properties',
@@ -73,18 +80,12 @@ function createDefaultLayout(api: DockviewApi) {
     position: { referencePanel: 'canvas', direction: 'right' },
   })
   api.addPanel({
-    id: 'source',
-    component: 'source',
-    title: 'Source',
-    initialHeight: 270,
-    position: { referencePanel: 'canvas', direction: 'below' },
-  })
-  api.addPanel({
     id: 'diagnostics',
     component: 'diagnostics',
+    initialHeight: 240,
     title: 'Diagnostics',
     inactive: true,
-    position: { referencePanel: 'source', direction: 'within' },
+    position: { referencePanel: 'canvas', direction: 'below' },
   })
   api.addPanel({
     id: 'graphText',

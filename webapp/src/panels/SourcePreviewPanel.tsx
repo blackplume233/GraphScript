@@ -406,7 +406,7 @@ export default function SourcePreviewPanel({
 }: SourcePreviewPanelProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<MonacoEditorInstance | null>(null)
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(true)
   const [declarationRenameValue, setDeclarationRenameValue] = useState('')
   const [collapsedImportNodes, setCollapsedImportNodes] = useState<Set<string>>(() => new Set())
   const lines = useMemo(() => source ? source.split(/\r?\n/) : [], [source])

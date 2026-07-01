@@ -775,7 +775,7 @@ function toReactFlowNodes(
       type: 'blueprint',
       position,
       data,
-      zIndex: 10,
+      zIndex: 12,
     }
   })
 }
@@ -849,7 +849,7 @@ function toReactFlowEdges(
       animated: highlight?.severity === 'warning',
       reconnectable: false,
       style: edgeStyle('exec', Boolean(highlight)),
-      zIndex: highlight ? 8 : 2,
+      zIndex: highlight ? 28 : 18,
     })
   }
 
@@ -882,7 +882,7 @@ function toReactFlowEdges(
       animated: highlight?.severity === 'warning',
       reconnectable: false,
       style: edgeStyle('data', Boolean(highlight)),
-      zIndex: highlight ? 7 : 1,
+      zIndex: highlight ? 26 : 16,
     })
   }
 
