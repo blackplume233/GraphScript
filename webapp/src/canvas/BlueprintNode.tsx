@@ -100,12 +100,13 @@ function PinRow({
 }) {
   const color = pinColor(pin.type, pin.kind)
   const isLeft = side === 'left'
+  const isExec = pin.kind === 'exec'
   const handleType = pin.direction === 'out' ? 'source' : 'target'
   const position = isLeft ? Position.Left : Position.Right
   const previewGlow = connectionState === 'compatible'
-    ? `0 0 0 2px oklch(0.72 0.16 150 / 0.25), 0 0 14px ${color}`
+    ? `0 0 0 2px oklch(0.72 0.16 150 / 0.22), 0 0 12px ${color}`
     : connectionState === 'origin'
-      ? `0 0 0 2px oklch(0.72 0.16 240 / 0.35), 0 0 14px ${color}`
+      ? `0 0 0 2px oklch(0.78 0.14 75 / 0.35), 0 0 12px ${color}`
       : undefined
 
   return (
@@ -118,20 +119,21 @@ function PinRow({
         id={pinHandleId(pin)}
         type={handleType}
         position={position}
-        className="nodrag"
+        className={`nodrag graphscript-pin-handle graphscript-pin-handle-${pin.kind} graphscript-pin-handle-${pin.direction}`}
         style={{
           position: 'relative',
           left: 'auto',
           right: 'auto',
           top: 'auto',
-          transform: 'none',
-          width: 12,
-          height: 12,
-          minWidth: 12,
-          borderRadius: pin.kind === 'exec' ? 2 : 999,
+          transform: isExec ? 'none' : 'rotate(45deg)',
+          width: isExec ? 14 : 10,
+          height: isExec ? 13 : 10,
+          minWidth: isExec ? 14 : 10,
+          borderRadius: isExec ? 0 : 1,
           border: `2px solid ${color}`,
-          background: pin.direction === 'out' ? color : 'var(--color-card)',
+          background: pin.direction === 'out' ? color : 'var(--color-flow-node-bg)',
           boxShadow: previewGlow ?? diagnosticGlow(highlight),
+          clipPath: isExec ? 'polygon(16% 8%, 88% 50%, 16% 92%)' : undefined,
           opacity: connectionState === 'disabled' ? 0.28 : 1,
           outline: connectionState === 'compatible'
             ? '1px solid oklch(0.72 0.16 150 / 0.95)'
@@ -148,7 +150,7 @@ function PinRow({
         style={{
           color: connectionState === 'compatible'
             ? 'oklch(0.78 0.14 150)'
-            : highlight ? diagnosticBorderColor(highlight) : 'oklch(0.58 0.01 250)',
+            : highlight ? diagnosticBorderColor(highlight) : isExec ? 'oklch(0.78 0.02 85)' : 'oklch(0.62 0.008 250)',
           fontWeight: highlight || connectionState === 'compatible' || connectionState === 'origin' ? 600 : 400,
           opacity: connectionState === 'disabled' ? 0.42 : 1,
         }}
@@ -225,16 +227,16 @@ export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlo
   const headerStyle = headerStyleForNode(category, hasExec, data.isNative)
   const diagnostic = data.diagnostic
   const connectionPreview = data.connectionPreview ?? null
-  const nodeBorder = diagnostic ? diagnosticBorderColor(diagnostic) : selected ? 'var(--color-primary)' : 'var(--color-border)'
+  const nodeBorder = diagnostic ? diagnosticBorderColor(diagnostic) : selected ? 'var(--color-flow-selected)' : 'var(--color-flow-node-border)'
   const nodeShadow = diagnostic
     ? `0 0 18px ${diagnostic.severity === 'error' ? 'oklch(0.58 0.22 25 / 0.42)' : 'oklch(0.72 0.15 80 / 0.36)'}, inset 0 1px 0 oklch(1 0 0 / 0.06)`
     : selected
-      ? '0 0 0 1px var(--color-primary), 0 8px 24px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.04)'
-      : '0 2px 12px oklch(0 0 0 / 0.4), inset 0 1px 0 oklch(1 0 0 / 0.04)'
+      ? '0 0 0 1px var(--color-flow-selected), 0 0 0 2px oklch(0 0 0 / 0.65), 0 8px 20px oklch(0 0 0 / 0.5), inset 0 1px 0 oklch(1 0 0 / 0.04)'
+      : '0 2px 12px oklch(0 0 0 / 0.44), inset 0 1px 0 oklch(1 0 0 / 0.04)'
 
   return (
     <div
-      className="node-card min-w-[190px] rounded-lg overflow-hidden border border-border/60 select-none"
+      className="node-card min-w-[190px] rounded-[4px] overflow-hidden border select-none"
       data-blueprint-node={label}
       onPointerDownCapture={(event) => {
         window.dispatchEvent(new CustomEvent('graphscript:node-pointer-down', {
@@ -245,7 +247,7 @@ export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlo
         }))
       }}
       style={{
-        background: 'var(--color-card)',
+        background: 'var(--color-flow-node-bg)',
         borderColor: nodeBorder,
         boxShadow: nodeShadow,
       }}
@@ -254,13 +256,16 @@ export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlo
         className="px-3 py-[7px] flex items-center gap-2"
         style={{
           background: `linear-gradient(135deg, ${headerStyle.from}, ${headerStyle.to})`,
-          borderBottom: '1px solid oklch(0.3 0.02 250)',
+          borderBottom: '1px solid var(--color-flow-node-border)',
         }}
       >
         {hasExec && (
           <div
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ background: 'var(--color-exec)', boxShadow: '0 0 6px var(--color-exec)' }}
+            className="h-2.5 w-2.5 shrink-0"
+            style={{
+              background: 'var(--color-exec)',
+              clipPath: 'polygon(16% 8%, 88% 50%, 16% 92%)',
+            }}
           />
         )}
         <span className="text-[12px] font-semibold truncate text-foreground/90">

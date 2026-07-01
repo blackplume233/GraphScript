@@ -22,6 +22,7 @@ import PropertiesPanel from '@/panels/PropertiesPanel'
 import CommandLog from '@/panels/CommandLog'
 import DiagnosticsPanel from '@/panels/DiagnosticsPanel'
 import SourcePreviewPanel, { type DeclarationRenameContext, type SourceSyncState } from '@/panels/SourcePreviewPanel'
+import WorkbenchLayout from '@/workbench/WorkbenchLayout'
 
 function isDefaultRange(range: SourceRange): boolean {
   return range.start.line === 1 &&
@@ -623,7 +624,12 @@ export default function App() {
   const [applyingSource, setApplyingSource] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeWorkbenchRequest, setActiveWorkbenchRequest] = useState<{ panel: 'source'; nonce: number } | null>(null)
   const retryRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const requestSourcePanel = useCallback(() => {
+    setActiveWorkbenchRequest(current => ({ panel: 'source', nonce: (current?.nonce ?? 0) + 1 }))
+  }, [])
 
   useEffect(() => {
     sourceTextRef.current = sourceText
@@ -856,6 +862,7 @@ export default function App() {
   }, [state?.file_path])
 
   const handleCheckSourceDiagnostics = useCallback(async () => {
+    requestSourcePanel()
     try {
       setCheckingSource(true)
       setSourceSyncState('checking')
@@ -881,7 +888,7 @@ export default function App() {
     } finally {
       setCheckingSource(false)
     }
-  }, [acceptSourceBaseline, refresh, setSourcePreviewEditable, state])
+  }, [acceptSourceBaseline, refresh, requestSourcePanel, setSourcePreviewEditable, state])
 
   const handleSourceTextChange = useCallback((text: string) => {
     setSourcePreviewEditable(true)
@@ -1298,6 +1305,7 @@ export default function App() {
   }, [acceptSourceBaseline, graphIndex, runCommand, setSourcePreviewEditable, sourceText, state])
 
   const handleSourceRangeFocus = useCallback(async (range: SourceRange, sourceFile?: string) => {
+    requestSourcePanel()
     setFocusedDiagnostic(null)
     setDeclarationRenameContext(null)
     if (isDefaultRange(range)) {
@@ -1347,13 +1355,14 @@ export default function App() {
     } finally {
       setCheckingSource(false)
     }
-  }, [acceptSourceBaseline, setSourcePreviewEditable])
+  }, [acceptSourceBaseline, requestSourcePanel, setSourcePreviewEditable])
 
   const focusSessionSourceReference = useCallback(async (
     range: SourceRange | undefined,
     needles: string[],
     detail: string,
   ) => {
+    requestSourcePanel()
     let text = sourceTextRef.current
     if (!text || !sourceEditableRef.current) {
       try {
@@ -1391,9 +1400,10 @@ export default function App() {
     }
 
     setFocusedSourceRange(null)
-  }, [acceptSourceBaseline, handleSourceRangeFocus, setSourcePreviewEditable])
+  }, [acceptSourceBaseline, handleSourceRangeFocus, requestSourcePanel, setSourcePreviewEditable])
 
   const handleOpenDeclarationSource = useCallback(async (path: string, contentHash: string) => {
+    requestSourcePanel()
     try {
       setCheckingSource(true)
       setFocusedDiagnostic(null)
@@ -1415,7 +1425,7 @@ export default function App() {
     } finally {
       setCheckingSource(false)
     }
-  }, [acceptSourceBaseline, setSourcePreviewEditable])
+  }, [acceptSourceBaseline, requestSourcePanel, setSourcePreviewEditable])
 
   const handleRenameDeclaration = useCallback(async (newName: string) => {
     if (!declarationRenameContext) return
@@ -1839,25 +1849,20 @@ export default function App() {
           onEmit={handleEmit}
         />
 
-        {/* Main content */}
-        <div className="flex flex-1 min-h-0">
-          {/* Left: Node Palette */}
-          <div className="w-52 border-r bg-card/60 flex flex-col shrink-0">
-            <NodePalette types={state?.types ?? []} onAddNode={handleAddNode} />
-          </div>
-
-          {/* Center: Canvas */}
-          <div className="flex-1 relative min-w-0">
-            {error ? (
-              <div className="flex flex-col items-center justify-center h-full gap-4 blueprint-grid">
-                <div className="flex flex-col items-center gap-3 p-8 rounded-xl bg-card/80 border border-border/50 backdrop-blur">
-                  <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                    <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
+        <div className="flex-1 min-h-0">
+          <WorkbenchLayout
+            activePanelRequest={activeWorkbenchRequest}
+            palette={<NodePalette types={state?.types ?? []} onAddNode={handleAddNode} />}
+            canvas={error ? (
+              <div className="flex h-full flex-col items-center justify-center gap-4 blueprint-grid">
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-border/50 bg-card/80 p-8 backdrop-blur">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                    <div className="h-3 w-3 animate-pulse rounded-full bg-destructive" />
                   </div>
-                  <div className="text-sm text-foreground/70 font-medium">
+                  <div className="text-sm font-medium text-foreground/70">
                     Cannot connect to backend
                   </div>
-                  <div className="text-[11px] text-muted-foreground/50 text-center max-w-[240px]">
+                  <div className="max-w-[240px] text-center text-[11px] text-muted-foreground/50">
                     {error}
                   </div>
                   <div className="text-[10px] text-muted-foreground/40">
@@ -1890,75 +1895,62 @@ export default function App() {
                 />
               </ErrorBoundary>
             )}
-          </div>
-
-          {/* Right: Properties */}
-          <div className="w-52 border-l bg-card/60 flex flex-col shrink-0 min-h-0 overflow-hidden">
-            <PropertiesPanel
-              state={state}
-              graphIndex={graphIndex}
-              selectedNode={selectedNode}
-              selectedEdge={selectedEdge}
-              diagnostics={canvasDiagnostics}
-              focusedDiagnostic={focusedDiagnostic}
-              onSourceRangeFocus={handleSourceRangeFocus}
-              onEdgeRedirected={handleEdgeRedirected}
-              onExec={handleExec}
-            />
-          </div>
-        </div>
-
-        {/* Bottom: Diagnostics + Graph Text + Source + Command Log */}
-        <div className="h-56 border-t bg-card/60 shrink-0 flex min-h-0">
-          <div className="w-[25%] min-w-[260px] border-r">
-            <DiagnosticsPanel
-              diagnostics={sessionDiagnostics}
-              sourceDiagnostics={sourceDiagnostics}
-              checkingSource={checkingSource}
-              onCheckSource={handleCheckSourceDiagnostics}
-              onLocateDiagnostic={handleLocateDiagnostic}
-              onApplyDiagnosticAction={handleApplyDiagnosticAction}
-            />
-          </div>
-          <div className="w-[25%] min-w-[280px] border-r">
-            <CurrentGraphTextPanel graph={currentGraph} source={currentGraphText} />
-          </div>
-          <div className="w-[28%] min-w-[300px] border-r">
-            <SourcePreviewPanel
-              source={sourceText}
-              sourceLabel={sourcePreviewLabel}
-              sourceEditable={sourceEditable}
-              focusedRange={focusedSourceRange}
-              checkingSource={checkingSource}
-              syncState={sourceSyncState}
-              syncDetail={sourceSyncDetail}
-              applyingSource={applyingSource}
-              canApplySource={canApplySource}
-              pendingPatchRange={pendingSourcePatchRange}
-              pendingPatchSummary={pendingSourcePatchSummary}
-              environmentNotice={sourceEnvNotice}
-              resolverEnvironment={sourceResolverEnvironment}
-              sessionImports={state?.module.imports
-                .filter(importDef => importDef.loaded)
-                .flatMap(importDef => [importDef.path, importDef.normalized_path ?? ''])
-                .filter(Boolean) ?? []}
-              declarationRenameContext={declarationRenameContext}
-              onCheckSource={handleCheckSourceDiagnostics}
-              onSourceChange={handleSourceTextChange}
-              onApplySource={handleApplySourceText}
-              onRevertSource={handleRevertSourceText}
-              onImportCommand={handleExec}
-              onImportPlan={handleImportPlan}
-              onOpenDeclarationSource={handleOpenDeclarationSource}
-              onRenameDeclaration={handleRenameDeclaration}
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <CommandLog
-              log={state?.command_log ?? []}
-              onExec={handleExec}
-            />
-          </div>
+            properties={(
+              <PropertiesPanel
+                state={state}
+                graphIndex={graphIndex}
+                selectedNode={selectedNode}
+                selectedEdge={selectedEdge}
+                diagnostics={canvasDiagnostics}
+                focusedDiagnostic={focusedDiagnostic}
+                onSourceRangeFocus={handleSourceRangeFocus}
+                onEdgeRedirected={handleEdgeRedirected}
+                onExec={handleExec}
+              />
+            )}
+            diagnostics={(
+              <DiagnosticsPanel
+                diagnostics={sessionDiagnostics}
+                sourceDiagnostics={sourceDiagnostics}
+                checkingSource={checkingSource}
+                onCheckSource={handleCheckSourceDiagnostics}
+                onLocateDiagnostic={handleLocateDiagnostic}
+                onApplyDiagnosticAction={handleApplyDiagnosticAction}
+              />
+            )}
+            graphText={<CurrentGraphTextPanel graph={currentGraph} source={currentGraphText} />}
+            source={(
+              <SourcePreviewPanel
+                source={sourceText}
+                sourceLabel={sourcePreviewLabel}
+                sourceEditable={sourceEditable}
+                focusedRange={focusedSourceRange}
+                checkingSource={checkingSource}
+                syncState={sourceSyncState}
+                syncDetail={sourceSyncDetail}
+                applyingSource={applyingSource}
+                canApplySource={canApplySource}
+                pendingPatchRange={pendingSourcePatchRange}
+                pendingPatchSummary={pendingSourcePatchSummary}
+                environmentNotice={sourceEnvNotice}
+                resolverEnvironment={sourceResolverEnvironment}
+                sessionImports={state?.module.imports
+                  .filter(importDef => importDef.loaded)
+                  .flatMap(importDef => [importDef.path, importDef.normalized_path ?? ''])
+                  .filter(Boolean) ?? []}
+                declarationRenameContext={declarationRenameContext}
+                onCheckSource={handleCheckSourceDiagnostics}
+                onSourceChange={handleSourceTextChange}
+                onApplySource={handleApplySourceText}
+                onRevertSource={handleRevertSourceText}
+                onImportCommand={handleExec}
+                onImportPlan={handleImportPlan}
+                onOpenDeclarationSource={handleOpenDeclarationSource}
+                onRenameDeclaration={handleRenameDeclaration}
+              />
+            )}
+            console={<CommandLog log={state?.command_log ?? []} onExec={handleExec} />}
+          />
         </div>
       </div>
     </TooltipProvider>

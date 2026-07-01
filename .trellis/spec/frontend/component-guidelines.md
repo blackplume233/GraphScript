@@ -22,6 +22,46 @@ authority in the browser.
   targets, not guessed string offsets.
 - Node rendering metadata should be treated as part of the state contract and
   covered by visual tests when changed.
+- The graph canvas should follow the MothCocoon FlowGraph/Unreal-style editor
+  language: dark low-contrast grid, compact dark nodes, colored title strips,
+  exec pins as directional triangles, data pins as small diamonds, and smooth
+  Bezier wires without arrowheads.
+- Canvas layering must keep comment boxes behind nodes, normal wires behind
+  nodes, selected or diagnostic wires above ordinary wires but below node
+  bodies/pins, and transient overlays such as context menus above the graph.
+  Avoid persistent overlays like minimaps that cover editable graph content.
+- Selection and active wire feedback should use the FlowGraph yellow/orange
+  highlight family rather than the application primary blue, so node selection,
+  multi-select outlines, reconnect affordances, and highlighted wires read as a
+  single editor interaction system.
+
+## Dockable Workbench Components
+
+- Docked panels under `webapp/src/workbench/` must render the latest React
+  state through a dynamic boundary such as Context. Do not let Dockview panel
+  component factories close over first-render `ReactNode` values; that freezes
+  panels like Canvas at the initial backend state.
+- Persist dock layout as UI-only state. Layout JSON in `localStorage` must not
+  become graph truth and must be recoverable by falling back to the default
+  workbench layout.
+- Panel activation is part of interoperation. Source-range actions should bring
+  Source forward; command-log assertions and command entry should bring Console
+  forward; diagnostics assertions should bring Diagnostics forward.
+- Tests for docked panels must interact with tabs explicitly when a panel may be
+  inactive. Hidden Dockview panels may be unmounted, so visible text selectors
+  should not assume all panels exist in the DOM at once.
+
+## Source Editor Components
+
+- Source editing may use Monaco, but source authority remains the backend
+  diagnostics/source APIs. Monaco should call existing `onSourceChange`,
+  `onApplySource`, `onRevertSource`, and source-range focus callbacks rather
+  than inventing a browser-only source model.
+- Source range focus must translate backend `{ line, column }` ranges into
+  Monaco selections and reveal the range in view. Preview mode must continue to
+  highlight backend-provided ranges without guessing semantic targets.
+- E2E tests that edit Monaco should use an explicit test bridge or Monaco-aware
+  keyboard interaction instead of textarea-only `fill()` assumptions.
 
 ## Legacy LiteGraph UI
 

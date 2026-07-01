@@ -501,6 +501,28 @@ def start_vite():
     return proc
 
 
+def activate_workbench_tab(page, title):
+    page.locator(".dv-tab").filter(has_text=title).first.click(timeout=5000)
+
+
+def set_source_editor(page, text):
+    page.wait_for_selector('[data-source-editor="true"]', timeout=10000)
+    page.wait_for_function("() => window.__graphScriptSourceEditor", timeout=15000)
+    page.evaluate("(value) => window.__graphScriptSourceEditor.setValue(value)", text)
+
+
+def source_editor_value(page):
+    page.wait_for_selector('[data-source-editor="true"]', timeout=10000)
+    page.wait_for_function("() => window.__graphScriptSourceEditor", timeout=15000)
+    return page.evaluate("() => window.__graphScriptSourceEditor.getValue()")
+
+
+def source_editor_selection(page):
+    page.wait_for_selector('[data-source-editor="true"]', timeout=10000)
+    page.wait_for_function("() => window.__graphScriptSourceEditor", timeout=15000)
+    return page.evaluate("() => window.__graphScriptSourceEditor.getSelectedText()")
+
+
 def main():
     proc = start_vite()
     results = []
@@ -804,30 +826,43 @@ def main():
 
             page.goto(URL, wait_until="networkidle", timeout=20000)
             page.wait_for_selector(".node-card:has-text('logger')", timeout=10000)
+            activate_workbench_tab(page, "SOURCE")
             page.get_by_title("Refresh source diagnostics").click()
+            activate_workbench_tab(page, "DIAGNOSTICS")
             page.wait_for_selector("text=GS_TEST_SOURCE_RANGE", timeout=10000)
             page.wait_for_selector("text=Insert ':'", timeout=10000)
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector("text=in speed float;", timeout=10000)
             page.wait_for_selector('[data-source-sync-state="session"]', timeout=5000)
             page.wait_for_selector('[data-source-env-notice="true"]', timeout=5000)
             env_notice_visible = "current session Environment" in page.locator('[data-source-env-notice="true"]').inner_text()
             page.screenshot(path=OUT / "01_source_diagnostic_loaded.png", full_page=True)
 
+            activate_workbench_tab(page, "DIAGNOSTICS")
             page.get_by_role("button", name="Create graph from diagnostic").click()
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-sync-state="stale"]', timeout=5000)
             page.wait_for_timeout(500)
 
+            activate_workbench_tab(page, "DIAGNOSTICS")
             page.locator("button:has-text('2:14-2:19')").first.click()
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-line="2"][data-source-focused="true"]', timeout=5000)
             page.wait_for_selector('[data-source-range="active"]', timeout=5000)
             page.screenshot(path=OUT / "02_source_range_focused.png", full_page=True)
 
+            activate_workbench_tab(page, "DIAGNOSTICS")
             page.get_by_role("button", name="Insert ':'").click()
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector("text=in speed : float;", timeout=5000)
+            activate_workbench_tab(page, "DIAGNOSTICS")
             page.wait_for_selector("text=No diagnostics", timeout=5000)
-            page.wait_for_selector("text=apply_source_patch", timeout=5000)
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-sync-state="synced_patch"]', timeout=5000)
             page.wait_for_selector('[data-source-line="2"][data-source-focused="true"]', timeout=5000)
+            activate_workbench_tab(page, "CONSOLE")
+            page.wait_for_selector("text=apply_source_patch", timeout=5000)
+            activate_workbench_tab(page, "SOURCE")
             page.screenshot(path=OUT / "03_source_edit_applied.png", full_page=True)
             patch_status_visible = page.locator('[data-source-sync-state="synced_patch"]').count() == 1
             line_focused = page.locator('[data-source-line="2"][data-source-focused="true"]').count() == 1
@@ -846,22 +881,24 @@ def main():
 
             page.get_by_title("Edit source").click()
             editor = page.locator('[data-source-editor="true"]')
-            editor.fill(MANUAL_IMPORT_SOURCE)
+            set_source_editor(page, MANUAL_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-env-notice="true"]', timeout=5000)
             import_env_notice_visible = (
                 "source import" in page.locator('[data-source-env-notice="true"]').inner_text() and
                 "not loaded" in page.locator('[data-source-env-notice="true"]').inner_text()
             )
             source_apply_count_before_blocked_import = len(source_apply_requests)
-            editor.fill(BLOCKED_IMPORT_SOURCE)
+            set_source_editor(page, BLOCKED_IMPORT_SOURCE)
             page.get_by_title("Apply source").click()
+            activate_workbench_tab(page, "DIAGNOSTICS")
             page.wait_for_selector("text=GS_IMPORT_PATH_BLOCKED", timeout=5000)
+            blocked_import_diagnostic_visible = page.locator("text=GS_IMPORT_PATH_BLOCKED").count() > 0
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-resolver-metadata="true"]', timeout=5000)
             page.wait_for_selector('[data-source-import-status="blocked"]', timeout=5000)
             page.wait_for_selector('[data-source-import-tree="true"]', timeout=5000)
             page.wait_for_selector('[data-source-import-problem="true"]', timeout=5000)
             page.wait_for_selector('[data-source-import-message-status="blocked"]', timeout=5000)
-            blocked_import_diagnostic_visible = page.locator("text=GS_IMPORT_PATH_BLOCKED").count() > 0
             blocked_import_metadata_visible = (
                 "Resolver resolved" in page.locator('[data-source-resolver-metadata="true"]').inner_text() and
                 "blocked" in page.locator('[data-source-import-status="blocked"]').inner_text()
@@ -883,22 +920,24 @@ def main():
 
             source_apply_count_before_disconnected_resolver = len(source_apply_requests)
             source_patch_count_before_disconnected_resolver = len(source_patch_requests)
-            editor.fill(DISCONNECTED_RESOLVER_IMPORT_SOURCE)
+            set_source_editor(page, DISCONNECTED_RESOLVER_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             page.get_by_title("Apply source").click()
             page.wait_for_selector('[data-source-sync-state="error"]', timeout=5000)
             page.wait_for_selector("text=Source import resolver diagnostics failed", timeout=5000)
             disconnected_resolver_reports_import_aware = page.locator('[data-source-sync-detail="true"]').inner_text().startswith("Source import resolver diagnostics failed")
-            disconnected_resolver_retains_buffer = DISCONNECTED_RESOLVER_IMPORT_SOURCE == editor.input_value()
+            disconnected_resolver_retains_buffer = DISCONNECTED_RESOLVER_IMPORT_SOURCE == source_editor_value(page)
             disconnected_resolver_blocks_source_apply = len(source_apply_requests) == source_apply_count_before_disconnected_resolver
             disconnected_resolver_blocks_source_patch = len(source_patch_requests) == source_patch_count_before_disconnected_resolver
             disconnected_resolver_clears_metadata = page.locator('[data-source-resolver-metadata="true"]').count() == 0
 
             source_apply_count_before_multi_status_import = len(source_apply_requests)
-            editor.fill(MULTI_STATUS_IMPORT_SOURCE)
+            set_source_editor(page, MULTI_STATUS_IMPORT_SOURCE)
             page.get_by_title("Apply source").click()
+            activate_workbench_tab(page, "DIAGNOSTICS")
             page.wait_for_selector("text=GS_IMPORT_CYCLE", timeout=5000)
             page.wait_for_selector("text=GS_IMPORT_DEPTH_EXCEEDED", timeout=5000)
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-import-status="cycle"]', timeout=5000)
             page.wait_for_selector('[data-source-import-status="too_deep"]', timeout=5000)
             page.wait_for_selector('[data-source-import-status="dependency_error"]', timeout=5000)
@@ -925,7 +964,7 @@ def main():
             multi_status_blocks_apply = len(source_apply_requests) == source_apply_count_before_multi_status_import
 
             emitted_source["text"] = FIXED_SOURCE
-            editor.fill(RESOLVED_IMPORT_SOURCE)
+            set_source_editor(page, RESOLVED_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             source_patch_count_before_resolved_import = len(source_patch_requests)
             page.get_by_title("Apply source").click()
@@ -962,8 +1001,10 @@ def main():
             diagnostics_count_before_import_command = resolved_import_diagnostics_count["value"]
             import_plan_exec_start = len(exec_commands)
             page.locator('[data-source-import-plan-run="true"]').click()
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector("text=import nested.d.gs", timeout=5000)
             page.wait_for_selector("text=import custom.d.gs", timeout=5000)
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-import-loaded="true"]', timeout=5000)
             page.wait_for_selector("text=Import replay loaded 2 imports", timeout=5000)
             import_command_executed = "import custom.d.gs" in exec_commands
@@ -982,7 +1023,7 @@ def main():
             emitted_source["text"] = RESOLVED_IMPORT_SOURCE
             source_patch_count_before_post_replay_apply = len(source_patch_requests)
             source_apply_count_before_post_replay_apply = len(source_apply_requests)
-            editor.fill(RESOLVED_IMPORT_EDITED_SOURCE)
+            set_source_editor(page, RESOLVED_IMPORT_EDITED_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             page.get_by_title("Apply source").click()
             page.wait_for_selector('[data-source-sync-state="synced_patch"]', timeout=5000)
@@ -1002,7 +1043,7 @@ def main():
             )
             post_replay_apply_keeps_plan_filtered = page.locator('[data-source-import-plan-run="true"]').count() == 0
 
-            editor.fill(FAILING_REPLAY_IMPORT_SOURCE)
+            set_source_editor(page, FAILING_REPLAY_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             page.get_by_title("Apply source").click()
             page.wait_for_selector('[data-source-import-plan-run="true"]', timeout=5000)
@@ -1045,11 +1086,11 @@ def main():
             page.get_by_title("Revert source").click()
             page.wait_for_selector('[data-source-sync-state="session"]', timeout=5000)
             failing_import_error_reverts = (
-                emitted_source["text"] == editor.input_value() and
+                emitted_source["text"] == source_editor_value(page) and
                 page.locator('[data-source-sync-detail="true"]').inner_text().startswith("Source buffer reverted")
             )
 
-            editor.fill(SLOW_REPLAY_IMPORT_SOURCE)
+            set_source_editor(page, SLOW_REPLAY_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             page.get_by_title("Apply source").click()
             page.wait_for_selector('[data-source-import-plan-run="true"]', timeout=5000)
@@ -1092,7 +1133,7 @@ def main():
             )
             page.wait_for_selector("text=Import replay loaded 1 import", timeout=5000)
 
-            editor.fill(DISCONNECTED_REPLAY_IMPORT_SOURCE)
+            set_source_editor(page, DISCONNECTED_REPLAY_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             page.get_by_title("Apply source").click()
             page.wait_for_selector('[data-source-import-plan-run="true"]', timeout=5000)
@@ -1109,28 +1150,30 @@ def main():
             )
 
             emitted_source["text"] = SOURCE
-            editor.fill(MANUAL_SOURCE)
+            set_source_editor(page, MANUAL_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
-            manual_edit_visible = "PrintString writer" in editor.input_value()
+            manual_edit_visible = "PrintString writer" in source_editor_value(page)
 
             page.get_by_title("Revert source").click()
             page.wait_for_selector('[data-source-sync-state="session"]', timeout=5000)
-            reverted_visible = "in speed float;" in editor.input_value()
+            reverted_visible = "in speed float;" in source_editor_value(page)
 
             source_apply_count_before_failure = len(source_apply_requests)
-            editor.fill(MANUAL_INVALID_SOURCE)
+            set_source_editor(page, MANUAL_INVALID_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
+            activate_workbench_tab(page, "DIAGNOSTICS")
             page.wait_for_selector("text=GS_TEST_SOURCE_RANGE", state="detached", timeout=5000)
+            activate_workbench_tab(page, "SOURCE")
             page.get_by_title("Apply source").click()
+            activate_workbench_tab(page, "DIAGNOSTICS")
             page.wait_for_selector("text=GS_TEST_SOURCE_RANGE", timeout=5000)
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
-            manual_failure_retains_buffer = MANUAL_INVALID_SOURCE == editor.input_value()
+            manual_failure_retains_buffer = MANUAL_INVALID_SOURCE == source_editor_value(page)
             manual_failure_blocks_apply = len(source_apply_requests) == source_apply_count_before_failure
-            manual_failure_selects_range = editor.evaluate(
-                "(el) => el.value.slice(el.selectionStart, el.selectionEnd)"
-            ) == "float"
+            manual_failure_selects_range = source_editor_selection(page) == "float"
 
-            editor.fill(MANUAL_SOURCE)
+            set_source_editor(page, MANUAL_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             page.wait_for_selector('[data-source-patch-summary="true"]', timeout=5000)
             pending_patch_summary_visible = page.locator('[data-source-patch-summary="true"]').inner_text().startswith("Pending patch 2:14-3:21")
@@ -1146,7 +1189,9 @@ def main():
             source_apply_count_before_manual = len(source_apply_requests)
             page.get_by_title("Apply source").click()
             page.wait_for_selector('[data-source-sync-state="synced_patch"]', timeout=5000)
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector("text=apply_source_patch", timeout=5000)
+            activate_workbench_tab(page, "SOURCE")
             manual_source_patch_synced = any(
                 json.loads(body or "{}").get("replacement") == MANUAL_PATCH_REPLACEMENT and
                 json.loads(body or "{}").get("base_hash") == SOURCE_HASH and
@@ -1159,12 +1204,14 @@ def main():
 
             page.get_by_title("Revert source").click()
             page.wait_for_selector('[data-source-sync-state="session"]', timeout=5000)
-            editor.fill(MANUAL_SOURCE)
+            set_source_editor(page, MANUAL_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             source_apply_count_before_stale = len(source_apply_requests)
             emitted_source["text"] = STALE_SOURCE
+            activate_workbench_tab(page, "CONSOLE")
             page.locator("input[placeholder='add_node PrintString ps1']").fill("create_graph BackendChanged")
             page.locator("input[placeholder='add_node PrintString ps1']").press("Enter")
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-sync-state="stale"]', timeout=5000)
             stale_apply_button_enabled = page.get_by_title("Apply source").is_enabled()
             page.get_by_title("Apply source").click()
@@ -1175,12 +1222,16 @@ def main():
             stale_confirm_apply_enabled = page.get_by_title("Apply source").is_enabled()
             page.get_by_title("Apply source").click()
             page.wait_for_selector('[data-source-sync-state="synced_snapshot"]', timeout=5000)
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector("text=apply_source_b64", timeout=5000)
+            activate_workbench_tab(page, "SOURCE")
             page.screenshot(path=OUT / "04_manual_source_applied.png", full_page=True)
 
             manual_source_synced = MANUAL_SOURCE in source_apply_requests
             undo_enabled = page.get_by_role("button", name=re.compile("Undo")).is_enabled()
+            activate_workbench_tab(page, "CONSOLE")
             replay_command_visible = page.locator("text=apply_source_patch").count() > 0
+            activate_workbench_tab(page, "SOURCE")
             manual_snapshot_status_visible = page.locator('[data-source-sync-state="synced_snapshot"]').count() == 1
 
             results = [

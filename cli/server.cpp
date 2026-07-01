@@ -527,15 +527,7 @@ int WebServer::run() {
         // Parse command from body (plain text or JSON { "command": "..." })
         std::string cmd = req.body;
         if (!cmd.empty() && cmd[0] == '{') {
-            auto start = cmd.find("\"command\"");
-            if (start != std::string::npos) {
-                auto q1 = cmd.find('"', start + 9);
-                if (q1 != std::string::npos) {
-                    q1++;
-                    auto q2 = cmd.find('"', q1);
-                    if (q2 != std::string::npos) cmd = cmd.substr(q1, q2 - q1);
-                }
-            }
+            cmd = extract_json_string_field(req.body, "command").value_or("");
         }
 
         if (cmd.empty()) {

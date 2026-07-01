@@ -8,6 +8,7 @@ import urllib.request
 from pathlib import Path
 
 try:
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
     from playwright.sync_api import sync_playwright
 except ImportError:
     print("Playwright not installed.")
@@ -16,8 +17,8 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent
 GS_EXE_CANDIDATES = [
-    REPO / "build-codex" / "Release" / "gs.exe",
     REPO / "build" / "Release" / "gs.exe",
+    REPO / "build-codex" / "Release" / "gs.exe",
 ]
 DECL = REPO / "tests" / "fixtures" / "mixed_declarations.d.gs"
 PORT = 8093
@@ -88,9 +89,23 @@ def graph_by_name_or_active(state, graph_name):
 
 def run_console_command(page, command):
     prompt = page.get_by_placeholder("add_node PrintString ps1")
-    prompt.fill(command)
+    try:
+        prompt.fill(command, timeout=1000)
+    except PlaywrightTimeoutError:
+        console_tab = page.locator(".dv-tab").filter(has_text="Console").first
+        try:
+            console_tab.click(timeout=5000)
+        except PlaywrightTimeoutError:
+            page.get_by_text("Console", exact=True).first.click(timeout=5000)
+        prompt.fill(command)
     prompt.press("Enter")
-    page.wait_for_timeout(300)
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        state = fetch_json("api/state")
+        if command in state.get("command_log", []):
+            return
+        page.wait_for_timeout(100)
+    raise RuntimeError(f"Command did not reach backend log: {command}")
 
 
 def main():
@@ -110,6 +125,7 @@ def main():
                 "event BeginPlay",
                 "add_node BranchOnTag branch",
                 "add_node PlayMontage montage",
+                'set_init montage montage "\\"/Game/Montage\\""',
                 "flow branch.matched montage.play",
                 "link branch.tag tag",
             ]
@@ -141,6 +157,11 @@ def main():
             event = graph["events"][0] if graph.get("events") else {}
             flow = event.get("flows", [{}])[0] if event.get("flows") else {}
             link = event.get("links", [{}])[0] if event.get("links") else {}
+            montage = next((node for node in graph.get("nodes", []) if node.get("instance") == "montage"), {})
+            montage_field = next(
+                (field for field in montage.get("initializer_fields", []) if field.get("name") == "montage"),
+                {},
+            )
             line_ids = page.locator('[data-testid="sdk.workflow.canvas.line"]').evaluate_all(
                 "els => els.map(e => e.getAttribute('data-line-id')).sort()"
             )
@@ -150,6 +171,7 @@ def main():
                 ("graph created in real state", graph.get("name") == "SmokeGraph"),
                 ("parameter replayed", any(param["name"] == "tag" for param in graph.get("parameters", []))),
                 ("nodes replayed", {node["instance"] for node in graph.get("nodes", [])} >= {"branch", "montage"}),
+                ("quoted initializer replayed", montage_field.get("value") == '"/Game/Montage"'),
                 ("event replayed", event.get("name") == "BeginPlay"),
                 ("flow replayed", flow.get("from_node") == "branch" and flow.get("from_pin") == "matched" and flow.get("to_node") == "montage" and flow.get("to_pin") == "play"),
                 ("link replayed", link.get("target_node") == "branch" and link.get("target_pin") == "tag" and link.get("source_node") == "tag" and link.get("source_pin") == ""),
@@ -158,6 +180,7 @@ def main():
                 ("visual flow line rendered", "branch_exec-out-matched-montage_exec-in-play" in line_ids),
                 ("emitted source has flow", "connect(branch.matched, montage.play);" in emitted),
                 ("emitted source has link", "bind(tag, branch.tag);" in emitted),
+                ("emitted source has quoted initializer", 'montage: "/Game/Montage";' in emitted),
             ]
             browser.close()
     finally:

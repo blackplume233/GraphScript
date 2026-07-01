@@ -271,6 +271,28 @@ TEST(CLIEditor, SetInitializerFieldCommandIsReplayable) {
     EXPECT_FALSE(editor.last_command_succeeded());
 }
 
+TEST(CLIEditor, SetInitializerFieldPreservesEscapedQuotedValues) {
+    Environment env;
+    EditSession session(env);
+    load_core_for_cli(session);
+    CLIEditor editor(session);
+
+    EXPECT_TRUE(editor.execute("create_graph InitQuotedCli"));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("add_node PrintString logger"));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("set_init logger message \"\\\"quoted value\\\"\""));
+    EXPECT_TRUE(editor.last_command_succeeded());
+
+    ASSERT_NE(session.active_graph(), nullptr);
+    ASSERT_EQ(session.active_graph()->node_instances.size(), 1u);
+    const auto& node = session.active_graph()->node_instances[0];
+    EXPECT_EQ(node.initializer, "message = \"quoted value\"");
+    ASSERT_EQ(node.initializer_fields.size(), 1u);
+    EXPECT_EQ(node.initializer_fields[0].name, "message");
+    EXPECT_EQ(node.initializer_fields[0].value, "\"quoted value\"");
+}
+
 TEST(CLIEditor, RenameParamCommandIsReplayable) {
     Environment env;
     EditSession session(env);

@@ -23,3 +23,113 @@ This file is an agent checklist. Product-level diagnostic contracts belong in
 - CLI errors should be readable and non-crashing.
 - API errors should carry enough context for UI highlighting and tests.
 - Diagnostic changes should remain machine-usable for AI repair workflows.
+
+Compiler and EditSession validation must reject invalid graph references before
+they enter runtime state.
+
+| Condition | Expected behavior |
+| --- | --- |
+| Function references a graph node | Return an error like `function 'X': cannot reference 'Y'` |
+| Event references an undefined name | Return an error like `event 'X': unknown reference 'Y'` |
+| Source replay guard hash differs | Return `Source environment hash mismatch` |
+| File read/write fails | Return a path-specific error |
+
+Read `docs/spec/scope-rules.md` before changing these contracts.
+
+## CLI Behavior
+
+- CLI commands should report `Result` errors to the user without crashing the
+  process for normal validation failures.
+- Command functions in `CLIEditor` should keep validation close to the command
+  boundary and delegate graph semantics to `EditSession` or compiler APIs.
+- Add a help/usage error for malformed command arguments instead of silently
+  guessing.
+
+## Server/API Behavior
+
+- HTTP command execution should preserve the CLI command contract: request a
+  command string, execute through the same path as CLI editing, return output
+  and current state when available.
+- Frontend code must not treat a failed command as successful local state.
+- If an API response carries diagnostics, keep enough target/range information
+  for UI highlighting and tests.
+
+## Scenario: Web API Command JSON Replay
+
+### 1. Scope / Trigger
+
+- Trigger: browser UI command replay through `POST /api/exec`.
+- Scope: JSON request parsing in `cli/server.cpp`, command tokenization in
+  `CLIEditor`, and browser command-log replay tests.
+
+### 2. Signatures
+
+- API: `POST /api/exec` with either plain text command body or JSON
+  `{"command":"<cli command>"}`.
+- CLI examples:
+  - `set_init logger message "\"quoted value\""`
+  - `set_param_default msg "\"fallback\""`
+
+### 3. Contracts
+
+- JSON command bodies must be decoded with the shared JSON string extraction
+  helper, not ad-hoc quote searches.
+- Decoded command strings must be passed to `CLIEditor.execute()` unchanged.
+- `CLIEditor::tokenize()` must preserve escaped quotes inside quoted arguments:
+  `"\"quoted value\""` becomes one token with value `"quoted value"`.
+- Command log entries must retain the replayable command string.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+| --- | --- |
+| JSON body omits `command` or decodes empty | `/api/exec` returns `ok:false` with `Empty command` |
+| Command contains escaped quotes | Execute normally; do not truncate at `\"` |
+| CLI command has invalid args after tokenization | CLI command reports its normal usage/error output |
+
+### 5. Good/Base/Bad Cases
+
+- Good: `{"command":"set_init logger message \"\\\"hello\\\"\""}` stores
+  initializer value `"hello"`.
+- Base: `{"command":"add_node PrintString logger"}` behaves exactly like a
+  plain-text body.
+- Bad: searching for the next `"` after `"command":` truncates the command to
+  `set_init logger message \` when the argument contains escaped quotes.
+
+### 6. Tests Required
+
+- GoogleTest coverage for escaped quoted CLI args in `CLIEditor`.
+- Real backend web smoke coverage that sends a browser command through
+  `/api/exec`, asserts command-log replay, state JSON, and emitted source.
+
+### 7. Wrong vs Correct
+
+Wrong:
+
+```cpp
+auto q2 = body.find('"', q1);
+cmd = body.substr(q1, q2 - q1);
+```
+
+Correct:
+
+```cpp
+cmd = extract_json_string_field(body, "command").value_or("");
+```
+
+## Anti-Patterns
+
+### Do Not Throw For Expected User Input Errors
+
+Parser, compiler, CLI, and edit operations should report normal invalid input
+through `Result` or diagnostics.
+
+### Do Not Lose Scope Context
+
+Errors involving graph logic must name whether the failing block is an event or
+function, because the allowed reference sets differ.
+
+### Do Not Convert All Server Failures To Generic UI Errors
+
+The browser editor needs actionable messages for replay, diagnostics, and source
+range navigation tests.

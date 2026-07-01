@@ -7,9 +7,7 @@ import {
   BaseEdge,
   ConnectionMode,
   Controls,
-  getSmoothStepPath,
-  MarkerType,
-  MiniMap,
+  getBezierPath,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -502,10 +500,14 @@ function contextPinSummary(type: NodeTypeDef, pending: PendingConnection | null 
 }
 
 function edgeStyle(kind: 'exec' | 'data', highlighted: boolean): GraphScriptEdge['style'] {
+  const stroke = highlighted
+    ? 'var(--color-flow-wire-active)'
+    : kind === 'exec'
+      ? 'var(--color-flow-wire)'
+      : 'var(--color-flow-data-wire)'
   return {
-    stroke: highlighted ? 'var(--color-warning)' : kind === 'exec' ? 'var(--color-exec)' : 'var(--color-data-object)',
-    strokeWidth: highlighted ? 2.5 : 2,
-    strokeDasharray: kind === 'data' ? '5 4' : undefined,
+    stroke,
+    strokeWidth: highlighted ? 3 : kind === 'exec' ? 2.4 : 2,
   }
 }
 
@@ -535,17 +537,21 @@ function BlueprintEdge({
   markerEnd,
   style,
   data,
+  selected,
 }: EdgeProps<GraphScriptEdge>) {
-  const [edgePath] = getSmoothStepPath({
+  const [edgePath] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    curvature: 0.42,
   })
   const sourceReconnect = reconnectPoint(sourceX, sourceY, sourcePosition, 24)
   const targetReconnect = reconnectPoint(targetX, targetY, targetPosition, 24)
+  const stroke = String(style?.stroke ?? (data?.kind === 'exec' ? 'var(--color-flow-wire)' : 'var(--color-flow-data-wire)'))
+  const strokeWidth = Number(style?.strokeWidth ?? 2)
 
   return (
     <g
@@ -553,12 +559,32 @@ function BlueprintEdge({
       data-edge-id={id}
       data-testid="sdk.workflow.canvas.line"
     >
+      <path
+        className="graphscript-flow-edge-shadow"
+        d={edgePath}
+        fill="none"
+        strokeWidth={strokeWidth + 4}
+      />
+      {(selected || data?.kind === 'exec') && (
+        <path
+          className="graphscript-flow-edge-soft"
+          d={edgePath}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth + (selected ? 4 : 2)}
+          strokeOpacity={selected ? 0.32 : 0.12}
+        />
+      )}
       <BaseEdge
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
-        style={style}
-        interactionWidth={22}
+        style={{
+          ...style,
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+        }}
+        interactionWidth={24}
       />
       {data && (
         <>
@@ -749,6 +775,7 @@ function toReactFlowNodes(
       type: 'blueprint',
       position,
       data,
+      zIndex: 10,
     }
   })
 }
@@ -821,8 +848,8 @@ function toReactFlowEdges(
       data: payload,
       animated: highlight?.severity === 'warning',
       reconnectable: false,
-      markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--color-exec)' },
       style: edgeStyle('exec', Boolean(highlight)),
+      zIndex: highlight ? 8 : 2,
     })
   }
 
@@ -854,8 +881,8 @@ function toReactFlowEdges(
       data: payload,
       animated: highlight?.severity === 'warning',
       reconnectable: false,
-      markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--color-data-object)' },
       style: edgeStyle('data', Boolean(highlight)),
+      zIndex: highlight ? 7 : 1,
     })
   }
 
@@ -1831,20 +1858,13 @@ function FlowCanvasInner({
         deleteKeyCode={['Backspace', 'Delete']}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="oklch(0.65 0.01 250 / 0.35)" gap={18} size={1.2} />
+        <Background color="oklch(0.38 0.006 250 / 0.36)" gap={16} size={1} />
         <Controls showInteractive={false} className="!bg-card/90 !border-border" />
-        <MiniMap
-          pannable
-          zoomable
-          nodeStrokeColor="var(--color-primary)"
-          nodeColor="oklch(0.2 0.04 250)"
-          maskColor="oklch(0 0 0 / 0.45)"
-        />
       </ReactFlow>
 
       {selectedGroupOutline && (
         <div
-          className="pointer-events-none absolute z-20 rounded-[6px] border border-primary/80 bg-primary/5 shadow-[0_0_18px_oklch(0.65_0.18_240_/_0.22)]"
+          className="pointer-events-none absolute z-20 rounded-[4px] border border-[color:var(--color-flow-selected)] bg-[color:var(--color-flow-selected)]/5 shadow-[0_0_18px_oklch(0.78_0.14_75_/_0.22)]"
           data-multi-select-outline="true"
           data-multi-select-count={selectedGroupOutline.count}
           style={{
@@ -1854,7 +1874,7 @@ function FlowCanvasInner({
             height: selectedGroupOutline.height,
           }}
         >
-          <div className="absolute -top-5 left-0 rounded-[3px] border border-primary/45 bg-card/95 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-primary shadow">
+          <div className="absolute -top-5 left-0 rounded-[3px] border border-[color:var(--color-flow-selected)]/45 bg-card/95 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--color-flow-selected)] shadow">
             {selectedGroupOutline.count} selected
           </div>
         </div>

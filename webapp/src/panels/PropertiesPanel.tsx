@@ -283,7 +283,7 @@ function annotationArgCommandPart(arg: Annotation['args'][number]): string {
 }
 
 function annotationCommandSuffix(annotation: Annotation): string {
-  const args = annotation.args.map(annotationArgCommandPart).join(' ')
+  const args = (annotation.args ?? []).map(annotationArgCommandPart).join(' ')
   return args ? `${annotation.name} ${args}` : annotation.name
 }
 
@@ -307,14 +307,15 @@ function isConstructorCallValue(value: string): boolean {
 }
 
 function annotationArgsText(annotation: Annotation): string {
-  if (annotation.args.length === 0) return ''
-  return annotation.args
+  const args = annotation.args ?? []
+  if (args.length === 0) return ''
+  return args
     .map(arg => arg.name ? `${arg.name}=${arg.value}` : arg.value)
     .join(', ')
 }
 
 function AnnotationPanel({
-  annotations,
+  annotations = [],
   annotateCommand,
   unannotateCommand,
   onExec,
@@ -382,9 +383,9 @@ function AnnotationPanel({
                 />
               )}
               <div className="min-w-0 flex-1">
-                {annotation.args.length > 0 && (
+                {(annotation.args ?? []).length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {annotation.args.map((arg, index) => {
+                    {(annotation.args ?? []).map((arg, index) => {
                       const argKey = arg.name || `arg${index}`
                       const argSourceKey = `annotation-arg-${sourceKeyPrefix}-${annotation.name}-${argKey}`
                       const valueKey = `annotation-arg-value-${sourceKeyPrefix}-${annotation.name}-${argKey}`
@@ -478,7 +479,7 @@ function AnnotationPanel({
                     })}
                   </div>
                 )}
-                {annotation.args.length === 0 && (
+                {(annotation.args ?? []).length === 0 && (
                   <span className="text-[10px] text-muted-foreground/40 font-mono">
                     {annotationArgsText(annotation)}
                   </span>

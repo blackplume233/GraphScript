@@ -33,24 +33,32 @@
   --color-input: oklch(0.22 0.02 250);
   --color-ring: oklch(0.65 0.18 240);
 
+  /* ─── FlowGraph-style canvas primitives ─── */
+  --color-flow-node-bg: oklch(0.125 0.006 250);
+  --color-flow-node-border: oklch(0.31 0.01 250);
+  --color-flow-selected: oklch(0.78 0.14 75);
+  --color-flow-wire: oklch(0.82 0.04 88);
+  --color-flow-wire-active: oklch(0.80 0.15 76);
+  --color-flow-data-wire: oklch(0.68 0.012 245);
+
   /* ─── Pin colors by type ─── */
-  --color-exec: oklch(0.88 0.04 90);
-  --color-data-float: oklch(0.65 0.2 145);
-  --color-data-int: oklch(0.58 0.2 230);
-  --color-data-bool: oklch(0.62 0.22 25);
-  --color-data-string: oklch(0.62 0.18 330);
-  --color-data-object: oklch(0.55 0.15 270);
+  --color-exec: oklch(0.86 0.04 88);
+  --color-data-float: oklch(0.68 0.16 145);
+  --color-data-int: oklch(0.62 0.15 230);
+  --color-data-bool: oklch(0.62 0.2 25);
+  --color-data-string: oklch(0.66 0.14 330);
+  --color-data-object: oklch(0.64 0.012 245);
 
   /* ─── Node title gradients ─── */
-  --color-node-exec-start: oklch(0.22 0.05 240);
-  --color-node-exec-end: oklch(0.16 0.04 250);
-  --color-node-pure-start: oklch(0.22 0.05 155);
-  --color-node-pure-end: oklch(0.16 0.04 165);
+  --color-node-exec-start: oklch(0.32 0.06 185);
+  --color-node-exec-end: oklch(0.18 0.035 185);
+  --color-node-pure-start: oklch(0.25 0.018 250);
+  --color-node-pure-end: oklch(0.16 0.012 250);
 
   /* ─── Canvas ─── */
-  --color-canvas-bg: oklch(0.11 0.012 250);
-  --color-canvas-grid: oklch(0.16 0.01 250);
-  --color-canvas-grid-major: oklch(0.19 0.012 250);
+  --color-canvas-bg: oklch(0.105 0.004 250);
+  --color-canvas-grid: oklch(0.18 0.004 250);
+  --color-canvas-grid-major: oklch(0.235 0.006 250);
 
   --radius: 0.5rem;
   --radius-sm: 0.25rem;
@@ -121,7 +129,7 @@ code, pre, .font-mono {
     linear-gradient(90deg, var(--color-canvas-grid) 1px, transparent 1px),
     linear-gradient(var(--color-canvas-grid-major) 1px, transparent 1px),
     linear-gradient(90deg, var(--color-canvas-grid-major) 1px, transparent 1px);
-  background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+  background-size: 16px 16px, 16px 16px, 80px 80px, 80px 80px;
 }
 
 /* ─── Glow effects ─── */
@@ -146,24 +154,43 @@ code, pre, .font-mono {
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .node-card:hover {
-  box-shadow: 0 0 16px oklch(0.65 0.18 240 / 0.2);
-  border-color: oklch(0.4 0.08 240);
+  box-shadow: 0 0 14px oklch(0.78 0.14 75 / 0.18);
+  border-color: oklch(0.58 0.08 75);
 }
 
 /* ─── React Flow edge editing ─── */
 .react-flow__edgeupdater {
   cursor: grab;
-  fill: oklch(0.65 0.18 240 / 0.18);
+  fill: oklch(0.78 0.14 75 / 0.18);
   pointer-events: all;
-  stroke: var(--color-primary);
+  stroke: var(--color-flow-selected);
   stroke-width: 1.5px;
 }
 
 .react-flow__edgeupdater:hover,
 .react-flow__edgeupdater:active {
   cursor: grabbing;
-  fill: oklch(0.65 0.18 240 / 0.34);
+  fill: oklch(0.78 0.14 75 / 0.34);
   stroke-width: 2px;
+}
+
+.graphscript-flow-edge-shadow {
+  pointer-events: none;
+  stroke: oklch(0 0 0 / 0.58);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.graphscript-flow-edge-soft {
+  pointer-events: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: blur(0.3px);
+}
+
+.react-flow__edge.selected path.react-flow__edge-path {
+  stroke: var(--color-flow-wire-active) !important;
+  stroke-width: 3px;
 }
 
 .react-flow__pane {
@@ -183,18 +210,77 @@ code, pre, .font-mono {
   cursor: grabbing;
 }
 
+.react-flow__handle.graphscript-pin-handle {
+  cursor: crosshair;
+}
+
+.react-flow__handle.graphscript-pin-handle:hover {
+  filter: drop-shadow(0 0 5px var(--color-flow-selected));
+}
+
+/* ─── Dockable workbench ─── */
+.graphscript-workbench {
+  --dv-background-color: var(--color-background);
+  --dv-paneview-active-outline-color: var(--color-primary);
+  --dv-tabs-and-actions-container-background-color: oklch(0.145 0.014 250);
+  --dv-tabs-container-background-color: oklch(0.145 0.014 250);
+  --dv-activegroup-visiblepanel-tab-background-color: oklch(0.18 0.018 250);
+  --dv-activegroup-hiddenpanel-tab-background-color: oklch(0.155 0.014 250);
+  --dv-inactivegroup-visiblepanel-tab-background-color: oklch(0.16 0.014 250);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: oklch(0.145 0.012 250);
+  --dv-tab-divider-color: var(--color-border);
+  --dv-activegroup-visiblepanel-tab-color: var(--color-foreground);
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-muted-foreground);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-foreground);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-muted-foreground);
+  --dv-separator-border: var(--color-border);
+  --dv-paneview-header-border-color: var(--color-border);
+  --dv-icon-foreground: var(--color-muted-foreground);
+  background: var(--color-background);
+}
+
+.graphscript-workbench,
+.graphscript-workbench .dockview-theme-dark,
+.graphscript-workbench .dockview-react-part {
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+}
+
+.graphscript-workbench .dv-tab {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.graphscript-workbench .dv-groupview > .content-container {
+  background: var(--color-card);
+}
+
+.graphscript-workbench .dv-sash {
+  --dv-sash-color: oklch(0.65 0.18 240 / 0.35);
+}
+
+.graphscript-workbench .monaco-editor,
+.graphscript-workbench .monaco-editor .margin,
+.graphscript-workbench .monaco-editor-background {
+  background-color: var(--color-background) !important;
+}
+
 .react-flow__selection {
-  background: oklch(0.65 0.18 240 / 0.13);
-  border: 1px solid oklch(0.72 0.16 240 / 0.95);
+  background: oklch(0.78 0.14 75 / 0.10);
+  border: 1px solid oklch(0.78 0.14 75 / 0.95);
   box-shadow:
     0 0 0 1px oklch(0.2 0.03 250 / 0.7) inset,
-    0 0 18px oklch(0.65 0.18 240 / 0.22);
+    0 0 18px oklch(0.78 0.14 75 / 0.18);
 }
 
 .react-flow__nodesselection-rect {
-  border: 1px solid oklch(0.72 0.16 240 / 0.95);
-  background: oklch(0.65 0.18 240 / 0.06);
-  box-shadow: 0 0 16px oklch(0.65 0.18 240 / 0.16);
+  border: 1px solid oklch(0.78 0.14 75 / 0.95);
+  background: oklch(0.78 0.14 75 / 0.06);
+  box-shadow: 0 0 16px oklch(0.78 0.14 75 / 0.14);
 }
 
 .gs-diagnostic-line path,

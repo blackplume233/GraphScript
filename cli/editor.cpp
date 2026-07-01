@@ -1858,7 +1858,10 @@ std::vector<std::string> CLIEditor::tokenize(const std::string& line) const {
 
     for (size_t i = 0; i < line.size(); i++) {
         char c = line[i];
-        if (c == '"') {
+        if (in_quote && c == '\\' && i + 1 < line.size() &&
+            (line[i + 1] == '"' || line[i + 1] == '\\')) {
+            current += line[++i];
+        } else if (c == '"') {
             in_quote = !in_quote;
         } else if (c == ' ' && !in_quote) {
             if (!current.empty()) { tokens.push_back(current); current.clear(); }

@@ -1,10 +1,26 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Editor, { type OnMount } from '@monaco-editor/react'
 import { AlertTriangle, ChevronDown, ChevronRight, FileText, Pencil, Play, RefreshCw, RotateCcw, Save } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { SourceDiagnosticsEnvironment, SourceRange } from '@/api/types'
+
+type MonacoEditorInstance = Parameters<OnMount>[0]
+type MonacoApi = Parameters<OnMount>[1]
+
+let graphScriptMonacoConfigured = false
+
+declare global {
+  interface Window {
+    __graphScriptSourceEditor?: {
+      getSelectedText: () => string
+      getValue: () => string
+      setValue: (value: string) => void
+    }
+  }
+}
 
 export type SourceSyncState =
   | 'empty'
@@ -86,31 +102,101 @@ function clampColumn(column: number, lineLength: number): number {
   return Math.max(1, Math.min(column, lineLength + 1))
 }
 
-function offsetForLocation(source: string, location: SourceRange['start']): number | null {
-  if (location.line < 1 || location.column < 1) return null
+function sourceLineLength(source: string, lineNumber: number): number {
+  if (lineNumber < 1) return 0
+  return (source.split(/\r?\n/)[lineNumber - 1] ?? '').length
+}
 
-  let line = 1
-  let column = 1
-  for (let index = 0; index < source.length; index += 1) {
-    if (line === location.line && column === location.column) return index
+function toMonacoRange(source: string, range: SourceRange | null) {
+  if (!range) return null
+  const startLineNumber = Math.max(1, range.start.line)
+  const endLineNumber = Math.max(startLineNumber, range.end.line)
+  const startColumn = clampColumn(range.start.column, sourceLineLength(source, startLineNumber))
+  const endColumn = clampColumn(range.end.column, sourceLineLength(source, endLineNumber))
+  return {
+    startLineNumber,
+    startColumn,
+    endLineNumber,
+    endColumn: endLineNumber === startLineNumber && endColumn <= startColumn ? startColumn + 1 : endColumn,
+  }
+}
 
-    const char = source[index]
-    if (char === '\r') {
-      if (source[index + 1] === '\n') index += 1
-      line += 1
-      column = 1
-      continue
+function focusMonacoRange(editor: MonacoEditorInstance | null, source: string, range: SourceRange | null) {
+  const monacoRange = toMonacoRange(source, range)
+  if (!editor || !monacoRange) return
+  editor.setSelection(monacoRange)
+  editor.revealRangeInCenter(monacoRange)
+  editor.focus()
+}
+
+function configureGraphScriptMonaco(monaco: MonacoApi) {
+  if (!graphScriptMonacoConfigured) {
+    graphScriptMonacoConfigured = true
+    if (!monaco.languages.getLanguages().some((language: { id: string }) => language.id === 'graphscript')) {
+      monaco.languages.register({ id: 'graphscript' })
     }
-    if (char === '\n') {
-      line += 1
-      column = 1
-      continue
-    }
-    column += 1
+    monaco.languages.setMonarchTokensProvider('graphscript', {
+      defaultToken: '',
+      tokenPostfix: '.gs',
+      keywords: [
+        'bind',
+        'connect',
+        'declare',
+        'event',
+        'export',
+        'graph',
+        'import',
+        'in',
+        'node',
+        'out',
+        'param',
+        'schema',
+        'type',
+      ],
+      tokenizer: {
+        root: [
+          [/[A-Za-z_][\w]*/, { cases: { '@keywords': 'keyword', '@default': 'identifier' } }],
+          [/".*?"/, 'string'],
+          [/\b\d+(\.\d+)?\b/, 'number'],
+          [/\/\/.*$/, 'comment'],
+          [/[{}()[\].,:;]/, 'delimiter'],
+        ],
+      },
+    })
+    monaco.languages.setLanguageConfiguration('graphscript', {
+      comments: { lineComment: '//' },
+      brackets: [['{', '}'], ['[', ']'], ['(', ')']],
+      autoClosingPairs: [
+        { open: '{', close: '}' },
+        { open: '[', close: ']' },
+        { open: '(', close: ')' },
+        { open: '"', close: '"' },
+      ],
+    })
   }
 
-  if (line === location.line && column === location.column) return source.length
-  return null
+  monaco.editor.defineTheme('graphscript-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'keyword', foreground: '72a7ff', fontStyle: 'bold' },
+      { token: 'string', foreground: 'd98bd0' },
+      { token: 'number', foreground: '7ee2a8' },
+      { token: 'comment', foreground: '697386' },
+      { token: 'delimiter', foreground: '8ba0bb' },
+    ],
+    colors: {
+      'editor.background': '#11141c',
+      'editor.foreground': '#d7deea',
+      'editorLineNumber.foreground': '#526071',
+      'editorLineNumber.activeForeground': '#7aa7ff',
+      'editor.selectionBackground': '#2d5b9f66',
+      'editor.lineHighlightBackground': '#1a2230',
+      'editorCursor.foreground': '#7aa7ff',
+      'editorIndentGuide.background1': '#293140',
+      'editorIndentGuide.activeBackground1': '#3c4a62',
+    },
+  })
 }
 
 function renderLineText(text: string, lineNumber: number, focusedRange: SourceRange | null) {
@@ -319,7 +405,7 @@ export default function SourcePreviewPanel({
   onRenameDeclaration,
 }: SourcePreviewPanelProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const editorRef = useRef<MonacoEditorInstance | null>(null)
   const [editing, setEditing] = useState(false)
   const [declarationRenameValue, setDeclarationRenameValue] = useState('')
   const [collapsedImportNodes, setCollapsedImportNodes] = useState<Set<string>>(() => new Set())
@@ -356,22 +442,43 @@ export default function SourcePreviewPanel({
     setCollapsedImportNodes(new Set())
   }, [resolverEnvironment?.environment_hash])
 
-  useEffect(() => {
-    if (editing && focusedRange && textareaRef.current) {
-      const start = offsetForLocation(source, focusedRange.start)
-      const end = offsetForLocation(source, focusedRange.end)
-      if (start !== null && end !== null && start <= end) {
-        textareaRef.current.focus()
-        textareaRef.current.setSelectionRange(start, Math.max(start + 1, end))
-      }
+  const handleEditorMount = useCallback<OnMount>((editor, monaco) => {
+    editorRef.current = editor
+    configureGraphScriptMonaco(monaco)
+    monaco.editor.setTheme('graphscript-dark')
+    window.__graphScriptSourceEditor = {
+      getSelectedText: () => {
+        const model = editor.getModel()
+        const selection = editor.getSelection()
+        return model && selection ? model.getValueInRange(selection) : ''
+      },
+      getValue: () => editor.getValue(),
+      setValue: (value: string) => {
+        editor.setValue(value)
+        onSourceChange(value)
+      },
     }
-    const scrollRange = focusedRange ?? (!editing ? pendingPatchRange : null)
+    focusMonacoRange(editor, source, focusedRange)
+  }, [focusedRange, onSourceChange, source])
+
+  useEffect(() => {
+    if (editing) {
+      focusMonacoRange(editorRef.current, source, focusedRange)
+      return
+    }
+
+    const scrollRange = focusedRange ?? pendingPatchRange
     if (!scrollRange || !scrollRootRef.current) return
     const line = scrollRootRef.current.querySelector<HTMLElement>(
       `[data-source-line="${scrollRange.start.line}"]`,
     )
     line?.scrollIntoView({ block: 'center' })
   }, [editing, focusedRange, pendingPatchRange, source])
+
+  useEffect(() => () => {
+    window.__graphScriptSourceEditor = undefined
+    editorRef.current = null
+  }, [])
 
   const toggleImportNode = (key: string) => {
     setCollapsedImportNodes(previous => {
@@ -565,10 +672,10 @@ export default function SourcePreviewPanel({
           className="h-6 w-6 text-muted-foreground hover:text-primary"
           onClick={onCheckSource}
           disabled={busy}
-          title="Refresh source preview"
+          title="Refresh source diagnostics"
         >
           <RefreshCw className={`h-3 w-3 ${busy ? 'animate-spin' : ''}`} />
-          <span className="sr-only">Refresh source preview</span>
+          <span className="sr-only">Refresh source diagnostics</span>
         </Button>
       </div>
       {syncDetail && (
@@ -668,21 +775,34 @@ export default function SourcePreviewPanel({
         </div>
       )}
 
-      <ScrollArea className="min-h-0 flex-1" ref={scrollRootRef}>
-        {editing ? (
-          <div className="h-full min-h-[9rem] p-2">
-            <textarea
-              ref={textareaRef}
-              data-source-editor="true"
-              className="h-full min-h-[8rem] w-full resize-none rounded border border-border/50 bg-background/80
-                p-2 font-mono text-[10px] leading-5 text-foreground/80 outline-none focus:border-primary/50"
+      {editing ? (
+        <div data-source-editor="true" className="min-h-0 flex-1 p-2">
+          <div className="h-full min-h-[8rem] overflow-hidden rounded border border-border/50 bg-background/80">
+            <Editor
+              height="100%"
+              language="graphscript"
+              theme="graphscript-dark"
               value={source}
-              spellCheck={false}
-              onChange={(event) => onSourceChange(event.target.value)}
-              disabled={busy}
+              onMount={handleEditorMount}
+              onChange={(value) => onSourceChange(value ?? '')}
+              options={{
+                automaticLayout: true,
+                fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+                fontSize: 12,
+                lineHeight: 20,
+                minimap: { enabled: false },
+                padding: { top: 8, bottom: 8 },
+                readOnly: busy || !sourceEditable,
+                renderLineHighlight: 'line',
+                scrollBeyondLastLine: false,
+                tabSize: 4,
+                wordWrap: 'on',
+              }}
             />
           </div>
-        ) : (
+        </div>
+      ) : (
+        <ScrollArea className="min-h-0 flex-1" ref={scrollRootRef}>
         <div className="min-w-max p-2 font-mono text-[10px] leading-5">
           {lines.length === 0 ? (
             <div className="px-2 py-6 text-center text-[11px] text-muted-foreground/50">
@@ -713,8 +833,8 @@ export default function SourcePreviewPanel({
             })
           )}
         </div>
-        )}
-      </ScrollArea>
+        </ScrollArea>
+      )}
     </div>
   )
 }
