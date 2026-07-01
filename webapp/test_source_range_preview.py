@@ -839,7 +839,10 @@ def main():
             page.wait_for_selector("text=GS_TEST_SOURCE_RANGE", timeout=10000)
             page.wait_for_selector("text=Insert ':'", timeout=10000)
             activate_workbench_tab(page, "SOURCE")
-            page.wait_for_selector("text=in speed float;", timeout=10000)
+            page.wait_for_function(
+                "() => window.__graphScriptSourceEditor?.getValue().includes('in speed float;')",
+                timeout=10000,
+            )
             page.wait_for_selector('[data-source-sync-state="session"]', timeout=5000)
             page.wait_for_selector('[data-source-env-notice="true"]', timeout=5000)
             env_notice_visible = "current session Environment" in page.locator('[data-source-env-notice="true"]').inner_text()

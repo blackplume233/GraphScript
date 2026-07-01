@@ -96,6 +96,11 @@ UI commands should follow this shape:
 
 Do not mutate graph state locally and hope the backend catches up later.
 
+Graph-to-source synchronization must stay command-first: GUI graph operations
+issue CLI commands through `/api/exec`; the CLI is responsible for patching
+source-backed CST/text and reprojecting backend state. Do not add browser-only
+semantic source patch endpoints for graph edits.
+
 ## Accessibility And Usability
 
 - Keep command errors visible near the action that caused them.

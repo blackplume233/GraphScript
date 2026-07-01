@@ -829,6 +829,57 @@ TEST(CLIEditor, ApplySourcePatchCommandIsReplayable) {
     EXPECT_FALSE(editor.last_command_succeeded());
 }
 
+TEST(CLIEditor, SourceBackedGraphCommandsPatchTextWithoutReemit) {
+    Environment env;
+    EditSession session(env);
+    load_core_for_cli(session);
+    CLIEditor editor(session);
+
+    const std::string source =
+        "graph SourceBacked {\n"
+        "    // keep this comment\n"
+        "\n"
+        "    node logger {\n"
+        "        type PrintString;\n"
+        "        message: \"old\";\n"
+        "    }\n"
+        "    node wait {\n"
+        "        type Delay;\n"
+        "    }\n"
+        "\n"
+        "    event OnStart {\n"
+        "        connect(context.start, logger.enter);\n"
+        "    }\n"
+        "}\n";
+
+    EXPECT_TRUE(editor.execute("apply_source_b64 " + b64_for_cli_test(source)));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("add_node PrintString extra"));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("annotate node extra Position X=10 Y=20"));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("set_init extra message inserted"));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("event OnStart"));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("flow logger.exit wait.enter"));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("unflow context.start logger.enter"));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("set_init logger message \"new value\""));
+    EXPECT_TRUE(editor.last_command_succeeded());
+    EXPECT_TRUE(editor.execute("rename_node logger writer"));
+    EXPECT_TRUE(editor.last_command_succeeded());
+
+    const std::string emitted = session.emit();
+    EXPECT_NE(emitted.find("    // keep this comment\n\n    node writer"), std::string::npos);
+    EXPECT_NE(emitted.find("message: \"new value\";"), std::string::npos);
+    EXPECT_NE(emitted.find("node extra {\n        type PrintString;\n        message: inserted;"), std::string::npos);
+    EXPECT_NE(emitted.find("connect(writer.exit, wait.enter);"), std::string::npos);
+    EXPECT_EQ(emitted.find("connect(context.start, logger.enter);"), std::string::npos);
+    EXPECT_NE(emitted.find("    @Position(X = 10, Y = 20)\n    node extra"), std::string::npos);
+}
+
 TEST(CLIEditor, ApplySourcePatchesBase64CommandIsAtomicAndReplayable) {
     Environment env;
     EditSession session(env);

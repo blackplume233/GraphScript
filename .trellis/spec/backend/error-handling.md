@@ -117,6 +117,80 @@ Correct:
 cmd = extract_json_string_field(body, "command").value_or("");
 ```
 
+## Scenario: Source-Backed CLI Graph Commands
+
+### 1. Scope / Trigger
+
+- Trigger: graph edits issued by web canvas/properties or CLI while a session
+  was loaded from `.gs` source text.
+- Scope: `CLIEditor` command handlers, `EditSession::asset_source()`,
+  tree-sitter asset CST ranges, and `/api/exec` command replay.
+
+### 2. Signatures
+
+- CLI commands remain the public edit surface:
+  - `add_node <Type> <instance>`
+  - `remove_node <instance>`
+  - `rename_node <old> <new>`
+  - `set_init <node> <field> <value>`
+  - `event <name>` / `fn <name>` followed by `flow`, `unflow`, `link`, `unlink`
+  - `annotate node <instance> Position X=<x> Y=<y>`
+- Session query:
+  - `const std::optional<std::string>& EditSession::asset_source() const`
+
+### 3. Contracts
+
+- If `asset_source()` is present, graph-edit CLI commands must patch source text
+  first using CST ranges, then call `EditSession::load_source()` to reproject the
+  in-memory graph.
+- Web graph operations must still call `/api/exec` with CLI command strings.
+  They must not introduce a parallel browser-only semantic source patch API.
+- If `asset_source()` is absent, the command may use the existing in-memory
+  `EditSession` mutation path.
+- Source-backed command failure must report an error and leave the previous
+  source/session intact; it must not silently fall back to memory mutation,
+  because that drops comments, blank lines, and ordering.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+| --- | --- |
+| Source-backed command can find CST target | Patch text and `load_source()` |
+| CST target/range is missing | CLI error; do not mutate memory graph |
+| Patched source fails parse/compile | CLI error from `load_source()`; previous state remains |
+| Command is malformed | Existing usage error |
+| Session has no `asset_source()` | Existing memory graph command path |
+
+### 5. Good/Base/Bad Cases
+
+- Good: dragging a node issues `annotate node N Position X=.. Y=..`; CLI patches
+  only the Position attribute line and reloads source.
+- Base: a graph created purely in memory can still use `EditSession::add_node`.
+- Bad: web canvas calls a separate `/api/source_command_patch` endpoint or
+  refreshes Source by `/api/emit` after every graph operation.
+
+### 6. Tests Required
+
+- GoogleTest for source-backed graph commands that asserts comments, blank
+  lines, initializer values, node renames, and connection text survive without a
+  full emit rewrite.
+- Web smoke tests should assert graph operations still replay through
+  `/api/exec` command logs.
+
+### 7. Wrong vs Correct
+
+Wrong:
+
+```text
+GUI edit -> browser computes source patch -> backend loads source
+```
+
+Correct:
+
+```text
+GUI edit -> /api/exec CLI command -> CLI patches CST-backed text -> load_source()
+```
+
 ## Anti-Patterns
 
 ### Do Not Throw For Expected User Input Errors

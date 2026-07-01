@@ -1722,6 +1722,344 @@ static const Graph* find_graph_by_name(const Module& module, const std::string& 
     return nullptr;
 }
 
+static Result<asset::Module, std::string> parse_asset_module_for_command_patch(
+    const std::string& source,
+    const std::string& source_name) {
+    asset::Parser parser(source, source_name);
+    auto parsed = parser.parse();
+    for (const auto& diagnostic : parsed.diagnostics) {
+        if (diagnostic.severity == Severity::Error) {
+            return Result<asset::Module, std::string>::err("Source parse error: " + diagnostic.message);
+        }
+    }
+    return Result<asset::Module, std::string>::ok(std::move(parsed.module));
+}
+
+static const asset::Block* find_asset_block_in_items(const asset::ItemContainer& items,
+                                                     const std::string& kind,
+                                                     const std::string& name) {
+    for (const auto& block : items.blocks) {
+        if (block->kind == kind && block->name == name) return block.get();
+        if (const auto* nested = find_asset_block_in_items(block->items, kind, name)) return nested;
+    }
+    return nullptr;
+}
+
+static const asset::Block* find_asset_graph_block(const asset::Module& module,
+                                                  const std::string& graph_name) {
+    return find_asset_block_in_items(module.items, "graph", graph_name);
+}
+
+static const asset::Block* find_asset_logic_block(const asset::Block& graph,
+                                                  const std::string& kind,
+                                                  const std::string& name) {
+    for (const auto& block : graph.items.blocks) {
+        if (block->kind == kind && block->name == name) return block.get();
+    }
+    return nullptr;
+}
+
+static std::optional<std::string> active_graph_name(const EditSession& session) {
+    const auto* graph = session.active_graph();
+    if (!graph) return std::nullopt;
+    return graph->name;
+}
+
+static std::optional<std::string> active_logic_block_kind(const EditSession& session,
+                                                         const std::string& block_name) {
+    const auto* graph = session.active_graph();
+    if (!graph) return std::nullopt;
+    for (const auto& event : graph->events) {
+        if (event.name == block_name) return "event";
+    }
+    for (const auto& function : graph->functions) {
+        if (function.name == block_name) return "function";
+    }
+    return std::nullopt;
+}
+
+static size_t source_line_start(const std::string& source, size_t offset) {
+    if (offset > source.size()) offset = source.size();
+    const size_t start = source.rfind('\n', offset);
+    return start == std::string::npos ? 0 : start + 1;
+}
+
+static size_t source_line_end(const std::string& source, size_t offset) {
+    const size_t end = source.find('\n', offset);
+    return end == std::string::npos ? source.size() : end + 1;
+}
+
+static std::string trim_source_patch_value(const std::string& value) {
+    size_t begin = 0;
+    while (begin < value.size() && std::isspace(static_cast<unsigned char>(value[begin]))) ++begin;
+    size_t end = value.size();
+    while (end > begin && std::isspace(static_cast<unsigned char>(value[end - 1]))) --end;
+    return value.substr(begin, end - begin);
+}
+
+static std::string source_indent_at(const std::string& source, size_t offset) {
+    const size_t start = source_line_start(source, offset);
+    size_t end = start;
+    while (end < source.size() && (source[end] == ' ' || source[end] == '\t')) ++end;
+    return source.substr(start, end - start);
+}
+
+static asset::TextEdit source_full_line_edit(const std::string& source,
+                                             size_t begin_offset,
+                                             size_t end_offset,
+                                             const std::string& replacement,
+                                             const SourceRange& range) {
+    const size_t begin = source_line_start(source, begin_offset);
+    const size_t end = source_line_end(source, end_offset);
+    return {begin, end - begin, replacement, range};
+}
+
+static std::string source_literal_for_command_value(const std::string& value) {
+    const std::string trimmed = trim_source_patch_value(value);
+    if (trimmed.empty()) return "\"\"";
+    if ((trimmed.front() == '"' && trimmed.back() == '"') ||
+        trimmed == "true" || trimmed == "false" || trimmed == "null" || trimmed == "unlimited") {
+        return trimmed;
+    }
+    bool numeric = true;
+    size_t index = trimmed.front() == '-' ? 1 : 0;
+    bool has_digit = false;
+    bool has_dot = false;
+    for (; index < trimmed.size(); ++index) {
+        const char c = trimmed[index];
+        if (std::isdigit(static_cast<unsigned char>(c))) {
+            has_digit = true;
+            continue;
+        }
+        if (c == '.' && !has_dot) {
+            has_dot = true;
+            continue;
+        }
+        numeric = false;
+        break;
+    }
+    if (numeric && has_digit) return trimmed;
+    if (is_identifier_text(trimmed)) return trimmed;
+    if (!trimmed.empty() && trimmed.find('(') != std::string::npos && trimmed.back() == ')') return trimmed;
+
+    std::string quoted = "\"";
+    for (char c : trimmed) {
+        if (c == '\\' || c == '"') quoted += '\\';
+        quoted += c;
+    }
+    quoted += "\"";
+    return quoted;
+}
+
+static Result<void, std::string> apply_asset_text_patch(EditSession& session,
+                                                        const asset::TextPatch& patch) {
+    if (!session.asset_source()) {
+        return Result<void, std::string>::err("Session is not source-backed");
+    }
+    auto patched = asset::Patcher::apply(*session.asset_source(), patch);
+    if (patched.is_err()) return Result<void, std::string>::err(patched.error());
+    return session.load_source(patched.value(), session.file_path());
+}
+
+static Result<asset::Module, std::string> source_backed_asset_module(const EditSession& session) {
+    if (!session.asset_source()) {
+        return Result<asset::Module, std::string>::err("Session is not source-backed");
+    }
+    return parse_asset_module_for_command_patch(*session.asset_source(), session.file_path());
+}
+
+static Result<void, std::string> apply_source_add_node(EditSession& session,
+                                                       const std::string& type,
+                                                       const std::string& alias) {
+    auto source_module = source_backed_asset_module(session);
+    if (source_module.is_err()) return Result<void, std::string>::err(source_module.error());
+    const std::string& source = *session.asset_source();
+    auto graph_name = active_graph_name(session);
+    if (!graph_name) return Result<void, std::string>::err("No active graph");
+    const auto* graph = find_asset_graph_block(source_module.value(), *graph_name);
+    if (!graph) return Result<void, std::string>::err("Graph block not found in source");
+
+    const size_t insert = source_line_start(source, graph->body_end_offset);
+    const std::string item_indent = source_indent_at(source, graph->body_end_offset) + "    ";
+    asset::TextPatch patch;
+    patch.edits.push_back({insert, 0,
+                           item_indent + "node " + alias + " {\n" +
+                               item_indent + "    type " + type + ";\n" +
+                               item_indent + "}\n",
+                           graph->span.range});
+    return apply_asset_text_patch(session, patch);
+}
+
+static Result<void, std::string> apply_source_rename_node(EditSession& session,
+                                                          const std::string& old_name,
+                                                          const std::string& new_name) {
+    auto source_module = source_backed_asset_module(session);
+    if (source_module.is_err()) return Result<void, std::string>::err(source_module.error());
+    auto graph_name = active_graph_name(session);
+    if (!graph_name) return Result<void, std::string>::err("No active graph");
+    auto patch = asset::Patcher::rename_node(*session.asset_source(), source_module.value(), *graph_name, old_name, new_name);
+    if (patch.is_err()) return Result<void, std::string>::err(patch.error());
+    return apply_asset_text_patch(session, patch.value());
+}
+
+static Result<void, std::string> apply_source_set_node_property(EditSession& session,
+                                                                const std::string& node,
+                                                                const std::string& property,
+                                                                const std::string& value) {
+    auto source_module = source_backed_asset_module(session);
+    if (source_module.is_err()) return Result<void, std::string>::err(source_module.error());
+    const std::string& source = *session.asset_source();
+    const std::string literal = source_literal_for_command_value(value);
+    auto patch = asset::Patcher::set_property(*session.asset_source(), source_module.value(), node, property,
+                                              literal);
+    if (patch.is_ok()) return apply_asset_text_patch(session, patch.value());
+    if (patch.error() != "Property not found") return Result<void, std::string>::err(patch.error());
+
+    auto graph_name = active_graph_name(session);
+    if (!graph_name) return Result<void, std::string>::err("No active graph");
+    const auto* graph = find_asset_graph_block(source_module.value(), *graph_name);
+    if (!graph) return Result<void, std::string>::err("Graph block not found in source");
+    const auto* node_block = find_asset_logic_block(*graph, "node", node);
+    if (!node_block) return Result<void, std::string>::err("Node block not found in source");
+
+    const size_t insert = source_line_start(source, node_block->body_end_offset);
+    const std::string item_indent = source_indent_at(source, node_block->body_end_offset) + "    ";
+    asset::TextPatch insert_patch;
+    insert_patch.edits.push_back({insert, 0, item_indent + property + ": " + literal + ";\n", node_block->span.range});
+    return apply_asset_text_patch(session, insert_patch);
+}
+
+static Result<void, std::string> apply_source_remove_node(EditSession& session,
+                                                          const std::string& alias) {
+    auto source_module = source_backed_asset_module(session);
+    if (source_module.is_err()) return Result<void, std::string>::err(source_module.error());
+    const std::string& source = *session.asset_source();
+    auto graph_name = active_graph_name(session);
+    if (!graph_name) return Result<void, std::string>::err("No active graph");
+    const auto* graph = find_asset_graph_block(source_module.value(), *graph_name);
+    if (!graph) return Result<void, std::string>::err("Graph block not found in source");
+    const auto* node = find_asset_logic_block(*graph, "node", alias);
+    if (!node) return Result<void, std::string>::err("Node block not found in source");
+
+    auto endpoint_owner_matches = [&](const std::string& endpoint) {
+        const size_t dot = endpoint.find('.');
+        return (dot == std::string::npos ? endpoint : endpoint.substr(0, dot)) == alias;
+    };
+
+    asset::TextPatch patch;
+    size_t node_begin = node->span.offset;
+    for (const auto& attr : node->attributes) node_begin = std::min(node_begin, attr.span.offset);
+    patch.edits.push_back(source_full_line_edit(source, node_begin, node->span.offset + node->span.length, "", node->span.range));
+
+    for (const auto& block : graph->items.blocks) {
+        if (block->kind != "event" && block->kind != "function") continue;
+        for (const auto& call : block->items.calls) {
+            if (call.args.size() < 2 || call.callee_parts.size() != 1) continue;
+            const auto& callee = call.callee_parts.front();
+            if (callee != "connect" && callee != "bind") continue;
+            if (!endpoint_owner_matches(call.args[0].text) && !endpoint_owner_matches(call.args[1].text)) continue;
+            size_t begin = call.span.offset;
+            for (const auto& attr : call.attributes) begin = std::min(begin, attr.span.offset);
+            patch.edits.push_back(source_full_line_edit(source, begin, call.span.offset + call.span.length, "", call.span.range));
+        }
+    }
+    return apply_asset_text_patch(session, patch);
+}
+
+static Result<void, std::string> apply_source_node_position(EditSession& session,
+                                                            const std::string& alias,
+                                                            const std::string& x,
+                                                            const std::string& y) {
+    auto source_module = source_backed_asset_module(session);
+    if (source_module.is_err()) return Result<void, std::string>::err(source_module.error());
+    const std::string& source = *session.asset_source();
+    auto graph_name = active_graph_name(session);
+    if (!graph_name) return Result<void, std::string>::err("No active graph");
+    const auto* graph = find_asset_graph_block(source_module.value(), *graph_name);
+    if (!graph) return Result<void, std::string>::err("Graph block not found in source");
+    const auto* node = find_asset_logic_block(*graph, "node", alias);
+    if (!node) return Result<void, std::string>::err("Node block not found in source");
+
+    const std::string replacement = source_indent_at(source, node->span.offset) +
+        "@Position(X = " + x + ", Y = " + y + ")\n";
+    asset::TextPatch patch;
+    for (const auto& attr : node->attributes) {
+        if (attr.name != "Position") continue;
+        patch.edits.push_back(source_full_line_edit(source, attr.span.offset, attr.span.offset + attr.span.length,
+                                                   replacement, attr.span.range));
+        return apply_asset_text_patch(session, patch);
+    }
+
+    patch.edits.push_back({source_line_start(source, node->span.offset), 0, replacement, node->span.range});
+    return apply_asset_text_patch(session, patch);
+}
+
+static Result<void, std::string> apply_source_connection(EditSession& session,
+                                                         const std::string& block_name,
+                                                         const std::string& callee,
+                                                         const std::string& first,
+                                                         const std::string& second,
+                                                         bool remove) {
+    auto source_module = source_backed_asset_module(session);
+    if (source_module.is_err()) return Result<void, std::string>::err(source_module.error());
+    const std::string& source = *session.asset_source();
+    auto graph_name = active_graph_name(session);
+    if (!graph_name) return Result<void, std::string>::err("No active graph");
+    auto block_kind = active_logic_block_kind(session, block_name);
+    if (!block_kind) return Result<void, std::string>::err("Logic block '" + block_name + "' not found");
+    const auto* graph = find_asset_graph_block(source_module.value(), *graph_name);
+    if (!graph) return Result<void, std::string>::err("Graph block not found in source");
+    const auto* block = find_asset_logic_block(*graph, *block_kind, block_name);
+    if (!block) return Result<void, std::string>::err("Logic block not found in source");
+
+    asset::TextPatch patch;
+    if (!remove) {
+        const size_t insert = source_line_start(source, block->body_end_offset);
+        patch.edits.push_back({insert, 0,
+                               source_indent_at(source, block->body_end_offset) +
+                                   "    " + callee + "(" + first + ", " + second + ");\n",
+                               block->span.range});
+        return apply_asset_text_patch(session, patch);
+    }
+
+    for (const auto& call : block->items.calls) {
+        if (call.callee_parts.size() != 1 || call.callee_parts.front() != callee || call.args.size() < 2) continue;
+        if (call.args[0].text != first || call.args[1].text != second) continue;
+        size_t begin = call.span.offset;
+        for (const auto& attr : call.attributes) begin = std::min(begin, attr.span.offset);
+        patch.edits.push_back(source_full_line_edit(source, begin, call.span.offset + call.span.length, "", call.span.range));
+        return apply_asset_text_patch(session, patch);
+    }
+    return Result<void, std::string>::err("Connection call not found in source");
+}
+
+static Result<void, std::string> apply_source_unlink(EditSession& session,
+                                                     const std::string& block_name,
+                                                     const std::string& target) {
+    auto source_module = source_backed_asset_module(session);
+    if (source_module.is_err()) return Result<void, std::string>::err(source_module.error());
+    const std::string& source = *session.asset_source();
+    auto graph_name = active_graph_name(session);
+    if (!graph_name) return Result<void, std::string>::err("No active graph");
+    auto block_kind = active_logic_block_kind(session, block_name);
+    if (!block_kind) return Result<void, std::string>::err("Logic block '" + block_name + "' not found");
+    const auto* graph = find_asset_graph_block(source_module.value(), *graph_name);
+    if (!graph) return Result<void, std::string>::err("Graph block not found in source");
+    const auto* block = find_asset_logic_block(*graph, *block_kind, block_name);
+    if (!block) return Result<void, std::string>::err("Logic block not found in source");
+
+    asset::TextPatch patch;
+    for (const auto& call : block->items.calls) {
+        if (call.callee_parts.size() != 1 || call.callee_parts.front() != "bind" || call.args.size() < 2) continue;
+        if (call.args[1].text != target) continue;
+        size_t begin = call.span.offset;
+        for (const auto& attr : call.attributes) begin = std::min(begin, attr.span.offset);
+        patch.edits.push_back(source_full_line_edit(source, begin, call.span.offset + call.span.length, "", call.span.range));
+        return apply_asset_text_patch(session, patch);
+    }
+    return Result<void, std::string>::err("Data link call not found in source");
+}
+
 // ─── REPL ──────────────────────────────────────────────────────────
 
 int CLIEditor::run() {
@@ -2240,6 +2578,16 @@ void CLIEditor::cmd_params() {
 
 void CLIEditor::cmd_add(const std::vector<std::string>& args) {
     if (args.size() < 3) { print_error("Usage: add <Type> <instance_name>"); return; }
+    if (session_.asset_source()) {
+        if (args.size() >= 4 && !args[3].empty()) {
+            print_error("Source-backed add_node with initializer is not supported; add the node first, then use set_init");
+            return;
+        }
+        auto patched = apply_source_add_node(session_, args[1], args[2]);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Added " + args[1] + " " + args[2]);
+        return;
+    }
     auto r = session_.add_node(args[1], args[2], args.size() >= 4 ? args[3] : "");
     if (r.is_err()) print_error(r.error());
     else print_ok("Added " + args[1] + " " + args[2]);
@@ -2255,6 +2603,12 @@ void CLIEditor::cmd_set_init_expr(const std::vector<std::string>& args) {
 
 void CLIEditor::cmd_set_init(const std::vector<std::string>& args) {
     if (args.size() < 4) { print_error("Usage: set_init <node> <field> <value>"); return; }
+    if (session_.asset_source()) {
+        auto patched = apply_source_set_node_property(session_, args[1], args[2], args[3]);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Set initializer field '" + args[2] + "' on node '" + args[1] + "'");
+        return;
+    }
     auto r = session_.set_node_initializer_field(args[1], args[2], args[3]);
     if (r.is_err()) print_error(r.error());
     else print_ok("Set initializer field '" + args[2] + "' on node '" + args[1] + "'");
@@ -2299,6 +2653,12 @@ void CLIEditor::cmd_rename_init(const std::vector<std::string>& args) {
 
 void CLIEditor::cmd_rm(const std::vector<std::string>& args) {
     if (args.size() < 2) { print_error("Usage: rm <instance_name>"); return; }
+    if (session_.asset_source()) {
+        auto patched = apply_source_remove_node(session_, args[1]);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Removed '" + args[1] + "'");
+        return;
+    }
     auto r = session_.remove_node(args[1]);
     if (r.is_err()) print_error(r.error());
     else print_ok("Removed '" + args[1] + "'");
@@ -2306,6 +2666,12 @@ void CLIEditor::cmd_rm(const std::vector<std::string>& args) {
 
 void CLIEditor::cmd_rename_node(const std::vector<std::string>& args) {
     if (args.size() < 3) { print_error("Usage: rename_node <old_name> <new_name>"); return; }
+    if (session_.asset_source()) {
+        auto patched = apply_source_rename_node(session_, args[1], args[2]);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Renamed node '" + args[1] + "' to '" + args[2] + "'");
+        return;
+    }
     auto r = session_.rename_node_instance(args[1], args[2]);
     if (r.is_err()) print_error(r.error());
     else print_ok("Renamed node '" + args[1] + "' to '" + args[2] + "'");
@@ -2491,6 +2857,12 @@ void CLIEditor::cmd_flow(const std::vector<std::string>& args) {
     auto [fn, fp] = parse_pin_ref(args[1]);
     auto [tn, tp] = parse_pin_ref(args[2]);
     if (fp.empty() || tp.empty()) { print_error("Format: node.pin"); return; }
+    if (session_.asset_source()) {
+        auto patched = apply_source_connection(session_, current_block_, "connect", args[1], args[2], false);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok(fn + "." + fp + " -> " + tn + "." + tp);
+        return;
+    }
     auto r = session_.add_flow(current_block_, fn, fp, tn, tp);
     if (r.is_err()) print_error(r.error());
     else print_ok(fn + "." + fp + " -> " + tn + "." + tp);
@@ -2502,6 +2874,12 @@ void CLIEditor::cmd_link(const std::vector<std::string>& args) {
     auto [tn, tp] = parse_pin_ref(args[1]);
     auto [sn, sp] = parse_pin_ref(args[2]);
     if (tp.empty()) { print_error("Target must be node.pin"); return; }
+    if (session_.asset_source()) {
+        auto patched = apply_source_connection(session_, current_block_, "bind", args[2], args[1], false);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok(tn + "." + tp + " = " + sn + (sp.empty() ? "" : "." + sp));
+        return;
+    }
     auto r = session_.add_link(current_block_, tn, tp, sn, sp);
     if (r.is_err()) print_error(r.error());
     else print_ok(tn + "." + tp + " = " + sn + (sp.empty() ? "" : "." + sp));
@@ -2512,6 +2890,12 @@ void CLIEditor::cmd_unflow(const std::vector<std::string>& args) {
     if (current_block_.empty()) { print_error("Enter an event/fn first"); return; }
     auto [fn, fp] = parse_pin_ref(args[1]);
     auto [tn, tp] = parse_pin_ref(args[2]);
+    if (session_.asset_source()) {
+        auto patched = apply_source_connection(session_, current_block_, "connect", args[1], args[2], true);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Removed flow");
+        return;
+    }
     auto r = session_.remove_flow(current_block_, fn, fp, tn, tp);
     if (r.is_err()) print_error(r.error());
     else print_ok("Removed flow");
@@ -2521,6 +2905,12 @@ void CLIEditor::cmd_unlink(const std::vector<std::string>& args) {
     if (args.size() < 2) { print_error("Usage: unlink <target.pin>"); return; }
     if (current_block_.empty()) { print_error("Enter an event/fn first"); return; }
     auto [tn, tp] = parse_pin_ref(args[1]);
+    if (session_.asset_source()) {
+        auto patched = apply_source_unlink(session_, current_block_, args[1]);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Removed link");
+        return;
+    }
     auto r = session_.remove_link(current_block_, tn, tp);
     if (r.is_err()) print_error(r.error());
     else print_ok("Removed link");
@@ -2580,6 +2970,22 @@ void CLIEditor::cmd_annotate(const std::vector<std::string>& args) {
         if (args.size() < 4) { print_error("Usage: annotate node <instance> <Annotation> [args...]"); return; }
         auto annot = parse_annotation_args(args, 3);
         if (annot.name.empty()) { print_error("Usage: annotate node <instance> <Annotation> [args...]"); return; }
+        if (session_.asset_source() && annot.name == "Position") {
+            std::string x;
+            std::string y;
+            for (const auto& arg : annot.args) {
+                if (arg.name == "X") x = arg.value;
+                if (arg.name == "Y") y = arg.value;
+            }
+            if (x.empty() || y.empty()) {
+                print_error("Source-backed Position annotation requires X and Y");
+                return;
+            }
+            auto patched = apply_source_node_position(session_, args[2], x, y);
+            if (patched.is_err()) print_error(patched.error());
+            else print_ok("Annotated node '" + args[2] + "' [" + annot.name + "]");
+            return;
+        }
         r = session_.set_node_annotation(args[2], annot);
         if (r.is_ok()) print_ok("Annotated node '" + args[2] + "' [" + annot.name + "]");
     } else if (args[1] == "param") {

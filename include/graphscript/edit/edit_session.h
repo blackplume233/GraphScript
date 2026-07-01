@@ -369,6 +369,9 @@ public:
     /// Emits the entire module as .gs text.
     std::string emit() const;
 
+    /// Returns the original source text when this session is source-backed.
+    const std::optional<std::string>& asset_source() const { return asset_source_; }
+
     /// Emits only the active graph as .gs text.
     std::string emit_active() const;
 
