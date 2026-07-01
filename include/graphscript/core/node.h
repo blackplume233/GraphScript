@@ -8,7 +8,7 @@
 #include "graphscript/core/pin.h"
 #include "graphscript/core/annotation.h"
 #include "graphscript/core/initializer_field.h"
-#include "graphscript/parse/token.h"
+#include "graphscript/core/source_range.h"
 
 namespace gs {
 

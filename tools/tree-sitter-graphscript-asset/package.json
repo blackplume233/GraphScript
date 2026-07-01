@@ -2,7 +2,7 @@
   "name": "tree-sitter-graphscript-asset",
   "version": "0.1.0",
   "private": true,
-  "description": "Tree-sitter grammar for GraphScript AI Native .sc/.d.sc assets",
+  "description": "Tree-sitter grammar for GraphScript AI Native .gs/.d.gs assets",
   "license": "UNLICENSED",
   "scripts": {
     "generate": "tree-sitter generate",
@@ -18,8 +18,8 @@
     {
       "scope": "source.graphscript-asset",
       "file-types": [
-        "sc",
-        "d.sc"
+        "gs",
+        "d.gs"
       ],
       "highlights": "queries/highlights.scm"
     }

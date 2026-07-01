@@ -1222,9 +1222,18 @@ graph Execute {
 - GraphDomain 根据 attribute 和 command signature 投影为 graph parameter/pin。
 - 原因：参数需要声明名、类型、默认值、attribute 和 source binding；结构化 `param` 比普通 call command 更利于补全、rename、patch 和阅读，同时不增加新的 AST 大类。
 
-### Q5：RuntimeGraph 保留还是替换？
+### Q5：RuntimeGraph 保留还是替换？（已决）
 
-待确认：
+结论：选择方案 B。
+
+- 替换为新的 graph runtime IR。
+- 不把旧 `RuntimeGraph` 作为长期 public runtime type 保留。
+- 不采用兼容外壳作为目标架构。
+- 新 runtime IR 应消费 `graph/model` 或 `graph/projection` 产物，而不是依赖 `EditGraph`。
+- 现有依赖 `RuntimeGraph` 的测试、debug dump 和 runtime bake 路径需要迁移或改写到新 IR。
+- 原因：本迁移已经允许破坏性更新；runtime 层应趁迁移机会摆脱旧 `EditGraph`/旧 compiler 管线形状，避免把旧 API 假设继续固化到 tree-sitter 方案里。
+
+备选方案记录：
 
 - 方案 A：保留 `RuntimeGraph` 类型，但输入改为新 `graph/model` 或 `graph/projection`。
 - 方案 B：替换为新的 graph runtime IR。

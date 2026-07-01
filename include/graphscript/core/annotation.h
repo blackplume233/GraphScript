@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "graphscript/parse/token.h"
+#include "graphscript/core/source_range.h"
 
 namespace gs {
 

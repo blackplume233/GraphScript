@@ -33,16 +33,22 @@
 
 ## 执行记录
 
-- `src/edit/edit_session.cpp` 已有 `has_asset_declaration_import_items()`，覆盖 `imports`、`modules`、`enums`、`objects`、`block_kinds`、`commands`、`schemas`、`lints`、`symbols`，并在 `EditSession::load_import()` 中作为 asset import 入口判定。
-- `EditSession::load_import()` 对 asset declaration import 先 parse/lint，再调用 `register_asset_declarations()`；其中 type/object/schema 会注册到 `Environment`，module/enum/kind/block/command/lint 这类暂未有 runtime registry 的 metadata declaration 只参与 parse/lint，然后标记 import loaded。
+- `src/edit/edit_session.cpp` 增加 `parse_asset_result()`，让 `EditSession::load_import()` 可以保留 asset parse diagnostics，而不是只拿到 `std::optional<asset::Module>`。
+- `has_asset_declaration_import_items()` 现在只接受 declaration-only asset module：顶层 source items（properties、consts、calls、assignments、directives、blocks）存在时返回 false。
+- `has_asset_declaration_symbol()` 排除 export-list 产生的 `symbol.kind == "export"`，避免 `export { Execute }; graph Execute {}` 被误判为 declaration import。
+- `EditSession::load_import()` 对看起来像新 asset declaration 或 lowercase graph source 的 parse diagnostics 直接返回 `Asset parse error in:`，不落入旧 parser/compiler fallback。
+- 旧 preset `.d.gs` fallback 暂时保留，因为 `presets/ue_core.d.gs` 当前仍是旧 declaration 语法；后续 preset 迁移时再删除该 fallback。
 - 增加/补齐 `EditSession.LoadAssetImportAcceptsDeclarationMetadataOnlyFile`，样例包含 `declare module`、`declare enum`、`declare kind block`、`declare kind command`、`declare block`、`declare command`、`declare lint`，验证 import 被标记 loaded，且不会向 `TypeRegistry`、`NodeRegistry`、`SchemaRegistry` 注册条目。
-- 增加 `EditSession.LoadAssetImportAcceptsImportOnlyDeclarationFile`，覆盖只包含 `import "core.d.gs";` 的 asset `.d.gs` 也被视为 asset import，不再落入旧 compiler fallback。
+- 增加 `EditSession.LoadAssetImportRejectsGraphSourceWithImportOrExportList`，覆盖带 import 和 export-list 的 graph source 不被标记为 declaration import。
+- 保留 `EditSession.LoadAssetImportAcceptsImportOnlyDeclarationFile`，验证 import-only 文件在当前过渡期仍可按旧 import fallback 标记 loaded。
 
 ## Review
 
 - 子代理 Descartes 只读 Review：无阻断 findings。
 - 非阻断观察：asset parse error 后 `load_import` 仍可能尝试旧 fallback；这属于后续移除旧 fallback 前需要收束的行为。
 - 非阻断观察：asset schema policy 当前严格校验 `max_exec_fan_out`，布尔策略值更严格的注册校验仍可作为后续迁移缺口处理。
+- 子代理 Aquinas 只读 Review：发现 graph source with import/export-list 可能误判为 declaration import；已通过 source item 排除和 export-list 排除修正，并补回归。
+- Aquinas 复审后提示 malformed asset declaration 单测曾被旧 fallback 吞掉；最终版改为对看起来像新 asset declaration/graph source 的 parse diagnostics 直接返回 asset parse error，同时保留旧 preset fallback。报告见 `subagents/loop-011-aquinas-review.md`。
 
 ## 验证
 
@@ -58,6 +64,11 @@
 - `rg -n "has_asset_declaration_import_items|has_asset_declarations|parse_asset_text\(src|Compiler compiler\(env_\)|load_import" src/edit/edit_session.cpp tests/test_edit_session.cpp`：确认 `load_import` asset 判定与 fallback 边界，证据见 `evidence/phase5_loop011_import_scan.log`。
 - `cmake --build build-codex --config Release --target gs -- /m:1`：通过，证据见 `evidence/phase5_loop011_build_gs.log`。
 - `git diff --check -- src/edit/edit_session.cpp tests/test_edit_session.cpp .trellis/tasks/06-30-tree-sitter-gs-migration/loops/loop-011.md`：退出码 0，证据见 `evidence/phase5_loop011_diff_check.log`。
+- 最终验证：`cmake --build build-codex --config Release --target gs_tests -- /m:1` 通过，证据见 `evidence/phase5_load_import_asset_declaration_build_gs_tests.log`。
+- 最终验证：`cmake --build build-codex --config Release --target gs -- /m:1` 通过，证据见 `evidence/phase5_load_import_asset_declaration_build_gs.log`。
+- 最终验证：import-focused tests 16/16 通过，覆盖旧 preset fallback、import-only、malformed asset declaration、malformed graph source、graph source with import/export-list、declaration-only imports，证据见 `evidence/phase5_load_import_asset_declaration_focused_tests.log`。
+- 最终验证：`./build-codex/Release/gs_tests.exe` 345/345 通过，证据见 `evidence/phase5_load_import_asset_declaration_full_tests.log`。
+- 最终验证：无用 helper 扫描清理 `is_asset_declaration_path` / `ends_with_ignore_case`，证据见 `evidence/phase5_load_import_asset_declaration_unused_helper_scan.log`。
 
 ## 需要回写
 

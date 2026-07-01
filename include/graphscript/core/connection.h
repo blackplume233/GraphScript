@@ -5,7 +5,7 @@
 
 #include "graphscript/core/annotation.h"
 #include "graphscript/core/pin.h"
-#include "graphscript/parse/token.h"
+#include "graphscript/core/source_range.h"
 
 namespace gs {
 
