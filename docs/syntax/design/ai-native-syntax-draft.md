@@ -18,6 +18,7 @@
 - 错误文本也要尽可能恢复结构。
 - parser 只理解通用语法，不内建 Graph/HTN/Table 等领域概念。
 - 领域语义由 binder/projection/lint provider 解释。
+- 序列化层和 Graph 层必须分开考虑：本文件优先定义序列化结构，Graph/FlowGraph 只是后续 projection。
 
 当前语法风格决策：
 
@@ -52,7 +53,59 @@ const x = new Type { ... } 的静态资产语义
 partial compilation / source binding / projection
 ```
 
-### 1.1 Parser 技术选型
+### 1.1 序列化层概念边界
+
+源语法的基础 AST/CST 只描述序列化结构。后续语法设计、parser 实现和 AST/Text Framework 都必须先按序列化层建模，再由上层投影解释 Graph 层。
+
+序列化层概念：
+
+```text
+file
+import
+asset/scope
+fragment
+object
+property
+value
+reference
+attribute/metadata
+declaration/schema
+```
+
+Graph 层概念：
+
+```text
+graph
+node
+entry
+pin
+edge
+flow/link
+connection policy
+graph runtime/debug target
+```
+
+这些 Graph 层概念不能成为 parser 内建语义，也不应污染通用 AST 名称。它们只能通过 binder、projection、lint provider 或 runtime adapter 从序列化层产物中解释出来。
+
+示例边界：
+
+```text
+序列化层看到：
+  object apply : ApplyDamage
+  property amount = 50
+  property editor.pos = [100, 100]
+  property edges = [{ from: context.start, to: apply.enter }]
+
+GraphProjection 可以解释为：
+  node apply : ApplyDamage
+  node default apply.amount = 50
+  node position apply = [100, 100]
+  edge context.start -> apply.enter
+```
+
+因此，在继续讨论更 JSON-like 的表层语法时，优先讨论 `asset/object/property/value/reference/attribute/declaration` 这些序列化概念；`node/pin/edge/entry` 留到 GraphProjection 章节。
+
+### 1.2 Parser 技术选型
 
 当前决策：新语法使用 Tree-sitter 实现 Syntax Parser。
 
@@ -77,11 +130,11 @@ Tree-sitter 不负责：
 
 语法设计应避免依赖 Tree-sitter 之外难以恢复的隐式规则。每个可视化编辑操作需要对应到明确、稳定的 CST node 或 source range。
 
-### 1.2 Tree-sitter CST 契约
+### 1.3 Tree-sitter CST 契约
 
 Tree-sitter grammar 的第一目标不是直接产出最终 AST，而是产出稳定、可查询、可增量更新的 CST。AST/Text Framework 会在 CST 之上提供 typed wrapper、SemanticModel、TextPatch 和 projection。
 
-#### 1.2.1 基本约束
+#### 1.3.1 基本约束
 
 grammar 必须满足：
 
@@ -92,7 +145,7 @@ grammar 必须满足：
 - 错误文本应尽量恢复到最近的 `scope_declaration`、`object_expression`、`property_declaration`、`call_statement` 或 `declaration`。
 - 不在 grammar 中编码 Graph/HTN/Table/FlowGraph 语义。
 
-#### 1.2.2 最低 named node 集合
+#### 1.3.2 最低 named node 集合
 
 第一版 grammar 至少应产出这些 named node：
 
@@ -149,7 +202,7 @@ ERROR
 
 如果 Tree-sitter 的实际错误节点名为 `ERROR`，C++ facade 可以包装成 `error_node`；但原始 CST 不应隐藏错误节点。
 
-#### 1.2.3 关键 field name
+#### 1.3.3 关键 field name
 
 稳定 field name 比具体树深度更重要。C++ wrapper 和 source patch API 应优先依赖 field name，而不是子节点序号。
 
@@ -235,7 +288,7 @@ property_declaration.name -> amount
 property_declaration.value -> 50
 ```
 
-#### 1.2.4 Source patch anchor
+#### 1.3.4 Source patch anchor
 
 以下操作必须能从 CST 找到稳定 patch anchor：
 
@@ -288,7 +341,7 @@ property_declaration.value -> 50
 
 如果某个操作找不到对应 patch anchor，图编辑器应降级为插入新的 fragment，而不是重写整个文件。
 
-#### 1.2.5 错误恢复要求
+#### 1.3.5 错误恢复要求
 
 错误恢复的最低要求：
 
@@ -320,7 +373,7 @@ property_declaration target value=MissingExpr
 call_statement callee=context.start.connect args=[apply.enter] missing=')'
 ```
 
-#### 1.2.6 Tree-sitter query 目标
+#### 1.3.6 Tree-sitter query 目标
 
 第一版 grammar 应允许通过 query 找到常见语义结构。
 

@@ -249,7 +249,7 @@ tests/fixtures/json5/diagnostics.graph.json5
 - `AGENTS.md` 当前迁移方向
 - `docs/plans/tree-sitter-gs-migration-plan.md`
 - `docs/spec/architecture.md`
-- `docs/spec/dsl-reference.md`
+- `docs/syntax/archive/legacy-graph-dsl-reference.md`
 - CLI help 和 package metadata
 - tree-sitter grammar 目标
 - tests/fixtures 策略

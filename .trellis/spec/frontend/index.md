@@ -1,52 +1,39 @@
-# GraphScript Frontend Guidelines
+# Frontend Agent Guide
 
-This layer covers GraphScript's browser editing surfaces:
+This file is harness guidance for agents. It is not the product spec.
 
-- `web/`: legacy/single-file LiteGraph.js editor served by `gs serve`.
-- `webapp/`: Vite, React, TypeScript, React Flow based editor.
-- C++ server state/API contracts consumed by both UIs.
-
-Frontend work must preserve the project axiom that every editing operation is
-CLI-first and replayable. The browser UI is a command surface over the C++
-`EditSession`; it must not create graph semantics that the core engine cannot
-parse, validate, emit, and replay.
+Frontend product behavior is defined by `docs/spec/`, especially the architecture
+and graph-domain documents. `.trellis/spec` only tells agents what to read and
+what to verify before changing UI code.
 
 ## Required Reading
 
 Read these before frontend changes:
 
-1. `docs/spec/architecture.md` for `EditSession`, `state_to_json()`, and server
-   boundaries.
-2. `docs/spec/development-guide.md` for CLI-first and test expectations.
-3. `docs/spec/scope-rules.md` when rendering or editing flow/data links.
-4. Backend specs when changing `/api/*`, command execution, or JSON state.
+1. `docs/spec/index.md`
+2. `docs/spec/architecture.md`
+3. `docs/spec/graph-domain.md` for graph nodes, pins, edges,
+   diagnostics, source-bound graph operations, or editor state.
+4. `docs/spec/development-guide.md`
+5. Backend harness guides when changing `/api/*`, command execution, or JSON
+   state contracts.
 
-## Guidelines Index
+## Harness Guides
 
-| Guide | Description | Status |
-| --- | --- | --- |
-| [Directory Structure](./directory-structure.md) | `web/`, `webapp/`, panels, canvas, API, tests | Filled |
-| [Component Guidelines](./component-guidelines.md) | React/React Flow and legacy LiteGraph UI patterns | Filled |
-| [Hook Guidelines](./hook-guidelines.md) | Hook usage boundaries for the React webapp | Filled |
-| [State Management](./state-management.md) | Backend state as source of truth and CLI replay | Filled |
-| [Quality Guidelines](./quality-guidelines.md) | Build, lint, visual replay, backend smoke tests | Filled |
-| [Type Safety](./type-safety.md) | TypeScript API contracts and JSON state typing | Filled |
+| Guide | When to read |
+| --- | --- |
+| [Directory Structure](./directory-structure.md) | Locating `web/`, `webapp/`, API, and test files. |
+| [Component Guidelines](./component-guidelines.md) | React/React Flow and legacy UI behavior. |
+| [Hook Guidelines](./hook-guidelines.md) | Hook state and effect changes. |
+| [State Management](./state-management.md) | Backend state, command replay, and UI refresh. |
+| [Quality Guidelines](./quality-guidelines.md) | Frontend build, lint, smoke, and replay checks. |
+| [Type Safety](./type-safety.md) | TypeScript API and state contracts. |
 
-## Pre-Development Checklist
+## Agent Checklist
 
-- Determine whether the change targets `web/`, `webapp/`, or the C++ server API.
-- Find the CLI command behind the intended UI action.
-- If no CLI command exists, add or design the backend command before making a
-  GUI-only operation.
-- Check `webapp/src/api/types.ts` before changing JSON state assumptions.
-- For visual graph behavior, identify the replay or smoke test that proves the
-  UI can reconstruct state from backend output.
-
-## Quality Check
-
-- Run `npm run build` and `npm run lint` from `webapp/` for TypeScript UI work.
-- Run relevant Python visual/smoke tests in `webapp/` when changing canvas,
-  replay, diagnostics, source preview, or real backend integration.
-- Rebuild and run backend tests when frontend changes require C++ API/state
-  changes.
-- Verify browser actions remain reproducible through command log replay.
+- Determine whether the change targets `web/`, `webapp/`, or backend API.
+- Find the backend operation behind any intended UI action.
+- Do not add UI-only graph semantics that cannot be represented by backend
+  document/domain operations.
+- Check `webapp/src/api/types.ts` when JSON state assumptions change.
+- Run the relevant frontend and backend checks before reporting completion.

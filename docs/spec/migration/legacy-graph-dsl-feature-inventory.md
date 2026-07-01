@@ -69,7 +69,7 @@
 | schema registry 和 connection policy。 | `process_declare_schemas()`；`EditGraph::validate()` 消费 schema policy。 | 部分覆盖：asset schema declaration 可解析 properties，policy binding/validation 未迁移。 | max exec fan-out、allow fan-in、strict type match、allowed tags、required events 测试需迁移。 |
 | schema validator：通用图校验和 schema-specific policy。 | `include/graphscript/schema/validator.h`；`src/schema/validator.cpp`；`include/graphscript/schema/connection_policy.h`。 | 后续 Phase：应迁移为 GraphDomain validation，输入为 asset graph projection/model。 | orphan/cycle/pin existence、required events、allowed tags、fan-in/fan-out、strict type match 测试需迁移。 |
 | graph-as-node：每个 graph 派生 `NodeDefinition`。 | `Compiler::derive_node_from_graph()`。 | 缺失/后续 Phase：新 graph projection/runtime 必须重新提供子图作为节点能力。 | graph-as-node type refs、graph rename 更新引用、nested graph tests 需迁移。 |
-| block-level scope rule：event/function 可见性不同。 | `Compiler::validate_graph_scope()`；`docs/spec/scope-rules.md`。 | 缺失/后续 Phase：asset projector 当前只检查连接 alias 存在，未实现 event/function scope policy。 | context/param/node visibility 正反例测试需迁移。 |
+| block-level scope rule：event/function 可见性不同。 | `Compiler::validate_graph_scope()`；`docs/syntax/archive/legacy-scope-rules.md`。 | 缺失/后续 Phase：asset projector 当前只检查连接 alias 存在，未实现 event/function scope policy。 | context/param/node visibility 正反例测试需迁移。 |
 | 结构化 diagnostics。 | `Compiler::diagnostics()`；`DiagnosticTarget/DiagnosticAction`。 | 部分覆盖：asset parser/linter/projector 有 diagnostics，但还未覆盖旧 compiler diagnostic targets/actions。 | diagnostic code、target/action、source highlight、quick fix 测试需迁移。 |
 
 ## 旧 emitter / 输出功能

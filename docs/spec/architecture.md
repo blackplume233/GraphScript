@@ -1,339 +1,212 @@
 # GraphScript Architecture
 
-> Data model, compilation pipeline, and layer boundaries.
+> Current product architecture for human + AI collaborative game asset editing.
+
+GraphScript is an AI Native game asset format and authoring stack. The system is
+designed around one canonical source text that can be edited by AI agents,
+linted like a script, projected into graph/domain views, and patched from visual
+editor operations without erasing the user's text.
 
 ---
 
-## Layer Architecture
+## Highest Goal
 
-```
+Humans and AI should collaborate organically on the same asset:
+
+- AI works directly on serialization text with diagnostics, source ranges, and
+  structured patches.
+- Humans work through graph and asset editors.
+- Both paths preserve one canonical source file, including comments, blank lines,
+  local formatting, and stable identities.
+
+This is the reason for the CST/AST/document model, Graph projection, LSP-facing
+diagnostics, and minimal source patching rules.
+
+---
+
+## Implementation Layers
+
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          Domain Layer                               │
-│  .d.gs files: declare type, declare Node, declare Schema            │
-│  (htn_nodes.d.gs, task_nodes.d.gs, levelscript_nodes.d.gs, ...)    │
+│  Web Editor                                                         │
+│  Human graph/asset editing surface. Issues replayable operations.   │
 ├─────────────────────────────────────────────────────────────────────┤
-│                       Schema Framework                              │
-│  ConnectionPolicy · GraphSchema · SchemaRegistry · Validator        │
-│  (schema/)  — defines rule containers, no concrete rules            │
+│  Graph Domain                                                       │
+│  Interprets serialization facts as graph, node, pin, edge, entry.   │
 ├─────────────────────────────────────────────────────────────────────┤
-│                        Core Engine                                  │
-│  Asset Parser · Projection · EditSession · GraphRuntimeIR           │
-│  (asset/ edit/ graph/ core/ registry/)                              │
+│  Serialization Document Library                                     │
+│  CST, typed AST facade, semantic model, diagnostics, rewrite ops.   │
 ├─────────────────────────────────────────────────────────────────────┤
-│                       CLI / Web Frontend                            │
-│  gs CLI · CLIEditor · WebServer · LiteGraph.js UI                   │
-│  (cli/ web/)                                                        │
+│  Serialization Syntax                                               │
+│  .gs/.d.gs source grammar: file, import, scope, object, property.   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Invariant**: Core Engine and Schema Framework code must **never** contain domain-specific names (HTN, Task, LevelScript, Cinematic, etc.).
+### 1. Serialization Syntax
+
+The base language describes game asset facts:
+
+- files and imports
+- scopes/assets/fragments
+- objects and properties
+- values and references
+- attributes/metadata
+- declarations and schemas
+
+It does not make `Graph`, `Node`, `Pin`, `Edge`, HTN task, table row, or dialogue
+branch fundamental parser concepts. Those belong to domain projection layers.
+
+Current syntax shape: [docs/syntax/current/serialization-syntax.md](../syntax/current/serialization-syntax.md).
+
+### 2. Serialization Document Library
+
+The document library is the editing foundation. It must provide:
+
+- lossless CST with tokens, trivia, comments, blank lines, source ranges, missing
+  nodes, and error nodes
+- typed AST wrappers over the CST
+- semantic model and partial binding
+- machine-usable diagnostics and quick fixes
+- document operations and rewrite planning
+- minimal `TextPatch` output
+
+The library is what lets AI patch text directly and lets graph edits preserve
+the surrounding source instead of re-emitting whole files.
+
+### 3. Graph Domain
+
+The Graph domain consumes serialization facts and projects them into an authoring
+model:
+
+- graph scopes
+- node candidates
+- entries
+- pins
+- edges
+- graph diagnostics
+- graph edit operations that lower back to document operations
+
+Graph domain rules are described by declarations, schemas, attributes, binders,
+and projection providers. They must not leak back into base parser concepts.
+
+The graph authoring model should stay associated with the document model through
+stable source bindings or document anchors. It should not depend on parser
+internals or own the CST directly. A graph item may cache domain data for fast
+editor interaction, but editable graph items need a way to resolve back to a
+source anchor exposed by the serialization document library. This association is
+what makes precise patches possible without serializing the whole graph back to
+text.
+
+Current Graph contract: [graph-domain.md](./graph-domain.md).
+
+### 4. Web Editor
+
+The Web editor is the human visual editing surface. It should:
+
+- render from backend/domain state, not invent its own graph semantics
+- send replayable edit operations to the backend
+- display diagnostics and source ranges from the document/domain model
+- treat source text as canonical even when showing graph-first workflows
 
 ---
 
-## Compilation Pipeline
+## Source-First Pipeline
 
-### Text → Graph
-
-```
-Source (.gs)
-    │
-    ▼
-  tree-sitter asset parser
-    │
-    ▼
-  asset::Module                    (asset/language.h)
-    │               │
-    │               ├── imports / declarations
-    │               ├── block/property/command/expr items
-    │               └── graph blocks
-    │
-    ▼
-  asset lint + FlowGraphProjector
-    │
-    ▼
-  FlowGraph / EditSession adapter / Environment declarations
+```text
+.gs/.d.gs source text
+  -> Serialization parser
+  -> Lossless CST + Syntax diagnostics
+  -> Typed AST facade
+  -> Semantic model + asset lint
+  -> Domain projections
+  -> Graph/Web/CLI authoring views
 ```
 
-### Graph → Text (Round-trip)
-
-```
-asset source
-    │
-    ▼
-  source patch / asset source emission
-    │
-    ▼
-  Re-parse + re-project → structurally equivalent asset graph
-```
-
-### Graph → Editor
-
-```
-Graph (from Module)
-    │
-    ▼
-  EditGraph.build(graph, env)
-    │
-    ▼
-  EditGraph     (SlotMap<EditNode>, SlotMap<EditConnection>)
-    │               Stable generational handles
-    │               Schema-aware connection validation
-    │
-    ▼
-  FlowGraphProjector.project(module)
-    │
-    ▼
-  GraphRuntimeIR.bake(flow_graph)
-    │
-    ▼
-  GraphRuntimeIR  (flat arrays, integer indices, immutable)
-```
+Invalid or incomplete text should still produce partial structure whenever
+possible. A broken property should not make the whole graph disappear; it should
+produce a partial model plus diagnostics and invalid domain items.
 
 ---
 
-## Core Data Structures
+## Visual Edit To Text Patch
 
-### Module (core/module.h)
-
-The top-level compilation result. Contains everything in one `.gs` file.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `file_path` | `string` | Source file path |
-| `imports` | `vector<ImportDecl>` | `import` declarations |
-| `top_level_lets` | `vector<LetDecl>` | `let` declarations |
-| `graphs` | `vector<Graph>` | Compiled graphs |
-
-### ImportDecl / LetDecl (core/module.h)
-
-Top-level declarations retain source traceability and prefix metadata.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `annotations` | `vector<Annotation>` | Prefix metadata annotations |
-| `source_range` | `SourceRange` | Source span of the declaration |
-| `name_range` | `SourceRange` | `let` binding name span |
-| `type_name_range` | `SourceRange` | `let` constructible type reference span |
-
-### Graph (core/graph.h)
-
-A single graph definition, the primary unit of editing.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `string` | Graph name |
-| `base_type` | `optional<string>` | Schema type (e.g. "HTNGraph") |
-| `parameters` | `vector<GraphParameter>` | in/out/var params |
-| `node_instances` | `vector<NodeInstance>` | Instantiated nodes |
-| `events` | `vector<Event>` | Event logic blocks |
-| `functions` | `vector<Function>` | Function logic blocks |
-| `generate` | `optional<GenerateBlock>` | Editor metadata |
-
-### LogicBlock (base of Event/Function)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `string` | Block name |
-| `annotations` | `vector<Annotation>` | Prefix metadata annotations |
-| `flow_connections` | `vector<FlowConnection>` | Exec flow edges |
-| `data_links` | `vector<DataLink>` | Data wiring |
-
-### FlowConnection / DataLink (core/connection.h)
-
-```cpp
-struct FlowConnection {
-    PinAddress from;  // {node_instance, pin_name}
-    PinAddress to;
-    vector<Annotation> annotations;
-};
-
-struct DataLink {
-    PinAddress target;  // node.pin being written to
-    DataSource source;  // node.pin or bare param name
-    vector<Annotation> annotations;
-};
+```text
+Human graph edit
+  -> Graph domain operation
+  -> Source binding / document anchor lookup
+  -> Serialization document operation
+  -> Minimal TextPatch
+  -> Reparse + relint + reproject
 ```
 
-### NodeDefinition (core/node.h)
+Required behavior:
 
-Defines a node type's pins. Can be `is_native` (from `.d.gs`) or derived from a Graph.
+- Patch the smallest stable source range.
+- Preserve unrelated text byte-for-byte.
+- Preserve comments, blank lines, and local formatting.
+- Reparse after patching and surface any new diagnostics.
+- Fall back to inserting a new fragment when a precise patch anchor is missing,
+  rather than rewriting the whole document.
 
-Declaration-file node and pin definitions retain prefix metadata annotations for JSON traceability. `TypeInfo`, `NodeDefinition`, `PinDefinition`, `GraphSchema`, and `GraphSchemaField` can carry `vector<Annotation>` alongside source/name ranges.
-
-### EditGraph (edit/edit_graph.h)
-
-Mutable, editor-friendly graph using `SlotMap` for O(1) node/connection operations with stable handles.
-
-| Feature | Implementation |
-|---------|---------------|
-| Node storage | `SlotMap<EditNode>` |
-| Connection storage | `SlotMap<EditConnection>` |
-| Handle stability | Generational `Handle` (index + generation) |
-| Schema enforcement | `ConnectionPolicy` checked on `connect()` |
-
-### GraphRuntimeIR (graph/runtime_ir.h)
-
-Baked, immutable, cache-friendly graph for runtime consumption.
-
-| Feature | Implementation |
-|---------|---------------|
-| Nodes | `vector<RuntimeIRNode>` (flat array) |
-| Pins | `vector<RuntimeIRPin>` (flat array) |
-| Flow edges | `vector<RuntimeIRFlowEdge>` (integer indices) |
-| Data edges | `vector<RuntimeIRDataEdge>` (integer indices) |
-
-### EditSession (edit/edit_session.h)
-
-Stateful editing context wrapping a `Module`. Provides:
-- Graph CRUD (new, delete, switch active)
-- Node/param/event/function manipulation
-- Flow/data-assignment operations with **scope validation**
-- Snapshot-based undo/redo
-- Command logging
-- JSON state export for web UI
-- File I/O (load/save/import)
+The editor may keep an interactive graph model in memory, but that model should
+be source-bound through document-library anchors. It should store or reference
+enough stable binding data to answer: "which source range should this visual edit
+patch?" If the answer is unknown, the operation is degraded and should create an
+explicit fragment or diagnostic instead of pretending the graph can be safely
+serialized wholesale.
 
 ---
 
-## Environment & Registries
+## AI Edit To Graph Refresh
 
-`Environment` (registry/environment.h) is the central context holding:
+```text
+AI text patch
+  -> Reparse
+  -> Syntax/semantic/domain diagnostics
+  -> Projection delta
+  -> Web editor refresh
+```
 
-| Registry | Purpose |
-|----------|---------|
-| `TypeRegistry` | Type definitions (`int`, `float`, `AActor`, ...) with `constructible` flag |
-| `NodeRegistry` | Node definitions (native from `.d.gs` + derived from Graph-as-Node) |
-| `SchemaRegistry` | GraphSchema definitions with ConnectionPolicy |
-
-All three are populated by the asset declaration loading path when processing `.d.gs` declaration files.
+AI-facing diagnostics should identify source ranges, expected shapes, candidate
+symbols, and executable quick fixes. Natural-language advice can be layered on
+top, but the core diagnostic contract should be structured.
 
 ---
 
-## Graph-as-Node
+## Dependency Direction
 
-When a `Graph` is compiled, a `NodeDefinition` is automatically derived:
-- `in` params → Data input pins
-- `out` params → Data output pins
-- `var` params → excluded
-- Events → Exec input pins
+Allowed:
 
-This enables **composable sub-graphs**: `Graph A` can instantiate `Graph B` as a node.
+```text
+Serialization Syntax
+  -> Serialization Document Library
+  -> Graph Domain
+  -> Web Editor
+```
+
+Forbidden:
+
+```text
+Serialization Syntax -> Graph Domain
+Serialization Syntax -> Web Editor
+Serialization Document Library -> Web Editor
+```
+
+The base parser must stay reusable for graph, table, dialogue, quest, level, and
+other game asset domains.
 
 ---
 
-## Schema System
+## Current CLI Surface
 
-Schemas define domain-specific rules without modifying core code:
+| Subcommand | Purpose |
+| --- | --- |
+| `parse` | Parse `.gs/.d.gs` and report syntax structure/diagnostics. |
+| `lint` | Run syntax, semantic, and domain diagnostics where available. |
+| `project` | Project a domain view such as Graph/FlowGraph. |
+| `patch` | Apply a document-aware source patch. |
+| `edit` | Run an interactive source/domain editor. |
+| `serve` | Run the web editor server. |
 
-```
-declare Schema HTNGraph {
-    max_exec_fan_out = unlimited;
-    allow_exec_fan_in = false;
-}
-```
-
-Schema declarations and individual schema fields can carry prefix annotations, which are preserved in registry metadata and exported through JSON state.
-
-| Schema Property | Type | Effect |
-|-----------------|------|--------|
-| `max_exec_fan_out` | int or "unlimited" | Limits outgoing exec connections per pin |
-| `allow_exec_fan_in` | bool | Whether multiple exec edges can target one input |
-| `strict_type_match` | bool | Whether data connections require exact type match |
-| `allowed_node_tags` | string[] | Filter available node types |
-| `required_events` | string[] | Events that must exist in the graph |
-
----
-
-## CLI Tool (`gs`)
-
-### Scenario: tree-sitter asset CLI surface
-
-#### 1. Scope / Trigger
-
-- Trigger: migration to tree-sitter asset `.gs/.d.gs` syntax changes the supported CLI command surface.
-- Scope: user-facing `gs` subcommands. Editor/server entry points use the tree-sitter asset path and may expose additional replay/debug commands only inside the interactive `edit` surface; those are not top-level CLI commands.
-
-#### 2. Signatures
-
-| Subcommand | Signature | Description |
-|------------|-----------|-------------|
-| `parse` | `gs parse -i file.gs` | Parse `.gs/.d.gs` asset syntax and print syntax summary. |
-| `lint` | `gs lint -i file.gs [-I import.d.gs...]` | Parse and lint asset syntax, returning diagnostics JSON. |
-| `project` | `gs project -i file.gs [-I import.d.gs...] --graph Name` | Project a graph block to FlowGraph JSON summary. |
-| `patch` | `gs patch -i file.gs --op <op> [patch options]` | Apply a tree-sitter-aware source patch and write to stdout or `-o`. |
-| `edit` | `gs edit [-i file.gs] [-I import.d.gs...]` | Start the interactive editor. |
-| `serve` | `gs serve [-i file.gs] [-I import.d.gs...] [-p 8080]` | Start the web editor server. |
-
-Supported patch ops: `add-import`, `add-node`, `add-block`, `add-attribute`, `connect`, `disconnect`, `rename-node`, `rename-block`, `set-property`.
-
-#### 3. Contracts
-
-- Current file suffixes are `.gs` and `.d.gs`.
-- `parse/lint/project/patch` use the tree-sitter asset parser path.
-- `project` consumes imports by merging asset declarations before graph projection.
-- `patch` prints patched source to stdout unless `-o/--output` is supplied.
-- Legacy command names are not accepted user commands: `compile`, `validate`, `emit`, `diagram`, `bake`, `info`, `schema`, and all `sc-*`.
-
-#### 4. Validation & Error Matrix
-
-| Condition | Expected behavior |
-|-----------|-------------------|
-| Unknown or legacy command | Exit non-zero with `Unknown command: <name>`. |
-| Asset command without `-i` | Exit non-zero with `Error: -i <input_file> required`. |
-| Missing graph in `project`/`patch` | Exit non-zero with projection or patch error. |
-| Invalid source syntax | `parse/lint` include diagnostics and return non-zero. |
-| Patch edit outside source range | Exit non-zero with patch error. |
-
-#### 5. Good/Base/Bad Cases
-
-- Good: `gs project -i ability.gs -I ability_core.d.gs --graph Execute` returns graph name, schema, node count, edge count, and diagnostics count.
-- Base: `gs parse -i ability.d.gs` returns declaration counts and diagnostics count.
-- Bad: `gs compile -i ability.gs` returns `Unknown command: compile`.
-
-#### 6. Tests Required
-
-- CLI help smoke asserts only `edit/serve/parse/lint/project/patch` are listed.
-- Unknown-command smoke asserts removed legacy commands return `Unknown command`.
-- Parse/lint/project/patch smoke tests use `.gs/.d.gs` fixtures.
-- Full C++ test suite must pass after command-surface changes.
-
-#### 7. Wrong vs Correct
-
-Wrong:
-
-```bash
-gs compile -i ability.gs
-gs sc-project -i ability.gs --graph Execute
-```
-
-Correct:
-
-```bash
-gs lint -i ability.gs
-gs project -i ability.gs -I ability_core.d.gs --graph Execute
-```
-
----
-
-## Web Editor Architecture
-
-```
-Browser (LiteGraph.js)
-    │
-    │  HTTP REST API
-    │
-    ▼
-WebServer (cpp-httplib)
-    │
-    │  std::mutex protected
-    │
-    ▼
-EditSession
-    │
-    ▼
-Module (source of truth)
-```
-
-Every GUI action maps to a CLI command string → sent to `/api/exec` → executed by `CLIEditor.execute()` → state returned as JSON → UI re-rendered.
-
-Command log is maintained for full replay capability.
+Legacy graph-only commands and old hand-written DSL behavior are archive or
+migration material, not the current architectural target.

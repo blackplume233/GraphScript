@@ -21,6 +21,7 @@ These guides help you **ask the right questions before coding**.
 
 | Guide | Purpose | When to Use |
 |-------|---------|-------------|
+| [AI Native Design Guide](./ai-native-design-guide.md) | Review human/AI collaboration, source preservation, and graph/text design standards | When changing product, syntax, graph, document, patch, or editor design |
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
 
@@ -36,6 +37,15 @@ These guides help you **ask the right questions before coding**.
 - [ ] You're not sure where to put some logic
 
 → Read [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md)
+
+### When to Think About AI Native Design
+
+- [ ] Syntax, graph, document model, patching, or editor design changes
+- [ ] A feature affects both AI text editing and human visual editing
+- [ ] A change could rewrite source broadly or lose comments/formatting
+- [ ] Graph/domain data may drift from source text
+
+→ Read [AI Native Design Guide](./ai-native-design-guide.md)
 
 ### When to Think About Code Reuse
 

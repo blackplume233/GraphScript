@@ -130,7 +130,7 @@ function CalculateScore {
 }
 ```
 
-**Scope**: Functions can only reference `context` and parameter names. See [Scope Rules](./scope-rules.md).
+**Scope**: Functions can only reference `context` and parameter names. See [Legacy Scope Rules](./legacy-scope-rules.md).
 
 ### Annotations (C# Attribute Style)
 

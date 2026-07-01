@@ -1,51 +1,42 @@
-# GraphScript C++ Core Guidelines
+# Backend Agent Guide
 
-This layer covers the C++17 GraphScript engine, CLI, build system, tests, and
-runtime-facing contracts. It is the implementation-spec entry point for work in
-`include/graphscript/`, `src/`, `cli/`, `tests/`, `tests/fixtures/`, and CMake.
+This file is harness guidance for agents. It is not the product spec.
 
-Detailed product and language specifications stay in `docs/spec/`. The Trellis
-spec summarizes the executable engineering rules future agents must apply before
-editing code.
+Product and architecture authority lives in `docs/spec/`; syntax artifacts live
+in `docs/syntax/`. Use this Trellis file only as the Agent work checklist.
 
 ## Required Reading
 
-Read these files before backend/core changes:
+Read these before backend/core changes:
 
-1. `docs/spec/index.md` for project axioms and command overview.
-2. `docs/spec/architecture.md` for layer boundaries and data structures.
-3. `docs/spec/development-guide.md` for build, test, extension, and anti-pattern rules.
-4. `docs/spec/scope-rules.md` before touching compiler, EditSession, flow, or data links.
-5. The specific guideline files below for the touched area.
+1. `docs/spec/index.md`
+2. `docs/spec/architecture.md`
+3. `docs/syntax/current/serialization-syntax.md` for parser, CST/AST,
+   source patch, or persisted syntax work.
+4. `docs/spec/graph-domain.md` for graph projection, pins, edges,
+   source bindings, or visual graph edit work.
+5. `docs/spec/development-guide.md`
 
-## Guidelines Index
+Then read the specific harness guide below only if it applies to the files you
+will touch.
 
-| Guide | Description | Status |
-| --- | --- | --- |
-| [Directory Structure](./directory-structure.md) | C++ API, implementation, CLI, tests, fixtures, and docs layout | Filled |
-| [Database Guidelines](./database-guidelines.md) | Database applicability for this project | N/A |
-| [Error Handling](./error-handling.md) | `Result<T, std::string>`, diagnostics, CLI/server error flow | Filled |
-| [Quality Guidelines](./quality-guidelines.md) | Test gates, round-trip rules, doc comments, forbidden patterns | Filled |
-| [Logging Guidelines](./logging-guidelines.md) | CLI/server output and diagnostic visibility | Filled |
+## Harness Guides
 
-## Pre-Development Checklist
+| Guide | When to read |
+| --- | --- |
+| [Directory Structure](./directory-structure.md) | Locating backend files and ownership boundaries. |
+| [Database Guidelines](./database-guidelines.md) | Only when a persistence feature is proposed. |
+| [Error Handling](./error-handling.md) | Parser/projection/edit/CLI/server errors. |
+| [Quality Guidelines](./quality-guidelines.md) | Test and verification expectations. |
+| [Logging Guidelines](./logging-guidelines.md) | CLI/server output and diagnostics visibility. |
 
-- Identify the touched pipeline stage: lexer, parser, compiler, emitter, edit,
-  runtime, CLI, web server, or tests.
-- Search for the existing pattern before adding a new helper, command, or data
-  field.
-- If the change affects syntax or IR shape, plan updates across parser,
-  compiler, emitter, tests, and fixtures.
-- If the change affects graph references, read `docs/spec/scope-rules.md`.
-- If the change affects GUI behavior, also read the frontend specs because GUI
-  actions must remain replayable through CLI commands.
+## Agent Checklist
 
-## Quality Check
-
-- Build with `cmake --build build --config Release`.
-- Run `./build/Release/gs_tests.exe`; all tests are expected to pass.
-- Add or update focused GoogleTest coverage for changed behavior.
-- For syntax changes, include a round-trip test: parse, compile, emit, reparse,
-  recompile, then compare structural behavior.
-- Do not commit domain-specific behavior into the core engine; domain knowledge
-  belongs in `.d.gs` schema declarations and fixtures.
+- Identify the touched layer before editing: serialization syntax, document
+  model, projection, patch/format, edit, runtime, CLI, server, tests, or docs.
+- Search for existing patterns before adding helpers, commands, fields, or
+  fixtures.
+- If a change crosses layers, update code, tests, fixtures, and `docs/spec`
+  together.
+- Keep product decisions in `docs/spec`, not `.trellis/spec`.
+- Run the relevant build/test checks before reporting completion.

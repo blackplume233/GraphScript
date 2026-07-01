@@ -659,9 +659,9 @@ GraphScript/
   docs/
     spec/
       tree-sitter-gs-migration-plan.md
-      legacy-graph-dsl-feature-inventory.md
-      ai-native-syntax.md
-      ai-native-asset-format.md
+      migration/legacy-graph-dsl-feature-inventory.md
+      ../syntax/design/ai-native-syntax-draft.md
+      ../syntax/design/ai-native-asset-format.md
       index.md
 ```
 
@@ -843,8 +843,8 @@ serve
 
 第一步把 `.sc/.d.sc` 改成 `.gs/.d.gs`：
 
-- `docs/spec/ai-native-syntax.md`
-- `docs/spec/ai-native-asset-format.md`
+- `docs/syntax/design/ai-native-syntax-draft.md`
+- `docs/syntax/design/ai-native-asset-format.md`
 - `tools/tree-sitter-graphscript-asset/package.json`
 - `tests/test_asset_language.cpp`
 - `cli/main.cpp` help 文案和命令说明
@@ -866,7 +866,7 @@ rg "\.d\.sc|\.sc\b"
 输出文档：
 
 ```text
-docs/spec/legacy-graph-dsl-feature-inventory.md
+docs/spec/migration/legacy-graph-dsl-feature-inventory.md
 ```
 
 | 旧功能区域 | 需要检查的文件 | 清单目标 |
@@ -954,7 +954,7 @@ GraphScript 正在从旧手写图 DSL 迁移到 tree-sitter asset 新语法。
 
 ### Phase 3：提取旧功能清单
 
-- 写 `docs/spec/legacy-graph-dsl-feature-inventory.md`。
+- 写 `docs/spec/migration/legacy-graph-dsl-feature-inventory.md`。
 - 标注哪些行为已由 `gs::asset::Parser`、`Linter`、`FlowGraphProjector`、`Patcher` 覆盖。
 - 缺失行为转成实现任务。
 

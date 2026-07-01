@@ -81,6 +81,70 @@ Graph、entry、node、pin、link、edge、HTN task、table row、dialogue branc
 
 其中 `pin` 不应成为基础语法概念。它可以由普通字段上的 attribute/meta 表达，并由 FlowGraph projection 解释。
 
+### 2.4 序列化层和 Graph 层必须分开设计
+
+后续开发必须先区分两套概念，再决定语法和实现归属：
+
+```text
+序列化层 Serialization Layer
+  负责描述资产事实：文件、导入、资产、片段、对象、属性、值、引用、属性标注、声明和 schema。
+
+Graph 层 Graph / FlowGraph Layer
+  负责把序列化事实投影成图：图、节点、入口、pin、edge、flow/link、连接策略、图运行时和图调试。
+```
+
+序列化层可以不知道某个对象未来会不会被投影成节点。它只需要保证这个对象、属性和值能被精确解析、绑定、诊断和 patch。
+
+Graph 层不能要求 parser 或基础 AST 内建 `Graph`、`Node`、`Pin`、`Edge` 等领域节点。它应通过 schema、attribute、binder 和 projection 解释序列化层产物。
+
+#### 2.4.1 序列化层最小概念
+
+第一版讨论和实现序列化结构时，只允许使用这些基础概念：
+
+| 概念 | 责任 | 示例 |
+| --- | --- | --- |
+| `File` | 一个可解析和可 patch 的源文本单元 | `.gs` / `.d.gs` |
+| `Import` | 声明依赖，不执行代码 | `import "core.d.gs"` |
+| `Asset` / `Scope` | 一个逻辑资产或资产片段边界 | `scope asset Fireball: Ability` |
+| `Fragment` | 对已有逻辑资产的一段贡献 | `@for("ability.fireball") scope tuning ...` |
+| `Object` | 类型化可序列化对象 | `const damage = new DamageEffect { ... }` |
+| `Property` | 对象或 scope 上的命名字段贡献 | `damage: 50` |
+| `Value` | 静态值、数组、inline object 或引用 | `"Fireball"`, `[1, 2]`, `ref "..."` |
+| `Reference` | 可绑定的本地、符号或外部资产引用 | `damage`, `DamageType.Fire`, `ref "/Game/..."` |
+| `Attribute` / `Metadata` | 附加工具、编辑器或领域元信息 | `@id(...)`, `@editor.field` |
+| `Declaration` / `Schema` | 类型、对象形状、scope kind、命令、lint 和依赖声明 | `declare object Ability { ... }` |
+
+这些概念可以支持表、对话、任务、技能、关卡数据和图投影，但它们本身不是任何一个领域模型。
+
+#### 2.4.2 Graph 层概念不得倒灌
+
+以下概念不得成为序列化层 AST/CST 的基础节点或 parser 关键语义：
+
+```text
+Graph
+GraphNode
+Entry
+Pin
+ExecPin
+DataPin
+Edge
+Flow
+Link
+HTNTask
+TableRow
+DialogueBranch
+```
+
+如果需要在源文本里表达这些内容，应先表达成序列化层事实，再由 Graph/FlowGraph/Table/Dialogue projection 解释。例如：
+
+- 图节点候选：类型化 `Object`。
+- pin 候选：声明文件里带 attribute 的 `Field`。
+- 连接候选：普通 `Property`、受限 `Command`，或 JSON-like `edges` 数据结构。
+- entry 候选：某个 `Scope` 或属性集合。
+- editor 位置：普通 metadata/property，例如 `editor.pos` 或 `editor: { pos: [...] }`。
+
+这样可以先讨论和稳定序列化结构，再单独讨论 GraphProjection 如何映射它。
+
 ---
 
 ## 3. 非目标
@@ -1385,7 +1449,7 @@ PEGTL 适合想完全掌控 parser、且语法规模较小的场景。作为快�
 
 也就是说，Tree-sitter 是正式的 Syntax Parser 技术选型，但它不替代整个 GraphScript compiler service。
 
-具体 CST named node、field name、source patch anchor 和错误恢复要求以 [AI Native 资产语法](./ai-native-syntax.md) 的 “Tree-sitter CST 契约” 为准。
+具体 CST named node、field name、source patch anchor 和错误恢复要求以 [AI Native 资产语法](./ai-native-syntax-draft.md) 的 “Tree-sitter CST 契约” 为准。
 
 ```text
 可以复用：
