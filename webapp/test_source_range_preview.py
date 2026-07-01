@@ -882,6 +882,9 @@ def main():
             patch_status_visible = page.locator('[data-source-sync-state="synced_patch"]').count() == 1
             line_focused = source_editor_selection(page) == ": "
             range_highlight = source_editor_selection(page) == ": "
+            source_editor_synced_by_patch = page.evaluate(
+                "() => window.__graphScriptSourceEditor?.getLastExternalSyncKind() === 'patch'"
+            )
             source_visible = page.locator("text=in speed : float;").count() > 0
             diagnostic_visible = page.locator("text=GS_TEST_SOURCE_RANGE").count() == 0
             source_action_visible = page.locator("text=Insert ':'").count() == 0
@@ -1258,6 +1261,7 @@ def main():
                 ("source edit applied to preview", source_visible),
                 ("source line focused", line_focused),
                 ("inserted text highlighted", range_highlight),
+                ("source editor used range patch", source_editor_synced_by_patch),
                 ("edited source rechecked", edit_posted),
                 ("edited source synced to session", source_synced),
                 ("source sync enables undo", undo_enabled),

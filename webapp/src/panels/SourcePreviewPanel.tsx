@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import { AlertTriangle, ChevronDown, ChevronRight, FileText, Pencil, Play, RefreshCw, RotateCcw, Save } from 'lucide-react'
@@ -18,6 +17,7 @@ declare global {
       getSelectedText: () => string
       getValue: () => string
       setValue: (value: string) => void
+      getLastExternalSyncKind: () => string
     }
   }
 }
@@ -127,6 +127,52 @@ function focusMonacoRange(editor: MonacoEditorInstance | null, source: string, r
   editor.setSelection(monacoRange)
   editor.revealRangeInCenter(monacoRange)
   editor.focus()
+}
+
+function commonPrefixLength(left: string, right: string): number {
+  const limit = Math.min(left.length, right.length)
+  let index = 0
+  while (index < limit && left[index] === right[index]) index += 1
+  return index
+}
+
+function commonSuffixLength(left: string, right: string, prefixLength: number): number {
+  const limit = Math.min(left.length, right.length) - prefixLength
+  let length = 0
+  while (
+    length < limit &&
+    left[left.length - 1 - length] === right[right.length - 1 - length]
+  ) {
+    length += 1
+  }
+  return length
+}
+
+function applyMinimalMonacoEdit(editor: MonacoEditorInstance, nextValue: string): 'none' | 'patch' | 'replace' {
+  const model = editor.getModel()
+  if (!model) return 'replace'
+  const currentValue = model.getValue()
+  if (currentValue === nextValue) return 'none'
+
+  const prefixLength = commonPrefixLength(currentValue, nextValue)
+  const suffixLength = commonSuffixLength(currentValue, nextValue, prefixLength)
+  const currentEndOffset = currentValue.length - suffixLength
+  const nextEndOffset = nextValue.length - suffixLength
+  const startPosition = model.getPositionAt(prefixLength)
+  const endPosition = model.getPositionAt(currentEndOffset)
+  const replacement = nextValue.slice(prefixLength, nextEndOffset)
+
+  model.pushEditOperations([], [{
+    range: {
+      startLineNumber: startPosition.lineNumber,
+      startColumn: startPosition.column,
+      endLineNumber: endPosition.lineNumber,
+      endColumn: endPosition.column,
+    },
+    text: replacement,
+    forceMoveMarkers: true,
+  }], () => null)
+  return 'patch'
 }
 
 function configureGraphScriptMonaco(monaco: MonacoApi) {
@@ -406,6 +452,8 @@ export default function SourcePreviewPanel({
 }: SourcePreviewPanelProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<MonacoEditorInstance | null>(null)
+  const suppressEditorChangeRef = useRef(false)
+  const lastExternalSyncKindRef = useRef('')
   const [editing, setEditing] = useState(true)
   const [declarationRenameValue, setDeclarationRenameValue] = useState('')
   const [collapsedImportNodes, setCollapsedImportNodes] = useState<Set<string>>(() => new Set())
@@ -457,9 +505,26 @@ export default function SourcePreviewPanel({
         editor.setValue(value)
         onSourceChange(value)
       },
+      getLastExternalSyncKind: () => lastExternalSyncKindRef.current,
     }
     focusMonacoRange(editor, source, focusedRange)
   }, [focusedRange, onSourceChange, source])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editing || !editor) return
+    const viewState = editor.saveViewState()
+    suppressEditorChangeRef.current = true
+    try {
+      const syncKind = applyMinimalMonacoEdit(editor, source)
+      if (syncKind !== 'none') {
+        lastExternalSyncKindRef.current = syncKind
+      }
+      if (viewState) editor.restoreViewState(viewState)
+    } finally {
+      suppressEditorChangeRef.current = false
+    }
+  }, [editing, source])
 
   useEffect(() => {
     if (editing) {
@@ -782,9 +847,12 @@ export default function SourcePreviewPanel({
               height="100%"
               language="graphscript"
               theme="graphscript-dark"
-              value={source}
+              defaultValue={source}
               onMount={handleEditorMount}
-              onChange={(value) => onSourceChange(value ?? '')}
+              onChange={(value) => {
+                if (suppressEditorChangeRef.current) return
+                onSourceChange(value ?? '')
+              }}
               options={{
                 automaticLayout: true,
                 fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",

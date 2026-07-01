@@ -64,6 +64,11 @@ authority in the browser.
 - Source should default to Monaco edit mode and auto-sync from backend
   `/api/emit` when there are no local source edits. Auto-sync must not overwrite
   local edits, synced patch/snapshot results, or import resolver metadata.
+- External source updates must patch the Monaco model by minimal range edit
+  rather than passing a fully controlled `value` that resets the whole buffer.
+  Preserve scroll/selection where possible and suppress the resulting model
+  change callback so backend-to-source sync is not misclassified as a manual
+  edit.
 - Source range focus must translate backend `{ line, column }` ranges into
   Monaco selections and reveal the range in view. Preview mode must continue to
   highlight backend-provided ranges without guessing semantic targets.
