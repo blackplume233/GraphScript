@@ -26,6 +26,13 @@ webapp/test_screenshots/
 
 # CMake build
 build/
+build-*/
+
+# Trellis task working artifacts
+.trellis/tasks/
 
 # Local smoke-test scratch output
 output.gs
+
+# Local agent artifacts
+.artifact/
