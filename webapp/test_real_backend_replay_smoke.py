@@ -75,6 +75,17 @@ def fetch_text(path):
         return res.read().decode("utf-8")
 
 
+def graph_by_name_or_active(state, graph_name):
+    graphs = state.get("module", {}).get("graphs", [])
+    for graph in graphs:
+        if graph.get("name") == graph_name:
+            return graph
+    active = state.get("active_graph", -1)
+    if isinstance(active, int) and 0 <= active < len(graphs):
+        return graphs[active]
+    return graphs[0] if graphs else {}
+
+
 def run_console_command(page, command):
     prompt = page.get_by_placeholder("add_node PrintString ps1")
     prompt.fill(command)
@@ -106,11 +117,7 @@ def main():
                 run_console_command(page, command)
 
             state_after_replay = fetch_json("api/state")
-            graph_after_replay = (
-                state_after_replay["module"]["graphs"][0]
-                if state_after_replay["module"].get("graphs")
-                else {}
-            )
+            graph_after_replay = graph_by_name_or_active(state_after_replay, "SmokeGraph")
             replayed_nodes = {node["instance"] for node in graph_after_replay.get("nodes", [])}
             if not {"branch", "montage"}.issubset(replayed_nodes):
                 raise RuntimeError(
@@ -130,7 +137,7 @@ def main():
 
             state = fetch_json("api/state")
             emitted = fetch_text("api/emit")
-            graph = state["module"]["graphs"][0] if state["module"]["graphs"] else {}
+            graph = graph_by_name_or_active(state, "SmokeGraph")
             event = graph["events"][0] if graph.get("events") else {}
             flow = event.get("flows", [{}])[0] if event.get("flows") else {}
             link = event.get("links", [{}])[0] if event.get("links") else {}
