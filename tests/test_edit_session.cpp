@@ -2067,7 +2067,7 @@ TEST(EditSession, StateJsonExportsDiagnostics) {
     std::string json = s.state_to_json();
     EXPECT_NE(json.find("\"diagnostics\""), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"diagnostic:GS_GRAPH_DUPLICATE_CONNECTION"), std::string::npos);
-    EXPECT_NE(json.find("\"severity\":\"warning\""), std::string::npos);
+    EXPECT_NE(json.find("\"severity\":\"error\""), std::string::npos);
     EXPECT_NE(json.find("\"message\":\"Duplicate connection detected\""), std::string::npos);
     EXPECT_NE(json.find("\"code\":\"GS_GRAPH_DUPLICATE_CONNECTION\""), std::string::npos);
     EXPECT_NE(json.find("\"range\":{\"start\":{\"line\":1,\"column\":1},\"end\":{\"line\":1,\"column\":1}}"), std::string::npos);

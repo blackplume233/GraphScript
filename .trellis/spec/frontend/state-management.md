@@ -33,6 +33,11 @@ If a UI feature cannot be expressed as a command:
 - Render from returned state when provided.
 - Refetch state after operations whose response does not include a complete
   state snapshot.
+- Autosave must reuse the same backend-owned edit paths. Graph edits should
+  execute CLI commands first, then debounce `save` only when returned state is
+  dirty and has a `file_path`. Source edits should debounce diagnostics plus
+  `applySourcePatch`/`applySource` before any `save`; never write browser text
+  directly to disk.
 - Keep UI-only selection, search text, panel open/closed state, and viewport
   position separate from backend graph truth.
 
@@ -47,5 +52,9 @@ If a UI feature cannot be expressed as a command:
 
 - Good: dragging or reconnecting an edge issues a replayable command and then
   redraws from backend state.
+- Good: typing in Source auto-applies after diagnostics pass; diagnostics errors
+  keep the buffer local and visible instead of forcing a broken session update.
 - Base: filter text or current panel tab stays local because it is purely UI.
 - Bad: browser mutates a node pin list locally without backend command support.
+- Bad: browser autosave bypasses `/api/source_patch`, `/api/source`, or
+  `/api/exec save` and writes a file from local component state.

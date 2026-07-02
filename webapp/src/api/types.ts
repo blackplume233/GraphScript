@@ -357,6 +357,18 @@ export interface DiagnosticsResponse {
   environment?: SourceDiagnosticsEnvironment
 }
 
+export interface CompletionItem {
+  label: string
+  kind: string
+  detail?: string
+  insertText?: string
+}
+
+export interface CompletionResponse {
+  ok: boolean
+  items: CompletionItem[]
+}
+
 export interface DeclarationSourceResponse {
   ok: boolean
   path: string

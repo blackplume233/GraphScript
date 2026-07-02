@@ -235,7 +235,7 @@ std::vector<Diagnostic> EditGraph::validate() const {
         if (count > 1) {
             auto target = connection_target(a, true);
             diags.push_back({
-                Severity::Warning,
+                Severity::Error,
                 "Duplicate connection detected",
                 target.node_instance,
                 "GS_GRAPH_DUPLICATE_CONNECTION",

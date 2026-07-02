@@ -537,10 +537,14 @@ function edgeSourceNeedles(edge: EdgeEditPayload): string[] {
     ]
   }
   return [
-    `${edge.targetNode}.${edge.targetPin} = ${edge.sourceNode}.${edge.sourcePin}`,
-    `${edge.targetNode}.${edge.targetPin}= ${edge.sourceNode}.${edge.sourcePin}`,
-    `${edge.targetNode}.${edge.targetPin}=${edge.sourceNode}.${edge.sourcePin}`,
+    `${edge.targetNode}.${edge.targetPin} = ${dataSourceEndpoint(edge)}`,
+    `${edge.targetNode}.${edge.targetPin}= ${dataSourceEndpoint(edge)}`,
+    `${edge.targetNode}.${edge.targetPin}=${dataSourceEndpoint(edge)}`,
   ]
+}
+
+function dataSourceEndpoint(edge: EdgeEditPayload): string {
+  return edge.sourcePin ? `${edge.sourceNode}.${edge.sourcePin}` : edge.sourceNode
 }
 
 function edgeAnnotationKey(edge: EdgeEditPayload): string {
@@ -692,9 +696,40 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [activeWorkbenchRequest, setActiveWorkbenchRequest] = useState<{ panel: 'source'; nonce: number } | null>(null)
   const retryRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const autoSaveTimerRef = useRef<number | undefined>(undefined)
+  const autoSourceApplyTimerRef = useRef<number | undefined>(undefined)
+  const autoSaveInFlightRef = useRef(false)
+  const autoSourceApplyAttemptKeyRef = useRef('')
 
   const requestSourcePanel = useCallback(() => {
     setActiveWorkbenchRequest(current => ({ panel: 'source', nonce: (current?.nonce ?? 0) + 1 }))
+  }, [])
+
+  const scheduleSessionAutoSave = useCallback((nextState: GSState | null) => {
+    if (!nextState?.file_path || !nextState.dirty) return
+    if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      autoSaveTimerRef.current = undefined
+      if (autoSaveInFlightRef.current) {
+        scheduleSessionAutoSave(nextState)
+        return
+      }
+      autoSaveInFlightRef.current = true
+      void execCommand('save')
+        .then(result => {
+          if (result.state) setState(result.state)
+          if (result.ok) {
+            setSourceSyncDetail(current => current || `Auto-saved ${nextState.file_path}`)
+          }
+        })
+        .catch(() => {
+          setSourceSyncState('error')
+          setSourceSyncDetail('Auto-save failed; session changes are still in memory')
+        })
+        .finally(() => {
+          autoSaveInFlightRef.current = false
+        })
+    }, 900)
   }, [])
 
   useEffect(() => {
@@ -746,6 +781,7 @@ export default function App() {
     sourceSessionChangedRef.current = false
     sourceApplyConfirmationBaseRef.current = null
     sourceResolverConfirmationHashRef.current = null
+    autoSourceApplyAttemptKeyRef.current = ''
     setSourceNeedsBaselineConfirmation(false)
     setPendingSourcePatchRange(null)
     setPendingSourcePatchSummary('')
@@ -784,7 +820,11 @@ export default function App() {
 
   useEffect(() => {
     refresh()
-    return () => { if (retryRef.current) clearTimeout(retryRef.current) }
+    return () => {
+      if (retryRef.current) clearTimeout(retryRef.current)
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+      if (autoSourceApplyTimerRef.current) clearTimeout(autoSourceApplyTimerRef.current)
+    }
   }, [refresh])
 
   useEffect(() => {
@@ -815,8 +855,9 @@ export default function App() {
   const runCommand = useCallback(async (cmd: string) => {
     const res = await execCommand(cmd)
     let nextState = state
-    if (res.state) setState(res.state)
     if (res.state) {
+      setState(res.state)
+      if (cmd.trim() !== 'save') scheduleSessionAutoSave(res.state)
       nextState = res.state
     } else {
       await refresh()
@@ -851,7 +892,7 @@ export default function App() {
     }
     markSourceStale(`Session changed by: ${cmd}`)
     return res
-  }, [markSourceStale, refresh, state])
+  }, [markSourceStale, refresh, scheduleSessionAutoSave, state])
 
   const handleExec = useCallback(async (cmd: string) => {
     try {
@@ -897,24 +938,30 @@ export default function App() {
   const handleUndo = useCallback(async () => {
     try {
       const res = await apiUndo()
-      if (res.state) setState(res.state)
+      if (res.state) {
+        setState(res.state)
+        scheduleSessionAutoSave(res.state)
+      }
       else await refresh()
       markSourceStale('Session changed by undo')
     } catch {
       await refresh()
     }
-  }, [markSourceStale, refresh])
+  }, [markSourceStale, refresh, scheduleSessionAutoSave])
 
   const handleRedo = useCallback(async () => {
     try {
       const res = await apiRedo()
-      if (res.state) setState(res.state)
+      if (res.state) {
+        setState(res.state)
+        scheduleSessionAutoSave(res.state)
+      }
       else await refresh()
       markSourceStale('Session changed by redo')
     } catch {
       await refresh()
     }
-  }, [markSourceStale, refresh])
+  }, [markSourceStale, refresh, scheduleSessionAutoSave])
 
   const handleEmit = useCallback(async () => {
     try {
@@ -1009,8 +1056,8 @@ export default function App() {
     setSourceSyncState(text ? 'edited' : 'empty')
     setSourceSyncDetail(text
       ? sourceSessionChangedRef.current
-        ? 'Manual source edit is based on a stale backend source; Apply will verify the baseline first'
-        : 'Manual source edit is local until Apply'
+        ? 'Source edit is based on a stale backend source; auto-apply will verify the baseline first'
+        : 'Source edit will auto-apply after diagnostics pass'
       : '')
   }, [setSourcePreviewEditable, updatePendingSourcePatch])
 
@@ -1093,7 +1140,10 @@ export default function App() {
         : {}
       if (diff) {
         const applied = await applySourcePatch(diff.range, diff.replacement, diffBaseSource, sourceText, environmentGuard)
-        if (applied.state) setState(applied.state)
+        if (applied.state) {
+          setState(applied.state)
+          scheduleSessionAutoSave(applied.state)
+        }
         if (applied.ok) {
           acceptSourceBaseline(sourceText)
           setFocusedSourceRange(diff.range)
@@ -1107,7 +1157,10 @@ export default function App() {
       }
 
       const applied = await applySource(sourceText, environmentGuard)
-      if (applied.state) setState(applied.state)
+      if (applied.state) {
+        setState(applied.state)
+        scheduleSessionAutoSave(applied.state)
+      }
       if (applied.ok) {
         acceptSourceBaseline(sourceText)
         setSourceSyncState('synced_snapshot')
@@ -1124,7 +1177,7 @@ export default function App() {
     } finally {
       setApplyingSource(false)
     }
-  }, [acceptSourceBaseline, refresh, sourceResolverEnvironment, sourceText, state, updatePendingSourcePatch])
+  }, [acceptSourceBaseline, refresh, scheduleSessionAutoSave, sourceResolverEnvironment, sourceText, state, updatePendingSourcePatch])
 
   const handleRevertSourceText = useCallback(async () => {
     try {
@@ -1153,6 +1206,40 @@ export default function App() {
       setApplyingSource(false)
     }
   }, [acceptSourceBaseline, refresh, setSourcePreviewEditable, state])
+
+  useEffect(() => {
+    if (
+      !sourceText ||
+      checkingSource ||
+      applyingSource ||
+      sourceNeedsBaselineConfirmation ||
+      !sourceEditable ||
+      declarationRenameContext
+    ) return
+    if (!sourceBaseTextRef.current || sourceText === sourceBaseTextRef.current) return
+    const attemptKey = `${sourceBaseTextRef.current.length}:${sourceText}`
+    if (autoSourceApplyAttemptKeyRef.current === attemptKey) return
+    if (autoSourceApplyTimerRef.current) window.clearTimeout(autoSourceApplyTimerRef.current)
+    autoSourceApplyTimerRef.current = window.setTimeout(() => {
+      autoSourceApplyTimerRef.current = undefined
+      autoSourceApplyAttemptKeyRef.current = attemptKey
+      void handleApplySourceText()
+    }, 1400)
+    return () => {
+      if (autoSourceApplyTimerRef.current) {
+        window.clearTimeout(autoSourceApplyTimerRef.current)
+        autoSourceApplyTimerRef.current = undefined
+      }
+    }
+  }, [
+    applyingSource,
+    checkingSource,
+    declarationRenameContext,
+    handleApplySourceText,
+    sourceEditable,
+    sourceNeedsBaselineConfirmation,
+    sourceText,
+  ])
 
   const handleAddNode = useCallback(async (typeName: string) => {
     const id = `${nodeInstancePrefix(typeName)}_${Date.now() % 100000}`
@@ -1212,7 +1299,7 @@ export default function App() {
     }
 
     if (action === 'add') {
-      return `link ${edge.targetNode}.${edge.targetPin} ${edge.sourceNode}.${edge.sourcePin}`
+      return `link ${edge.targetNode}.${edge.targetPin} ${dataSourceEndpoint(edge)}`
     }
     return `unlink ${edge.targetNode}.${edge.targetPin}`
   }, [])
@@ -1224,7 +1311,7 @@ export default function App() {
       return edge.annotations.map(annotation => `${prefix} ${annotationCommandSuffix(annotation)}`)
     }
 
-    const prefix = `annotate link ${edge.blockKind} ${edge.blockName} ${edge.targetNode}.${edge.targetPin} ${edge.sourceNode}.${edge.sourcePin}`
+    const prefix = `annotate link ${edge.blockKind} ${edge.blockName} ${edge.targetNode}.${edge.targetPin} ${dataSourceEndpoint(edge)}`
     return edge.annotations.map(annotation => `${prefix} ${annotationCommandSuffix(annotation)}`)
   }, [])
 
@@ -1610,7 +1697,7 @@ export default function App() {
     const command = (action.command ?? '').trim()
     const replacement = action.replacement ?? ''
     if (!command) {
-      if (replacement.length > 0) {
+      if (replacement.length > 0 || action.edit_range) {
         const editRange = action.edit_range ?? diagnostic.range
         try {
           const baseSource = sourceText || await fetchEmit()
@@ -1640,6 +1727,7 @@ export default function App() {
             const applied = await applySourcePatch(editRange, replacement, baseSource, edit.source, environmentGuard)
             if (applied.state) {
               setState(applied.state)
+              scheduleSessionAutoSave(applied.state)
             }
             if (applied.ok) {
               acceptSourceBaseline(edit.source)
@@ -1679,7 +1767,7 @@ export default function App() {
     } catch {
       await refresh()
     }
-  }, [acceptSourceBaseline, focusDiagnosticTarget, handleLocateDiagnostic, refresh, runCommand, sourceText, state])
+  }, [acceptSourceBaseline, focusDiagnosticTarget, handleLocateDiagnostic, refresh, runCommand, scheduleSessionAutoSave, sourceText, state])
 
   const sessionDiagnostics = useMemo(
     () => collectSessionDiagnostics(state),

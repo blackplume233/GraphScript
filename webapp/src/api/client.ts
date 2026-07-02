@@ -1,4 +1,4 @@
-import type { GSState, ExecResponse, UndoRedoResponse, DiagnosticsResponse, ApplySourceResponse, DeclarationSourceResponse, SourceRange } from './types'
+import type { GSState, ExecResponse, UndoRedoResponse, DiagnosticsResponse, ApplySourceResponse, DeclarationSourceResponse, CompletionResponse, SourceRange } from './types'
 
 const BASE = ''
 
@@ -75,6 +75,20 @@ export async function fetchDiagnostics(
   if (!res.ok) {
     throw new Error(`${source === undefined ? 'GET' : 'POST'} /api/diagnostics: ${res.status}`)
   }
+  return res.json()
+}
+
+export async function fetchCompletions(
+  source: string,
+  line: number,
+  column: number,
+): Promise<CompletionResponse> {
+  const res = await fetch(`${BASE}/api/completion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source, line, column }),
+  })
+  if (!res.ok) throw new Error(`POST /api/completion: ${res.status}`)
   return res.json()
 }
 

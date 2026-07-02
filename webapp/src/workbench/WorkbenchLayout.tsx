@@ -29,6 +29,15 @@ interface WorkbenchLayoutProps {
 type WorkbenchPanels = Record<WorkbenchPanelId, ReactNode>
 
 const WorkbenchPanelsContext = createContext<WorkbenchPanels | null>(null)
+const REQUIRED_PANEL_IDS: WorkbenchPanelId[] = [
+  'palette',
+  'canvas',
+  'properties',
+  'diagnostics',
+  'graphText',
+  'source',
+  'console',
+]
 
 function PanelHost({ panelId }: { panelId: WorkbenchPanelId }) {
   const panels = useContext(WorkbenchPanelsContext)
@@ -103,6 +112,24 @@ function createDefaultLayout(api: DockviewApi) {
   })
 }
 
+function hasRequiredPanels(api: DockviewApi): boolean {
+  return REQUIRED_PANEL_IDS.every(panelId => Boolean(api.getPanel(panelId)))
+}
+
+function restoreOrCreateLayout(api: DockviewApi, stored: SerializedDockview | null) {
+  if (stored) {
+    try {
+      api.fromJSON(stored)
+      if (hasRequiredPanels(api)) return
+    } catch {
+      // Invalid or stale layout JSON is recovered below by recreating the default layout.
+    }
+    api.clear()
+  }
+
+  createDefaultLayout(api)
+}
+
 export default function WorkbenchLayout({
   palette,
   canvas,
@@ -140,16 +167,7 @@ export default function WorkbenchLayout({
     apiRef.current = event.api
     layoutDisposableRef.current?.dispose()
     const stored = loadStoredLayout()
-    if (stored) {
-      try {
-        event.api.fromJSON(stored)
-      } catch {
-        event.api.clear()
-        createDefaultLayout(event.api)
-      }
-    } else {
-      createDefaultLayout(event.api)
-    }
+    restoreOrCreateLayout(event.api, stored)
 
     saveStoredLayout(event.api)
     layoutDisposableRef.current = event.api.onDidLayoutChange(() => saveStoredLayout(event.api))

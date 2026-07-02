@@ -155,7 +155,13 @@ interface PortRef {
 interface PendingConnection {
   nodeId: string
   port: PortRef
+  endpoint: EndpointRef
   type: string
+}
+
+interface EndpointRef {
+  node: string
+  pin: string
 }
 
 type GraphScriptEdge = Edge<EdgeEditPayload, 'blueprint'>
@@ -184,6 +190,49 @@ export interface EdgeEditPayload extends Record<string, unknown> {
   sourceEndpointRange?: SourceRange
   targetEndpointRange?: SourceRange
   annotations: Annotation[]
+}
+
+const GRAPH_PARAMETERS_NODE_ID = '__graph_parameters__'
+const CONTEXT_NODE_ID_PREFIX = '__logic_context__:'
+
+function logicContextNodeId(block: LogicBlockRef): string {
+  return `${CONTEXT_NODE_ID_PREFIX}${block.kind}:${block.name}`
+}
+
+function isLogicContextNodeId(nodeId: string): boolean {
+  return nodeId.startsWith(CONTEXT_NODE_ID_PREFIX)
+}
+
+function endpointLabel(node: string, pin: string): string {
+  if (!node) return pin || 'context'
+  return pin ? `${node}.${pin}` : node
+}
+
+function dataSourceEndpointLabel(edge: EdgeEditPayload): string {
+  return edge.sourcePin ? `${edge.sourceNode}.${edge.sourcePin}` : edge.sourceNode
+}
+
+function endpointFromVisualNodeId(nodeId: string, port: PortRef): EndpointRef {
+  if (nodeId === GRAPH_PARAMETERS_NODE_ID && port.kind === 'data') {
+    return { node: port.pin, pin: '' }
+  }
+  if (isLogicContextNodeId(nodeId)) {
+    return { node: 'context', pin: port.pin }
+  }
+  return { node: nodeId, pin: port.pin }
+}
+
+function visualNodeIdForEndpoint(graph: GraphDef, block: LogicBlockRef, kind: 'exec' | 'data', node: string, pin: string): string {
+  if (node === 'context') return logicContextNodeId(block)
+  if (kind === 'data' && !pin && graph.parameters.some(parameter => parameter.name === node)) {
+    return GRAPH_PARAMETERS_NODE_ID
+  }
+  return node
+}
+
+function visualPinForEndpoint(kind: 'exec' | 'data', node: string, pin: string): string {
+  if (kind === 'data' && !pin) return node
+  return pin
 }
 
 function findAnnotationArg(node: NodeInst, annotationName: string, argName: string): string | undefined {
@@ -302,10 +351,49 @@ function dataTypesCompatible(left: string, right: string): boolean {
   return left === right
 }
 
+function contextPins(): PinDef[] {
+  return [
+    { name: 'start', kind: 'exec', direction: 'out', type: '', annotations: [] },
+    { name: 'done', kind: 'exec', direction: 'in', type: '', annotations: [] },
+    { name: 'result', kind: 'data', direction: 'in', type: '', annotations: [] },
+  ]
+}
+
+function graphParameterPins(graph: GraphDef): PinDef[] {
+  return graph.parameters.map(parameter => ({
+    name: parameter.name,
+    kind: 'data',
+    direction: 'out',
+    type: parameter.type,
+    annotations: parameter.annotations,
+    persistent_id: parameter.persistent_id,
+    source_range: parameter.source_range,
+    name_source_range: parameter.name_source_range,
+    type_source_range: parameter.type_source_range,
+  }))
+}
+
 function findNodeTypeForInstance(graph: GraphDef | undefined, types: NodeTypeDef[], instanceName: string): NodeTypeDef | undefined {
   const node = graph?.nodes.find(item => item.instance === instanceName)
   if (!node) return undefined
   return types.find(type => type.type_name === node.type)
+}
+
+function pinDefinitionForVisualPort(
+  graph: GraphDef,
+  types: NodeTypeDef[],
+  nodeId: string,
+  port: PortRef,
+): PinDef | undefined {
+  const pins = nodeId === GRAPH_PARAMETERS_NODE_ID
+    ? graphParameterPins(graph)
+    : isLogicContextNodeId(nodeId)
+      ? contextPins()
+      : findNodeTypeForInstance(graph, types, nodeId)?.pins ?? []
+  return pins.find(pin =>
+    pin.kind === port.kind &&
+    pin.direction === port.direction &&
+    pin.name === port.pin)
 }
 
 function compatiblePinsForPending(type: NodeTypeDef, pending: PendingConnection | null | undefined): PinDef[] {
@@ -331,13 +419,8 @@ function connectionFailureMessage(
   const port = parsePortId(handle.getAttribute('data-port-id'))
   const nodeEl = handle.closest('.react-flow__node')
   const nodeId = nodeEl?.getAttribute('data-id') ?? ''
-  const nodeType = nodeId ? findNodeTypeForInstance(graph, state.types, nodeId) : undefined
-  const targetPin = port
-    ? nodeType?.pins.find(item =>
-      item.kind === port.kind &&
-      item.direction === port.direction &&
-      item.name === port.pin)
-    : undefined
+  const targetPin = port && nodeId ? pinDefinitionForVisualPort(graph, state.types, nodeId, port) : undefined
+  const targetEndpoint = port && nodeId ? endpointFromVisualNodeId(nodeId, port) : null
 
   if (!port) return 'This socket cannot accept a graph connection'
   if (nodeId === pending.nodeId && port.pin === pending.port.pin) return 'Cannot connect a pin to itself'
@@ -352,20 +435,20 @@ function connectionFailureMessage(
         kind: pending.port.kind,
         blockKind: activeLogicBlock.kind,
         blockName: activeLogicBlock.name,
-        sourceNode: pending.nodeId,
-        sourcePin: pending.port.pin,
-        targetNode: nodeId,
-        targetPin: port.pin,
+        sourceNode: pending.endpoint.node,
+        sourcePin: pending.endpoint.pin,
+        targetNode: targetEndpoint?.node ?? nodeId,
+        targetPin: targetEndpoint?.pin ?? port.pin,
         annotations: [],
       }
       : {
         kind: pending.port.kind,
         blockKind: activeLogicBlock.kind,
         blockName: activeLogicBlock.name,
-        sourceNode: nodeId,
-        sourcePin: port.pin,
-        targetNode: pending.nodeId,
-        targetPin: pending.port.pin,
+        sourceNode: targetEndpoint?.node ?? nodeId,
+        sourcePin: targetEndpoint?.pin ?? port.pin,
+        targetNode: pending.endpoint.node,
+        targetPin: pending.endpoint.pin,
         annotations: [],
       }
     const message = connectionCardinalityMessage(graph, activeLogicBlock, edge)
@@ -385,8 +468,8 @@ function edgePayloadForPendingConnection(
       kind: pending.port.kind,
       blockKind: block.kind,
       blockName: block.name,
-      sourceNode: pending.nodeId,
-      sourcePin: pending.port.pin,
+      sourceNode: pending.endpoint.node,
+      sourcePin: pending.endpoint.pin,
       targetNode: newNodeId,
       targetPin: newNodePin.name,
       annotations: [],
@@ -399,8 +482,8 @@ function edgePayloadForPendingConnection(
     blockName: block.name,
     sourceNode: newNodeId,
     sourcePin: newNodePin.name,
-    targetNode: pending.nodeId,
-    targetPin: pending.port.pin,
+    targetNode: pending.endpoint.node,
+    targetPin: pending.endpoint.pin,
     annotations: [],
   }
 }
@@ -510,7 +593,9 @@ function edgeId(edge: EdgeEditPayload): string {
 }
 
 function edgeDomId(edge: EdgeEditPayload): string {
-  return `${edge.sourceNode}_${edge.kind}-out-${edge.sourcePin}-${edge.targetNode}_${edge.kind}-in-${edge.targetPin}`
+  const sourcePin = visualPinForEndpoint(edge.kind, edge.sourceNode, edge.sourcePin)
+  const targetPin = visualPinForEndpoint(edge.kind, edge.targetNode, edge.targetPin)
+  return `${edge.sourceNode}_${edge.kind}-out-${sourcePin}-${edge.targetNode}_${edge.kind}-in-${targetPin}`
 }
 
 function nodeTypeCategory(type: NodeTypeDef): string {
@@ -546,7 +631,7 @@ function groupContextNodeTypes(types: NodeTypeDef[]): ContextNodeGroup[] {
 
 function pendingConnectionLabel(pending: PendingConnection): string {
   const verb = pending.port.direction === 'out' ? 'from' : 'to'
-  return `${verb} ${pending.nodeId}.${pending.port.pin}`
+  return `${verb} ${endpointLabel(pending.endpoint.node, pending.endpoint.pin)}`
 }
 
 function contextPinSummary(type: NodeTypeDef, pending: PendingConnection | null | undefined): string {
@@ -656,7 +741,9 @@ function BlueprintEdge({
               <button
                 type="button"
                 className="nodrag nopan graphscript-edge-delete-button"
-                aria-label={`Delete ${data.kind} connection ${data.sourceNode}.${data.sourcePin} to ${data.targetNode}.${data.targetPin}`}
+                aria-label={`Delete ${data.kind} connection ${
+                  data.kind === 'data' ? dataSourceEndpointLabel(data) : endpointLabel(data.sourceNode, data.sourcePin)
+                } to ${endpointLabel(data.targetNode, data.targetPin)}`}
                 title="Delete connection"
                 data-edge-delete-button={id}
                 style={{
@@ -813,20 +900,25 @@ const edgeTypes = {
   blueprint: BlueprintEdge,
 }
 
-function payloadFromConnection(connection: Connection, block: LogicBlockRef | null | undefined): EdgeEditPayload | null {
+function payloadFromConnection(
+  connection: Connection,
+  block: LogicBlockRef | null | undefined,
+): EdgeEditPayload | null {
   const source = parsePortId(connection.sourceHandle)
   const target = parsePortId(connection.targetHandle)
   if (!connection.source || !connection.target || !source || !target || !block) return null
   if (source.direction !== 'out' || target.direction !== 'in') return null
   if (source.kind !== target.kind) return null
+  const sourceEndpoint = endpointFromVisualNodeId(connection.source, source)
+  const targetEndpoint = endpointFromVisualNodeId(connection.target, target)
   return {
     kind: source.kind,
     blockKind: block.kind,
     blockName: block.name,
-    sourceNode: connection.source,
-    sourcePin: source.pin,
-    targetNode: connection.target,
-    targetPin: target.pin,
+    sourceNode: sourceEndpoint.node,
+    sourcePin: sourceEndpoint.pin,
+    targetNode: targetEndpoint.node,
+    targetPin: targetEndpoint.pin,
     annotations: [],
   }
 }
@@ -836,8 +928,64 @@ function toReactFlowNodes(
   state: GSState,
   diagnostics: ReturnType<typeof buildDiagnosticHighlightIndex> | null,
   connectionPreview: PendingConnection | null,
+  block: LogicBlock | undefined,
 ): BlueprintFlowNode[] {
-  return graph.nodes.map((node, index) => {
+  const nodes: BlueprintFlowNode[] = []
+  if (block) {
+    const data: BlueprintNodeData = {
+      label: 'Context',
+      typeName: block.kind === 'event' ? 'Event Context' : 'Function Context',
+      instanceName: 'context',
+      init: '',
+      category: block.kind === 'event' ? 'Event' : 'Function',
+      sourceGraph: graph.name,
+      isNative: false,
+      isSynthetic: true,
+      pins: contextPins(),
+      intrinsicProperties: [],
+      diagnostic: diagnostics?.nodes.context,
+      connectionPreview,
+    }
+    nodes.push({
+      id: logicContextNodeId(block),
+      type: 'blueprint' as const,
+      position: { x: -120, y: 40 },
+      data,
+      draggable: false,
+      deletable: false,
+      selectable: false,
+      zIndex: 10,
+    })
+  }
+
+  const parameterPins = graphParameterPins(graph)
+  if (parameterPins.length > 0) {
+    const data: BlueprintNodeData = {
+      label: 'Graph Inputs',
+      typeName: 'Graph Parameters',
+      instanceName: 'Graph Inputs',
+      init: '',
+      category: 'Graph',
+      sourceGraph: graph.name,
+      isNative: false,
+      isSynthetic: true,
+      pins: parameterPins,
+      intrinsicProperties: [],
+      connectionPreview,
+    }
+    nodes.push({
+      id: GRAPH_PARAMETERS_NODE_ID,
+      type: 'blueprint' as const,
+      position: { x: -120, y: block ? 210 : 80 },
+      data,
+      draggable: false,
+      deletable: false,
+      selectable: false,
+      zIndex: 10,
+    })
+  }
+
+  nodes.push(...graph.nodes.map((node, index) => {
     const position = nodePosition(node, index)
     const typeDef = state.types.find(type => type.type_name === node.type)
     const pins = typeDef?.pins ?? []
@@ -856,12 +1004,13 @@ function toReactFlowNodes(
     }
     return {
       id: node.instance,
-      type: 'blueprint',
+      type: 'blueprint' as const,
       position,
       data,
       zIndex: 12,
     }
-  })
+  }))
+  return nodes
 }
 
 function toReactFlowCommentBoxes(graph: GraphDef): CommentBoxFlowNode[] {
@@ -901,11 +1050,17 @@ function toReactFlowEdges(
   diagnostics: ReturnType<typeof buildDiagnosticHighlightIndex> | null,
 ): GraphScriptEdge[] {
   if (!block) return []
+  const blockRef: LogicBlockRef = { kind: block.kind, name: block.name }
   const graphNodes = new Set(graph.nodes.map(node => node.instance))
+  const hasVisualEndpoint = (kind: 'exec' | 'data', node: string, pin: string) => {
+    if (node === 'context') return true
+    if (kind === 'data' && !pin && graph.parameters.some(parameter => parameter.name === node)) return true
+    return graphNodes.has(node)
+  }
   const edges: GraphScriptEdge[] = []
 
   for (const flow of block.flows) {
-    if (!graphNodes.has(flow.from_node) || !graphNodes.has(flow.to_node)) continue
+    if (!hasVisualEndpoint('exec', flow.from_node, flow.from_pin) || !hasVisualEndpoint('exec', flow.to_node, flow.to_pin)) continue
     const payload: EdgeEditPayload = {
       id: flow.id,
       persistentId: flow.persistent_id,
@@ -925,10 +1080,10 @@ function toReactFlowEdges(
     edges.push({
       id: edgeId(payload),
       type: 'blueprint',
-      source: payload.sourceNode,
-      target: payload.targetNode,
-      sourceHandle: `exec-out-${payload.sourcePin}`,
-      targetHandle: `exec-in-${payload.targetPin}`,
+      source: visualNodeIdForEndpoint(graph, blockRef, 'exec', payload.sourceNode, payload.sourcePin),
+      target: visualNodeIdForEndpoint(graph, blockRef, 'exec', payload.targetNode, payload.targetPin),
+      sourceHandle: `exec-out-${visualPinForEndpoint('exec', payload.sourceNode, payload.sourcePin)}`,
+      targetHandle: `exec-in-${visualPinForEndpoint('exec', payload.targetNode, payload.targetPin)}`,
       data: payload,
       animated: highlight?.severity === 'warning',
       reconnectable: false,
@@ -938,7 +1093,7 @@ function toReactFlowEdges(
   }
 
   for (const link of block.links) {
-    if (!link.source_pin || !graphNodes.has(link.source_node) || !graphNodes.has(link.target_node)) continue
+    if (!hasVisualEndpoint('data', link.source_node, link.source_pin) || !hasVisualEndpoint('data', link.target_node, link.target_pin)) continue
     const payload: EdgeEditPayload = {
       id: link.id,
       persistentId: link.persistent_id,
@@ -958,10 +1113,10 @@ function toReactFlowEdges(
     edges.push({
       id: edgeId(payload),
       type: 'blueprint',
-      source: payload.sourceNode,
-      target: payload.targetNode,
-      sourceHandle: `data-out-${payload.sourcePin}`,
-      targetHandle: `data-in-${payload.targetPin}`,
+      source: visualNodeIdForEndpoint(graph, blockRef, 'data', payload.sourceNode, payload.sourcePin),
+      target: visualNodeIdForEndpoint(graph, blockRef, 'data', payload.targetNode, payload.targetPin),
+      sourceHandle: `data-out-${visualPinForEndpoint('data', payload.sourceNode, payload.sourcePin)}`,
+      targetHandle: `data-in-${visualPinForEndpoint('data', payload.targetNode, payload.targetPin)}`,
       data: payload,
       animated: highlight?.severity === 'warning',
       reconnectable: false,
@@ -1027,9 +1182,9 @@ function FlowCanvasInner({
     if (!state || !graph) return []
     return [
       ...toReactFlowCommentBoxes(graph),
-      ...toReactFlowNodes(graph, state, diagnosticHighlights, connectionPreview),
+      ...toReactFlowNodes(graph, state, diagnosticHighlights, connectionPreview, activeBlock),
     ]
-  }, [connectionPreview, diagnosticHighlights, graph, state])
+  }, [activeBlock, connectionPreview, diagnosticHighlights, graph, state])
 
   const initialEdges = useMemo(() => {
     if (!graph) return []
@@ -1241,14 +1396,11 @@ function FlowCanvasInner({
     if (!graph || !state || !params.nodeId) return
     const port = parsePortId(params.handleId)
     if (!port) return
-    const nodeType = findNodeTypeForInstance(graph, state.types, params.nodeId)
-    const pin = nodeType?.pins.find(item =>
-      item.kind === port.kind &&
-      item.direction === port.direction &&
-      item.name === port.pin)
+    const pin = pinDefinitionForVisualPort(graph, state.types, params.nodeId, port)
     const pending: PendingConnection = {
       nodeId: params.nodeId,
       port,
+      endpoint: endpointFromVisualNodeId(params.nodeId, port),
       type: pin?.type ?? '',
     }
     pendingConnectionRef.current = pending
@@ -1352,16 +1504,20 @@ function FlowCanvasInner({
       }
 
       const edge = reconnecting.edge
+      const blockRef = {
+        kind: edge.blockKind,
+        name: edge.blockName,
+      }
       const connection: Connection = reconnecting.endpoint === 'source'
         ? {
           source: nodeId,
           sourceHandle: handleId,
-          target: edge.targetNode,
-          targetHandle: `${edge.kind}-in-${edge.targetPin}`,
+          target: graph ? visualNodeIdForEndpoint(graph, blockRef, edge.kind, edge.targetNode, edge.targetPin) : edge.targetNode,
+          targetHandle: `${edge.kind}-in-${visualPinForEndpoint(edge.kind, edge.targetNode, edge.targetPin)}`,
         }
         : {
-          source: edge.sourceNode,
-          sourceHandle: `${edge.kind}-out-${edge.sourcePin}`,
+          source: graph ? visualNodeIdForEndpoint(graph, blockRef, edge.kind, edge.sourceNode, edge.sourcePin) : edge.sourceNode,
+          sourceHandle: `${edge.kind}-out-${visualPinForEndpoint(edge.kind, edge.sourceNode, edge.sourcePin)}`,
           target: nodeId,
           targetHandle: handleId,
         }
@@ -1370,7 +1526,7 @@ function FlowCanvasInner({
 
     window.addEventListener('pointerup', onManualReconnectEnd)
     return () => window.removeEventListener('pointerup', onManualReconnectEnd)
-  }, [applyReconnect, showConnectionFeedback])
+  }, [applyReconnect, graph, showConnectionFeedback])
 
   const onEdgesDelete = useCallback((deleted: GraphScriptEdge[]) => {
     for (const edge of deleted) {
@@ -1394,6 +1550,8 @@ function FlowCanvasInner({
     for (const node of deleted) {
       if (node.type === 'commentBox') {
         void onCommentBoxDelete?.(node.data.annotationName)
+      } else if (node.data.isSynthetic) {
+        continue
       } else {
         void onNodeDelete?.(node.id)
       }
@@ -1474,7 +1632,10 @@ function FlowCanvasInner({
       return
     }
 
-    const selectedNodes = nodes.filter((item): item is BlueprintFlowNode => item.type === 'blueprint' && Boolean(item.selected))
+    if (node.data.isSynthetic) return
+
+    const selectedNodes = nodes.filter((item): item is BlueprintFlowNode =>
+      item.type === 'blueprint' && !item.data.isSynthetic && Boolean(item.selected))
     const nodesToPersist = selectedNodes.length > 1 && selectedNodes.some(item => item.id === node.id)
       ? selectedNodes
       : [node]
@@ -1487,6 +1648,11 @@ function FlowCanvasInner({
 
   const onNodeClick = useCallback<NodeMouseHandler<GraphScriptNode>>((event, node) => {
     if (node.type === 'commentBox') {
+      onNodeSelect?.(null)
+      onEdgeSelect?.(null)
+      return
+    }
+    if (node.data.isSynthetic) {
       onNodeSelect?.(null)
       onEdgeSelect?.(null)
       return

@@ -8,6 +8,7 @@
 #include <sstream>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <charconv>
 #include <cctype>
 #include <cstdint>
@@ -46,6 +47,27 @@ static std::string esc(const std::string& s) {
 
 static std::string json_str(const std::string& s) {
     return "\"" + esc(s) + "\"";
+}
+
+static void add_completion_item(std::vector<std::string>& items,
+                                const std::string& label,
+                                const std::string& kind,
+                                const std::string& detail = "",
+                                const std::string& insert_text = "") {
+    items.push_back("{\"label\":" + json_str(label) +
+                    ",\"kind\":" + json_str(kind) +
+                    ",\"detail\":" + json_str(detail) +
+                    ",\"insertText\":" + json_str(insert_text.empty() ? label : insert_text) + "}");
+}
+
+static std::string completion_items_json(const std::vector<std::string>& items) {
+    std::string json = "[";
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (i > 0) json += ",";
+        json += items[i];
+    }
+    json += "]";
+    return json;
 }
 
 static bool has_suffix(const std::string& value, const std::string& suffix) {
@@ -408,6 +430,61 @@ int WebServer::run() {
         }
         if (source.empty()) source = session_.emit();
         res.set_content(source_diagnostics_to_json(source, session_.env(), options), "application/json");
+    });
+
+    // ── POST /api/completion -> LSP-shaped source completion items ─
+    svr.Post("/api/completion", [this](const httplib::Request& req, httplib::Response& res) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::vector<std::string> items;
+        std::unordered_set<std::string> labels;
+        auto add = [&](const std::string& label,
+                       const std::string& kind,
+                       const std::string& detail = "",
+                       const std::string& insert_text = "") {
+            if (label.empty() || !labels.insert(kind + "\n" + label + "\n" + insert_text).second) return;
+            add_completion_item(items, label, kind, detail, insert_text);
+        };
+
+        add("graph", "Keyword");
+        add("schema", "Keyword");
+        add("param", "Keyword");
+        add("node", "Keyword");
+        add("event", "Keyword");
+        add("function", "Keyword");
+        add("connect", "Function", "Graph command", "connect(${1:source}.${2:pin}, ${3:target}.${4:pin});");
+        add("bind", "Function", "Graph command", "bind(${1:source}, ${2:target}.${3:pin});");
+        add("context.start", "Variable", "Entry exec output");
+        add("context.done", "Variable", "Function exec input");
+        add("context.result", "Variable", "Function data result");
+
+        for (auto* type : session_.env().nodes().all()) {
+            add(type->type_name, "Class", type->is_native ? "Node type" : "Graph node type");
+            for (const auto& pin : type->pins) {
+                const std::string detail = (pin.kind == PinKind::Exec ? "exec" : "data") +
+                    std::string(pin.direction == PinDirection::Input ? " input" : " output") +
+                    (pin.type_name.empty() ? "" : " : " + pin.type_name);
+                add(pin.name, "Field", type->type_name + " " + detail);
+            }
+        }
+
+        if (const auto* graph = session_.active_graph()) {
+            for (const auto& param : graph->parameters) {
+                add(param.name, "Variable", "Graph parameter : " + param.type_name);
+            }
+            for (const auto& node : graph->node_instances) {
+                add(node.instance_name, "Variable", "Node instance : " + node.type_name);
+                if (const auto* type = session_.env().nodes().find(node.type_name)) {
+                    for (const auto& pin : type->pins) {
+                        add(node.instance_name + "." + pin.name,
+                            "Field",
+                            node.type_name + " pin",
+                            node.instance_name + "." + pin.name);
+                    }
+                }
+            }
+        }
+
+        res.set_content("{\"ok\":true,\"items\":" + completion_items_json(items) + "}", "application/json");
     });
 
     // ── POST /api/source → replace session module from source text ─

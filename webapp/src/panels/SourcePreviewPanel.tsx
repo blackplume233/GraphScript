@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
+import type * as Monaco from 'monaco-editor'
 import { AlertTriangle, ChevronDown, ChevronRight, FileText, Pencil, Play, RefreshCw, RotateCcw, Save } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { fetchCompletions } from '@/api/client'
 import type { SourceDiagnosticsEnvironment, SourceRange } from '@/api/types'
 
 type MonacoEditorInstance = Parameters<OnMount>[0]
@@ -220,6 +222,34 @@ function configureGraphScriptMonaco(monaco: MonacoApi) {
         { open: '"', close: '"' },
       ],
     })
+    monaco.languages.registerCompletionItemProvider('graphscript', {
+      triggerCharacters: ['.', '"', '@', ' ', '('],
+      provideCompletionItems: async (model: Monaco.editor.ITextModel, position: Monaco.Position) => {
+        const word = model.getWordUntilPosition(position)
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        }
+        try {
+          const response = await fetchCompletions(model.getValue(), position.lineNumber, position.column)
+          const suggestions = response.items.map(item => ({
+            label: item.label,
+            kind: completionKind(monaco, item.kind),
+            detail: item.detail,
+            insertText: item.insertText ?? item.label,
+            insertTextRules: (item.insertText ?? '').includes('${')
+              ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+              : undefined,
+            range,
+          }))
+          return { suggestions }
+        } catch {
+          return { suggestions: [] }
+        }
+      },
+    })
   }
 
   monaco.editor.defineTheme('graphscript-dark', {
@@ -244,6 +274,20 @@ function configureGraphScriptMonaco(monaco: MonacoApi) {
       'editorIndentGuide.activeBackground1': '#3c4a62',
     },
   })
+}
+
+function completionKind(monaco: MonacoApi, kind: string) {
+  const completionKinds = monaco.languages.CompletionItemKind
+  switch (kind) {
+    case 'Keyword': return completionKinds.Keyword
+    case 'Function': return completionKinds.Function
+    case 'Class': return completionKinds.Class
+    case 'Field': return completionKinds.Field
+    case 'Variable': return completionKinds.Variable
+    case 'Property': return completionKinds.Property
+    case 'Snippet': return completionKinds.Snippet
+    default: return completionKinds.Text
+  }
 }
 
 function renderLineText(text: string, lineNumber: number, focusedRange: SourceRange | null) {

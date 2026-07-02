@@ -272,6 +272,84 @@ fetchDiagnostics(source, {
 })
 ```
 
+## Scenario: Duplicate Graph Connection Diagnostics
+
+### 1. Scope / Trigger
+
+- Trigger: source contains repeated graph command statements such as duplicate
+  `connect(a.out, b.in);` or duplicate `bind(value, node.pin);`.
+- Scope: asset `FlowGraphProjector`, source diagnostics JSON, session
+  diagnostics, diagnostic actions, and frontend quickfix application.
+
+### 2. Signatures
+
+- Projection diagnostic:
+  - `code: "GS-FLW-008"`
+  - `severity: error`
+  - `target.graph`, `target.block_kind`, `target.block_name`
+  - `target.connection_kind: "exec" | "data"`
+  - `range`: source range of the duplicate statement.
+- Quickfix action:
+  - `title: "Delete duplicate statement"`
+  - `kind: "quickfix"`
+  - `command: ""`
+  - `edit_range`: range of the duplicate statement
+  - `replacement: ""`
+
+### 3. Contracts
+
+- Duplicate source statements are graph-domain errors, not serialization parse
+  errors. Comments containing `connect`/`bind` are ignored by the parser.
+- The first occurrence of a repeated edge may remain; every later identical
+  source statement should receive an error diagnostic.
+- Source diagnostics must report duplicate connections from projection, not only
+  from `EditGraph::validate()`, so AI repair and Source quickfixes can delete
+  the exact repeated statement.
+- Empty quickfix replacement is meaningful and means "delete this range"; do not
+  drop the action because the replacement string is empty.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+| --- | --- |
+| Two identical `connect(source, target)` in one event/function | One `GS-FLW-008` error on the second statement |
+| Three identical `connect(source, target)` | Two `GS-FLW-008` errors on the second and third statements |
+| Duplicate `bind(source, target)` with bare parameter source | `GS-FLW-008` with `connection_kind=data` |
+| Same source pin connected to different target | Use schema/cardinality validation, not duplicate-statement diagnostic |
+| Repeated connection inside comments | No diagnostic |
+
+### 5. Good/Base/Bad Cases
+
+- Good: `connect(destroy.exit, printer.enter);` repeated three times produces
+  two source-range errors with delete quickfixes.
+- Base: session validation also treats duplicate runtime edges as errors so the
+  canvas does not present ambiguous deletion as a warning-only issue.
+- Bad: only checking parser validity or only checking `EditGraph` state leaves
+  source diagnostics unable to delete the repeated statement.
+
+### 6. Tests Required
+
+- Asset projection test asserts duplicate source statements produce
+  `GS-FLW-008` errors and empty-replacement quickfix actions.
+- EditSession state JSON test asserts duplicate runtime connections are errors
+  and expose a replayable removal action.
+- Frontend test or type-safe quickfix path must allow `replacement: ""` when
+  `edit_range` is present.
+
+### 7. Wrong vs Correct
+
+Wrong:
+
+```typescript
+if (action.replacement.length > 0) applySourcePatch(...)
+```
+
+Correct:
+
+```typescript
+if (action.replacement.length > 0 || action.edit_range) applySourcePatch(...)
+```
+
 ## Anti-Patterns
 
 ### Do Not Throw For Expected User Input Errors

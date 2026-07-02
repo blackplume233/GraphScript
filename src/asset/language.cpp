@@ -769,6 +769,11 @@ std::string endpoint_owner(const std::string& endpoint) {
     return dot == std::string::npos ? endpoint : endpoint.substr(0, dot);
 }
 
+std::string endpoint_pin(const std::string& endpoint) {
+    const size_t dot = endpoint.find('.');
+    return dot == std::string::npos ? "" : endpoint.substr(dot + 1);
+}
+
 bool known_endpoint_owner(const std::string& owner,
                           const std::unordered_set<std::string>& node_aliases,
                           const std::unordered_set<std::string>& parameter_names,
@@ -846,6 +851,74 @@ void project_command_call(const CommandCall& call,
     }
 
     diagnostics.push_back(make_diag(Severity::Warning, "GS-FLW-001", "Unsupported command call in graph", call.span.range));
+}
+
+void add_duplicate_connection_diagnostic(std::vector<Diagnostic>& diagnostics,
+                                         const std::string& graph_name,
+                                         const std::string& block_kind,
+                                         const std::string& block_name,
+                                         const std::string& connection_kind,
+                                         const std::string& source,
+                                         const std::string& target,
+                                         SourceRange range) {
+    Diagnostic diag = make_diag(
+        Severity::Error,
+        "GS-FLW-008",
+        "Duplicate graph connection",
+        range,
+        source + " -> " + target,
+        "Delete the repeated connection statement; duplicate edges make graph editing and deletion ambiguous.");
+    diag.target.graph = graph_name;
+    diag.target.block_kind = block_kind;
+    diag.target.block_name = block_name;
+    diag.target.node_instance = endpoint_owner(source);
+    diag.target.pin_name = endpoint_pin(source);
+    diag.target.reference = source + " -> " + target;
+    diag.target.connection_kind = connection_kind;
+    diag.actions.push_back({
+        "Delete duplicate statement",
+        "quickfix",
+        "",
+        range,
+        ""
+    });
+    diagnostics.push_back(std::move(diag));
+}
+
+void collect_duplicate_connection_diagnostics(const std::string& graph_name,
+                                              const FlowBlock& block,
+                                              std::vector<Diagnostic>& diagnostics) {
+    std::unordered_set<std::string> seen_flows;
+    for (const auto& edge : block.edges) {
+        const std::string key = edge.from + "\n" + edge.to;
+        if (!seen_flows.insert(key).second) {
+            add_duplicate_connection_diagnostic(
+                diagnostics,
+                graph_name,
+                block.kind,
+                block.name,
+                "exec",
+                edge.from,
+                edge.to,
+                edge.span.range);
+        }
+    }
+
+    std::unordered_set<std::string> seen_links;
+    for (const auto& edge : block.data_edges) {
+        const std::string key = edge.source + "\n" + edge.target;
+        if (!seen_links.insert(key).second) {
+            add_duplicate_connection_diagnostic(
+                diagnostics,
+                graph_name,
+                block.kind,
+                block.name,
+                "data",
+                edge.source,
+                edge.target,
+                edge.span.range);
+        }
+    }
 }
 
 } // namespace
@@ -1250,6 +1323,7 @@ Result<FlowGraph, std::string> FlowGraphProjector::project(const Module& module,
             for (size_t i = before_edges; i < projected_block.edges.size(); ++i) graph.edges.push_back(projected_block.edges[i]);
             for (size_t i = before_data_edges; i < projected_block.data_edges.size(); ++i) graph.data_edges.push_back(projected_block.data_edges[i]);
         }
+        collect_duplicate_connection_diagnostics(graph.name, projected_block, graph.diagnostics);
         graph.blocks.push_back(std::move(projected_block));
     }
 

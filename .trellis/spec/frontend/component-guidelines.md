@@ -42,6 +42,12 @@ authority in the browser.
 - Match Blueprint-style wire editing shortcuts: Alt+click on an edge removes
   that connection through the same replayable CLI delete command as the visible
   edge delete button and Delete/Backspace.
+- Graph interface facts that are not persisted nodes, such as `context.start`,
+  `context.done`, `context.result`, and bare graph parameters used by
+  `bind(message, node.pin)`, may be rendered as synthetic React Flow nodes, but
+  synthetic node IDs must never leak into backend edit payloads. Convert visual
+  IDs back to backend endpoints before creating, deleting, reconnecting, or
+  logging edges.
 
 ## Dockable Workbench Components
 
@@ -85,6 +91,10 @@ authority in the browser.
   highlight backend-provided ranges without guessing semantic targets.
 - E2E tests that edit Monaco should use an explicit test bridge or Monaco-aware
   keyboard interaction instead of textarea-only `fill()` assumptions.
+- Source quickfix actions may use `edit_range` with an empty `replacement` to
+  delete invalid source. Treat the presence of `edit_range` as actionable even
+  when `replacement === ""`; otherwise delete fixes for duplicate statements
+  become invisible.
 
 ## Legacy LiteGraph UI
 
@@ -136,3 +146,10 @@ Do not assume local optimistic edits are authoritative.
 
 Frontend validation may provide previews, but the compiler/EditSession remains
 authoritative. Keep preview rules aligned with backend errors and tests.
+
+### Synthetic Canvas IDs In Backend Commands
+
+If the canvas renders graph parameters or context pins as helper nodes, do not
+send helper IDs such as `__graph_parameters__` or `__logic_context__:*` through
+`/api/exec`. Commands must use source-domain endpoints like `message`,
+`context.start`, and `printer.enter`.

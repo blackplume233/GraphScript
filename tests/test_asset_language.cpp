@@ -2,6 +2,8 @@
 
 #include "graphscript/asset/language.h"
 
+#include <vector>
+
 using namespace gs;
 using namespace gs::asset;
 
@@ -320,6 +322,53 @@ graph Execute {
     EXPECT_FALSE(projected.value().edges[0].valid);
     ASSERT_FALSE(projected.value().diagnostics.empty());
     EXPECT_EQ(projected.value().diagnostics[0].code, "GS-FLW-002");
+}
+
+TEST(AssetLanguage, ReportsDuplicateFlowStatementsAsDomainErrors) {
+    const std::string source = R"(
+graph Execute {
+    node destroyactor_77855 {
+        type ApplyDamage;
+    }
+    node printer {
+        type PrintString;
+    }
+    event OnStart {
+        // connect(context.start, printer.enter);
+        connect(destroyactor_77855.exit, printer.enter);
+        connect(destroyactor_77855.exit, printer.enter);
+        connect(destroyactor_77855.exit, printer.enter);
+    }
+}
+)";
+    Parser decl_parser(kDecl, "ability_core.d.gs");
+    auto decl = decl_parser.parse();
+    Parser parser(source, "DuplicateFlowStatements.gs");
+    auto parsed = parser.parse();
+    for (auto& object : decl.module.objects) {
+        parsed.module.objects.push_back(std::move(object));
+    }
+
+    auto projected = FlowGraphProjector::project(parsed.module, "Execute");
+    ASSERT_TRUE(projected.is_ok()) << projected.error();
+    ASSERT_EQ(projected.value().edges.size(), 3u);
+    std::vector<Diagnostic> duplicate_diagnostics;
+    for (const auto& diagnostic : projected.value().diagnostics) {
+        if (diagnostic.code == "GS-FLW-008") duplicate_diagnostics.push_back(diagnostic);
+    }
+    ASSERT_EQ(duplicate_diagnostics.size(), 2u);
+    for (const auto& diagnostic : duplicate_diagnostics) {
+        EXPECT_EQ(diagnostic.severity, Severity::Error);
+        EXPECT_EQ(diagnostic.target.graph, "Execute");
+        EXPECT_EQ(diagnostic.target.block_kind, "event");
+        EXPECT_EQ(diagnostic.target.block_name, "OnStart");
+        EXPECT_EQ(diagnostic.target.connection_kind, "exec");
+        ASSERT_FALSE(diagnostic.actions.empty());
+        EXPECT_EQ(diagnostic.actions[0].title, "Delete duplicate statement");
+        EXPECT_TRUE(diagnostic.actions[0].command.empty());
+        EXPECT_TRUE(diagnostic.actions[0].replacement.empty());
+        EXPECT_GT(diagnostic.actions[0].edit_range.start.line, 1);
+    }
 }
 
 TEST(AssetLanguage, FunctionBlockCannotReferenceGraphNodeAlias) {

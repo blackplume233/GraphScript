@@ -36,6 +36,7 @@ export interface BlueprintNodeData extends Record<string, unknown> {
   category: string
   sourceGraph: string
   isNative: boolean
+  isSynthetic?: boolean
   pins: PinDef[]
   intrinsicProperties: BlueprintIntrinsicProperty[]
   diagnostic?: DiagnosticHighlightData
@@ -239,6 +240,7 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
       className="node-card relative min-w-[190px] rounded-[4px] overflow-visible border select-none"
       data-blueprint-node={label}
       onPointerDownCapture={(event) => {
+        if (data.isSynthetic) return
         window.dispatchEvent(new CustomEvent('graphscript:node-pointer-down', {
           detail: {
             nodeId: label,
