@@ -258,6 +258,12 @@ function SourceRangeButton({
 }) {
   if (!range || isDefaultSourceRange(range) || !onSourceRangeFocus) return null
   const sourceRange = range
+  const secondarySourceJump =
+    /(?:^|-)(name|type|constructor|arg|endpoint|pin|path|value|default|from-node|to-node|source-node|target-node)(?:-|$)/.test(sourceKey) &&
+    !sourceKey.startsWith('import-declaration')
+  const buttonClass = secondarySourceJump
+    ? 'h-4 w-4 shrink-0 text-muted-foreground/35 hover:text-primary hover:opacity-100 focus-visible:opacity-100'
+    : 'h-5 w-5 shrink-0 text-muted-foreground hover:text-primary'
 
   return (
     <Button
@@ -265,11 +271,11 @@ function SourceRangeButton({
       variant="ghost"
       size="icon"
       data-source-jump={sourceKey}
-      className="h-5 w-5 shrink-0 text-muted-foreground hover:text-primary"
+      className={buttonClass}
       title={label}
       onClick={() => onSourceRangeFocus(sourceRange, sourceFile)}
     >
-      <FileSearch className="h-3 w-3" />
+      <FileSearch className={secondarySourceJump ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
       <span className="sr-only">{label}</span>
     </Button>
   )
@@ -2178,12 +2184,6 @@ function GraphInfo({
                   />
                   <DeleteIconButton label={`Remove parameter ${p.name}`} onClick={() => onExec(`param rm ${p.name}`)} />
                 </div>
-                  <RenameForm
-                    label={`Rename parameter ${p.name}`}
-                    placeholder="new parameter name"
-                    currentName={p.name}
-                    onRename={name => onExec(`rename_param ${p.name} ${name}`)}
-                  />
                   <AnnotationPanel
                     annotations={p.annotations}
                     annotateCommand={`annotate param ${p.name}`}
