@@ -929,9 +929,11 @@ function toReactFlowNodes(
   diagnostics: ReturnType<typeof buildDiagnosticHighlightIndex> | null,
   connectionPreview: PendingConnection | null,
   block: LogicBlock | undefined,
+  syntheticNodePositions: Map<string, FlowPosition>,
 ): BlueprintFlowNode[] {
   const nodes: BlueprintFlowNode[] = []
   if (block) {
+    const id = logicContextNodeId(block)
     const data: BlueprintNodeData = {
       label: 'Context',
       typeName: block.kind === 'event' ? 'Event Context' : 'Function Context',
@@ -947,13 +949,11 @@ function toReactFlowNodes(
       connectionPreview,
     }
     nodes.push({
-      id: logicContextNodeId(block),
+      id,
       type: 'blueprint' as const,
-      position: { x: -120, y: 40 },
+      position: syntheticNodePositions.get(id) ?? { x: -120, y: 40 },
       data,
-      draggable: false,
       deletable: false,
-      selectable: false,
       zIndex: 10,
     })
   }
@@ -976,11 +976,9 @@ function toReactFlowNodes(
     nodes.push({
       id: GRAPH_PARAMETERS_NODE_ID,
       type: 'blueprint' as const,
-      position: { x: -120, y: block ? 210 : 80 },
+      position: syntheticNodePositions.get(GRAPH_PARAMETERS_NODE_ID) ?? { x: -120, y: block ? 210 : 80 },
       data,
-      draggable: false,
       deletable: false,
-      selectable: false,
       zIndex: 10,
     })
   }
@@ -1159,6 +1157,7 @@ function FlowCanvasInner({
   const [contextMenu, setContextMenu] = useState<CanvasContextMenu | null>(null)
   const [wrapperWidth, setWrapperWidth] = useState(0)
   const [connectionPreview, setConnectionPreview] = useState<PendingConnection | null>(null)
+  const [syntheticNodePositions, setSyntheticNodePositions] = useState<Map<string, FlowPosition>>(() => new Map())
   const pointerDragRef = useRef<PointerDragState | null>(null)
   const pendingConnectionRef = useRef<PendingConnection | null>(null)
   const selectionSnapshotRef = useRef<SelectionSnapshot | null>(null)
@@ -1182,9 +1181,9 @@ function FlowCanvasInner({
     if (!state || !graph) return []
     return [
       ...toReactFlowCommentBoxes(graph),
-      ...toReactFlowNodes(graph, state, diagnosticHighlights, connectionPreview, activeBlock),
+      ...toReactFlowNodes(graph, state, diagnosticHighlights, connectionPreview, activeBlock, syntheticNodePositions),
     ]
-  }, [activeBlock, connectionPreview, diagnosticHighlights, graph, state])
+  }, [activeBlock, connectionPreview, diagnosticHighlights, graph, state, syntheticNodePositions])
 
   const initialEdges = useMemo(() => {
     if (!graph) return []
@@ -1632,7 +1631,15 @@ function FlowCanvasInner({
       return
     }
 
-    if (node.data.isSynthetic) return
+    if (node.data.isSynthetic) {
+      const position = roundPosition(node.position)
+      setSyntheticNodePositions(current => {
+        const next = new Map(current)
+        next.set(node.id, position)
+        return next
+      })
+      return
+    }
 
     const selectedNodes = nodes.filter((item): item is BlueprintFlowNode =>
       item.type === 'blueprint' && !item.data.isSynthetic && Boolean(item.selected))

@@ -38,6 +38,12 @@ If a UI feature cannot be expressed as a command:
   dirty and has a `file_path`. Source edits should debounce diagnostics plus
   `applySourcePatch`/`applySource` before any `save`; never write browser text
   directly to disk.
+- Unsaved Source diagnostics with relative imports should derive `base_dir` by
+  stripping the relative import path from a loaded import's `normalized_path`.
+  Do not use the declaration file's parent directory as the resolver root for
+  `import "tests\\fixtures\\x.d.gs"`; that resolves to
+  `tests/fixtures/tests/fixtures/x.d.gs` and produces false
+  `Import file not found` diagnostics.
 - Keep UI-only selection, search text, panel open/closed state, and viewport
   position separate from backend graph truth.
 

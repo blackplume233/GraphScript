@@ -48,6 +48,11 @@ authority in the browser.
   synthetic node IDs must never leak into backend edit payloads. Convert visual
   IDs back to backend endpoints before creating, deleting, reconnecting, or
   logging edges.
+- Synthetic graph interface nodes should remain draggable as UI-only layout
+  helpers. Moving `context` or `Graph Inputs` updates local canvas position only
+  and must not issue `annotate node`, `remove_node`, or other backend commands.
+  Render these nodes with a distinct lightweight interface style so graph flow
+  inputs do not look like ordinary black runtime nodes.
 
 ## Dockable Workbench Components
 

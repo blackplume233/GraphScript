@@ -140,6 +140,15 @@ def main():
                 content_type="text/plain",
                 body="graph HelloWorld {}",
             ))
+            exec_commands = []
+            page.route("**/api/exec", lambda route: (
+                exec_commands.append(json.loads(route.request.post_data or "{}").get("command", "")),
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body=json.dumps({"ok": True, "state": current}),
+                ),
+            ))
             page.route("**/api/completion", lambda route: route.fulfill(
                 status=200,
                 content_type="application/json",
@@ -150,11 +159,46 @@ def main():
             page.wait_for_selector('[data-blueprint-node="Graph Inputs"]', timeout=10000)
             page.wait_for_selector('[data-blueprint-node="printer"]', timeout=10000)
             page.wait_for_timeout(700)
+
+            context_before = page.locator('[data-blueprint-node="context"]').bounding_box()
+            inputs_before = page.locator('[data-blueprint-node="Graph Inputs"]').bounding_box()
+            if not context_before or not inputs_before:
+                raise RuntimeError("Expected synthetic nodes to have visible bounds")
+            inputs_hit_before = page.evaluate(
+                """point => {
+                    const element = document.elementFromPoint(point.x, point.y)
+                    return {
+                        className: String(element?.className || ''),
+                        text: element?.textContent || '',
+                        nodeClassName: String(element?.closest('.react-flow__node')?.className || ''),
+                    }
+                }""",
+                {"x": inputs_before["x"] + 22, "y": inputs_before["y"] + 9},
+            )
+            page.mouse.move(context_before["x"] + context_before["width"] / 2, context_before["y"] + context_before["height"] / 2)
+            page.mouse.down()
+            page.mouse.move(context_before["x"] + context_before["width"] / 2 + 90, context_before["y"] + context_before["height"] / 2 + 55, steps=12)
+            page.mouse.up()
+            inputs_drag_x = inputs_before["x"] + 22
+            inputs_drag_y = inputs_before["y"] + 9
+            page.mouse.move(inputs_drag_x, inputs_drag_y)
+            page.mouse.down()
+            page.mouse.move(inputs_drag_x + 75, inputs_drag_y + 40, steps=12)
+            page.mouse.up()
+            page.wait_for_timeout(400)
+
             page.screenshot(path=OUT / "graph_interface_edges.png", full_page=True)
 
             lines = page.locator('[data-testid="sdk.workflow.canvas.line"]').count()
             flow_line = page.locator('[data-line-id="context_exec-out-start-printer_exec-in-enter"]').count()
             data_line = page.locator('[data-line-id="message_data-out-message-printer_data-in-message"]').count()
+            context_after = page.locator('[data-blueprint-node="context"]').bounding_box()
+            inputs_after = page.locator('[data-blueprint-node="Graph Inputs"]').bounding_box()
+            context_moved = context_after and abs(context_after["x"] - context_before["x"]) > 30
+            inputs_moved = inputs_after and (
+                abs(inputs_after["x"] - inputs_before["x"]) > 30 or
+                abs(inputs_after["y"] - inputs_before["y"]) > 30
+            )
             browser.close()
     finally:
         proc.terminate()
@@ -167,8 +211,14 @@ def main():
     print(f"  lines: {lines}")
     print(f"  context flow line: {flow_line}")
     print(f"  parameter data line: {data_line}")
+    print(f"  context moved: {context_moved}")
+    print(f"  graph inputs moved: {inputs_moved}")
+    print(f"  graph inputs hit: {inputs_hit_before}")
+    print(f"  graph inputs before: {inputs_before}")
+    print(f"  graph inputs after: {inputs_after}")
+    print(f"  backend commands: {exec_commands}")
     print(f"Screenshots: {OUT}")
-    if lines < 2 or flow_line < 1 or data_line < 1:
+    if lines < 2 or flow_line < 1 or data_line < 1 or not context_moved or not inputs_moved or exec_commands:
         raise SystemExit("Expected context and graph parameter edges to render")
 
 

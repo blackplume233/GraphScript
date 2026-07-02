@@ -373,17 +373,17 @@ function dirname(path: string): string {
   return normalized.slice(0, slash)
 }
 
-function commonDirectory(paths: string[]): string | undefined {
-  const directories = paths
-    .map(dirname)
+function commonPath(paths: string[]): string | undefined {
+  const normalizedPaths = paths
+    .map(normalizeSourcePath)
     .filter(Boolean)
-  if (directories.length === 0) return undefined
+  if (normalizedPaths.length === 0) return undefined
 
-  const [first, ...rest] = directories
+  const [first, ...rest] = normalizedPaths
   const firstParts = first.split('/')
   let commonLength = firstParts.length
-  for (const dir of rest) {
-    const parts = dir.split('/')
+  for (const path of rest) {
+    const parts = path.split('/')
     commonLength = Math.min(commonLength, parts.length)
     for (let index = 0; index < commonLength; index += 1) {
       if (parts[index]?.toLowerCase() !== firstParts[index]?.toLowerCase()) {
@@ -397,13 +397,33 @@ function commonDirectory(paths: string[]): string | undefined {
   return firstParts.slice(0, commonLength).join('/')
 }
 
+function isAbsoluteSourcePath(path: string): boolean {
+  return path.startsWith('/') || /^[A-Za-z]:\//.test(path)
+}
+
+function sourceImportBaseDir(importDef: GSState['module']['imports'][number]): string | undefined {
+  const rawPath = normalizeSourcePath(importDef.path)
+  const normalizedPath = importDef.normalized_path ? normalizeSourcePath(importDef.normalized_path) : ''
+  if (!rawPath) return normalizedPath ? dirname(normalizedPath) : undefined
+  if (isAbsoluteSourcePath(rawPath)) return dirname(rawPath)
+  if (!normalizedPath) return dirname(rawPath)
+
+  const suffix = `/${rawPath}`.toLowerCase()
+  const normalizedLower = normalizedPath.toLowerCase()
+  if (normalizedLower.endsWith(suffix)) {
+    return normalizedPath.slice(0, normalizedPath.length - suffix.length)
+  }
+  return dirname(normalizedPath)
+}
+
 function sourceDiagnosticsBaseDir(state: GSState | null): string | undefined {
   if (!state) return undefined
   if (state.file_path) return undefined
-  return commonDirectory(
+  return commonPath(
     state.module.imports
       .filter(importDef => importDef.loaded)
-      .map(importDef => importDef.normalized_path || importDef.path),
+      .map(sourceImportBaseDir)
+      .filter((path): path is string => Boolean(path)),
   )
 }
 
