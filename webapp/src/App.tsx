@@ -779,6 +779,7 @@ export default function App() {
   const autoSourceApplyTimerRef = useRef<number | undefined>(undefined)
   const autoSaveInFlightRef = useRef(false)
   const autoSourceApplyAttemptKeyRef = useRef('')
+  const sourceApplyInFlightRef = useRef(false)
 
   const requestSourcePanel = useCallback(() => {
     setActiveWorkbenchRequest(current => ({ panel: 'source', nonce: (current?.nonce ?? 0) + 1 }))
@@ -1140,40 +1141,46 @@ export default function App() {
       : '')
   }, [setSourcePreviewEditable, updatePendingSourcePatch])
 
-  const handleApplySourceText = useCallback(async () => {
-    if (!sourceText) return
+  const handleApplySourceText = useCallback(async (mode: 'manual' | 'background' = 'manual') => {
+    const sourceAtStart = sourceTextRef.current
+    if (!sourceAtStart || sourceApplyInFlightRef.current) return
+    const background = mode === 'background'
+    const isCurrentSource = () => sourceTextRef.current === sourceAtStart
+    sourceApplyInFlightRef.current = true
     try {
-      setApplyingSource(true)
+      if (!background) setApplyingSource(true)
       setSourceSyncState('checking')
-      setSourceSyncDetail('Checking manual source before Apply')
-      const previousEnvironmentHash = sourceResolverSourceRef.current === sourceText
+      setSourceSyncDetail(background ? 'Auto-checking source before save' : 'Checking manual source before Apply')
+      const previousEnvironmentHash = sourceResolverSourceRef.current === sourceAtStart
         ? sourceResolverEnvironment?.environment_hash ?? ''
         : ''
-      const diagnosticsOptions = sourceDiagnosticsOptions(sourceText, state)
+      const diagnosticsOptions = sourceDiagnosticsOptions(sourceAtStart, state)
       let result: Awaited<ReturnType<typeof fetchDiagnostics>>
       try {
-        result = await fetchDiagnostics(sourceText, diagnosticsOptions)
+        result = await fetchDiagnostics(sourceAtStart, diagnosticsOptions)
       } catch {
+        if (background && !isCurrentSource()) return
         setSourceDiagnostics([])
         setSourceResolverEnvironment(null)
         sourceResolverSourceRef.current = ''
-        updatePendingSourcePatch(sourceText)
+        updatePendingSourcePatch(sourceAtStart)
         setSourceSyncState('error')
         setSourceSyncDetail(diagnosticsOptions.resolveImports
           ? 'Source import resolver diagnostics failed; buffer preserved'
-          : 'Manual source diagnostics failed; buffer preserved')
+          : background ? 'Auto source diagnostics failed; buffer preserved' : 'Manual source diagnostics failed; buffer preserved')
         return
       }
+      if (background && !isCurrentSource()) return
       setSourceDiagnostics(result.diagnostics)
       setSourceResolverEnvironment(result.environment ?? null)
-      sourceResolverSourceRef.current = result.environment ? sourceText : ''
+      sourceResolverSourceRef.current = result.environment ? sourceAtStart : ''
       if (!result.ok) {
         const diagnostic = firstLocatedDiagnostic(result.diagnostics)
         setFocusedDiagnostic(diagnostic)
         setFocusedSourceRange(diagnostic?.range ?? null)
-        updatePendingSourcePatch(sourceText)
+        updatePendingSourcePatch(sourceAtStart)
         setSourceSyncState('edited')
-        setSourceSyncDetail('Manual source still has diagnostics; buffer preserved')
+        setSourceSyncDetail(background ? 'Auto source check found diagnostics; buffer preserved' : 'Manual source still has diagnostics; buffer preserved')
         return
       }
       if (diagnosticsOptions.resolveImports) {
@@ -1197,20 +1204,21 @@ export default function App() {
       }
 
       const currentSource = await fetchEmit()
+      if (background && !isCurrentSource()) return
       const baseSource = sourceBaseTextRef.current
       if (baseSource && currentSource !== baseSource) sourceSessionChangedRef.current = true
       sourceApplyConfirmationBaseRef.current = null
       setSourceNeedsBaselineConfirmation(false)
 
-      if (sourceText === currentSource || (baseSource && sourceText === baseSource && currentSource === baseSource)) {
-        acceptSourceBaseline(sourceText)
+      if (sourceAtStart === currentSource || (baseSource && sourceAtStart === baseSource && currentSource === baseSource)) {
+        acceptSourceBaseline(sourceAtStart)
         setSourceSyncState('session')
-        setSourceSyncDetail('Manual source matches backend session; nothing to apply')
+        setSourceSyncDetail(background ? 'Auto source already matches backend session' : 'Manual source matches backend session; nothing to apply')
         return
       }
 
       const diffBaseSource = baseSource && currentSource === baseSource ? baseSource : currentSource
-      const diff = sourceDiffEdit(diffBaseSource, sourceText)
+      const diff = sourceDiffEdit(diffBaseSource, sourceAtStart)
       const environmentGuard = result.environment
         ? {
             environmentHash: result.environment.environment_hash,
@@ -1218,45 +1226,49 @@ export default function App() {
           }
         : {}
       if (diff) {
-        const applied = await applySourcePatch(diff.range, diff.replacement, diffBaseSource, sourceText, environmentGuard)
+        const applied = await applySourcePatch(diff.range, diff.replacement, diffBaseSource, sourceAtStart, environmentGuard)
+        if (background && !isCurrentSource()) return
         if (applied.state) {
           setState(applied.state)
           scheduleSessionAutoSave(applied.state)
         }
         if (applied.ok) {
-          acceptSourceBaseline(sourceText)
+          acceptSourceBaseline(sourceAtStart)
           setFocusedSourceRange(diff.range)
           setSourceSyncState(applied.fallback ? 'synced_snapshot' : 'synced_patch')
           setSourceSyncDetail(applied.fallback
-            ? 'Backend source changed during Apply; synced by full source snapshot'
-            : 'Manual source applied by minimal source patch')
+            ? background ? 'Backend source changed during auto-save; synced by full source snapshot' : 'Backend source changed during Apply; synced by full source snapshot'
+            : background ? 'Source auto-saved by minimal source patch' : 'Manual source applied by minimal source patch')
           return
         }
-        updatePendingSourcePatch(sourceText)
+        updatePendingSourcePatch(sourceAtStart)
       }
 
-      const applied = await applySource(sourceText, environmentGuard)
+      const applied = await applySource(sourceAtStart, environmentGuard)
+      if (background && !isCurrentSource()) return
       if (applied.state) {
         setState(applied.state)
         scheduleSessionAutoSave(applied.state)
       }
       if (applied.ok) {
-        acceptSourceBaseline(sourceText)
+        acceptSourceBaseline(sourceAtStart)
         setSourceSyncState('synced_snapshot')
-        setSourceSyncDetail('Manual source applied by full snapshot fallback')
+        setSourceSyncDetail(background ? 'Source auto-saved by full snapshot fallback' : 'Manual source applied by full snapshot fallback')
       } else {
         setSourceSyncState('error')
-        setSourceSyncDetail(applied.error ?? 'Manual source apply failed')
+        setSourceSyncDetail(applied.error ?? (background ? 'Auto source apply failed' : 'Manual source apply failed'))
       }
     } catch {
+      if (background && !isCurrentSource()) return
       setSourceSyncState('error')
-      setSourceSyncDetail('Manual source apply failed')
-      updatePendingSourcePatch(sourceText)
+      setSourceSyncDetail(background ? 'Auto source apply failed' : 'Manual source apply failed')
+      updatePendingSourcePatch(sourceAtStart)
       await refresh()
     } finally {
-      setApplyingSource(false)
+      sourceApplyInFlightRef.current = false
+      if (!background) setApplyingSource(false)
     }
-  }, [acceptSourceBaseline, refresh, scheduleSessionAutoSave, sourceResolverEnvironment, sourceText, state, updatePendingSourcePatch])
+  }, [acceptSourceBaseline, refresh, scheduleSessionAutoSave, sourceResolverEnvironment, state, updatePendingSourcePatch])
 
   const handleRevertSourceText = useCallback(async () => {
     try {
@@ -1302,7 +1314,7 @@ export default function App() {
     autoSourceApplyTimerRef.current = window.setTimeout(() => {
       autoSourceApplyTimerRef.current = undefined
       autoSourceApplyAttemptKeyRef.current = attemptKey
-      void handleApplySourceText()
+      void handleApplySourceText('background')
     }, 1400)
     return () => {
       if (autoSourceApplyTimerRef.current) {

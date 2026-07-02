@@ -55,6 +55,12 @@ Minimum required coverage:
 - Query `/api/state` or page text after each phase to confirm the graph count,
   active graph, node count, events/functions, and command log are consistent.
 
+Automated regressions for Source/Graph bidirectional behavior should also drive
+the browser through `agent-browser` CLI commands (`open`, `eval`, `click`,
+`press`, `network`, `screenshot`) when the behavior depends on the real editor
+runtime. Python test wrappers may start servers and call the CLI, but should not
+use Playwright APIs directly for these real-browser gates.
+
 Common failure this catches: backend state changes `active_graph` after graph
 creation, but the frontend keeps rendering an older `graphIndex`, making node
 creation appear broken or invisible even though `/api/exec` succeeded.

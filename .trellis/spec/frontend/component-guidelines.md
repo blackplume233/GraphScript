@@ -92,6 +92,11 @@ authority in the browser.
   Preserve scroll/selection where possible and suppress the resulting model
   change callback so backend-to-source sync is not misclassified as a manual
   edit.
+- Background Source diagnostics and auto-apply must not switch Monaco into
+  `readOnly` or otherwise steal focus/cursor from the user's active edit. Keep
+  manual Apply/Revert operations visibly busy, but treat debounced background
+  checks as non-blocking and ignore stale async results if the buffer changed
+  while they were in flight.
 - Source range focus must translate backend `{ line, column }` ranges into
   Monaco selections and reveal the range in view. Preview mode must continue to
   highlight backend-provided ranges without guessing semantic targets.

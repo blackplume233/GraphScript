@@ -21,6 +21,7 @@ declare global {
       setValue: (value: string) => void
       focus: () => void
       getLastExternalSyncKind: () => string
+      isReadOnly: () => boolean
     }
   }
 }
@@ -552,6 +553,7 @@ export default function SourcePreviewPanel({
       },
       focus: () => editor.focus(),
       getLastExternalSyncKind: () => lastExternalSyncKindRef.current,
+      isReadOnly: () => editor.getOption(monaco.editor.EditorOption.readOnly),
     }
     focusMonacoRange(editor, source, focusedRange)
   }, [focusedRange, onSourceChange, source])
@@ -906,7 +908,7 @@ export default function SourcePreviewPanel({
                 lineHeight: 20,
                 minimap: { enabled: false },
                 padding: { top: 8, bottom: 8 },
-                readOnly: busy || !sourceEditable,
+                readOnly: applyingSource || !sourceEditable,
                 renderLineHighlight: 'line',
                 scrollBeyondLastLine: false,
                 tabSize: 4,
