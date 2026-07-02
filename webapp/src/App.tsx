@@ -857,6 +857,7 @@ export default function App() {
     let nextState = state
     if (res.state) {
       setState(res.state)
+      if (res.state.active_graph >= 0) setGraphIndex(res.state.active_graph)
       if (cmd.trim() !== 'save') scheduleSessionAutoSave(res.state)
       nextState = res.state
     } else {
@@ -1021,7 +1022,6 @@ export default function App() {
     if (hasLocalSourceEdit) return
     const syncState = sourceSyncStateRef.current
     if (syncState !== 'empty' && syncState !== 'session' && syncState !== 'stale') return
-    if (syncState === 'stale' && countImportDeclarations(sourceTextRef.current) > 0) return
 
     const graph = state.module.graphs[graphIndex]
     const key = [
