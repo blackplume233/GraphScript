@@ -358,8 +358,15 @@ function summarizeSourcePatch(baseSource: string, diff: { range: SourceRange; re
   return `Pending patch ${formatSourceRange(diff.range)}; replace ${removed} chars with ${diff.replacement.length} chars`
 }
 
+function importDeclarations(source: string): string[] {
+  return source
+    .split(/\r?\n/)
+    .map(line => line.match(/^\s*import\s+"([^"]+)"/)?.[1] ?? '')
+    .filter(Boolean)
+}
+
 function countImportDeclarations(source: string): number {
-  return source.split(/\r?\n/).filter(line => /^\s*import\b/.test(line)).length
+  return importDeclarations(source).length
 }
 
 function normalizeSourcePath(path: string): string {
@@ -416,15 +423,67 @@ function sourceImportBaseDir(importDef: GSState['module']['imports'][number]): s
   return dirname(normalizedPath)
 }
 
-function sourceDiagnosticsBaseDir(state: GSState | null): string | undefined {
-  if (!state) return undefined
-  if (state.file_path) return undefined
+function sourceFileBaseDirForImport(importPath: string, sourceFile: string): string | undefined {
+  const rawPath = normalizeSourcePath(importPath)
+  const normalizedPath = normalizeSourcePath(sourceFile)
+  if (!rawPath || !normalizedPath || isAbsoluteSourcePath(rawPath)) return undefined
+
+  const suffix = `/${rawPath}`.toLowerCase()
+  const normalizedLower = normalizedPath.toLowerCase()
+  if (normalizedLower.endsWith(suffix)) {
+    return normalizedPath.slice(0, normalizedPath.length - suffix.length)
+  }
+  return undefined
+}
+
+function loadedDeclarationSourceFiles(state: GSState): string[] {
+  const sourceFiles = new Set<string>()
+  for (const type of state.declared_types ?? []) {
+    if (type.source_file) sourceFiles.add(type.source_file)
+  }
+  for (const nodeType of state.types) {
+    if (nodeType.source_file) sourceFiles.add(nodeType.source_file)
+    for (const pin of nodeType.pins) {
+      if (pin.source_file) sourceFiles.add(pin.source_file)
+    }
+    for (const field of nodeType.fields ?? []) {
+      if (field.source_file) sourceFiles.add(field.source_file)
+    }
+  }
+  for (const schema of state.schemas) {
+    if (schema.source_file) sourceFiles.add(schema.source_file)
+    for (const field of schema.fields ?? []) {
+      if (field.source_file) sourceFiles.add(field.source_file)
+    }
+  }
+  return [...sourceFiles]
+}
+
+function loadedDeclarationBaseDir(source: string, state: GSState): string | undefined {
+  const imports = importDeclarations(source)
+  if (imports.length === 0) return undefined
+  const sourceFiles = loadedDeclarationSourceFiles(state)
   return commonPath(
+    imports
+      .flatMap(importPath => sourceFiles
+        .map(sourceFile => sourceFileBaseDirForImport(importPath, sourceFile))
+        .filter((path): path is string => Boolean(path))),
+  )
+}
+
+function sourceDiagnosticsBaseDir(source: string, state: GSState | null): string | undefined {
+  if (!state) return undefined
+  const declarationBaseDir = loadedDeclarationBaseDir(source, state)
+  if (declarationBaseDir) return declarationBaseDir
+  const loadedImportBaseDir = commonPath(
     state.module.imports
       .filter(importDef => importDef.loaded)
       .map(sourceImportBaseDir)
       .filter((path): path is string => Boolean(path)),
   )
+  if (loadedImportBaseDir) return loadedImportBaseDir
+  if (state.file_path) return undefined
+  return undefined
 }
 
 function sourceDiagnosticsOptions(source: string, state: GSState | null) {
@@ -432,7 +491,7 @@ function sourceDiagnosticsOptions(source: string, state: GSState | null) {
   return {
     resolveImports,
     sourcePath: resolveImports ? state?.file_path || undefined : undefined,
-    baseDir: resolveImports ? sourceDiagnosticsBaseDir(state) : undefined,
+    baseDir: resolveImports ? sourceDiagnosticsBaseDir(source, state) : undefined,
   }
 }
 
