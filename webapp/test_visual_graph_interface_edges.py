@@ -192,6 +192,29 @@ def main():
             lines = page.locator('[data-testid="sdk.workflow.canvas.line"]').count()
             flow_line = page.locator('[data-line-id="context_exec-out-start-printer_exec-in-enter"]').count()
             data_line = page.locator('[data-line-id="message_data-out-message-printer_data-in-message"]').count()
+            exec_glyph_styles = page.evaluate(
+                """() => {
+                    const styleFor = selector => {
+                        const element = document.querySelector(selector)
+                        if (!element) return null
+                        const style = getComputedStyle(element)
+                        return {
+                            backgroundColor: style.backgroundColor,
+                            borderTopColor: style.borderTopColor,
+                        }
+                    }
+                    return {
+                        output: styleFor('[data-blueprint-node="context"] [data-pin-row="exec-out-start"] [data-pin-glyph="true"]'),
+                        input: styleFor('[data-blueprint-node="printer"] [data-pin-row="exec-in-enter"] [data-pin-glyph="true"]'),
+                    }
+                }""",
+            )
+            exec_input_matches_output = (
+                exec_glyph_styles["output"]
+                and exec_glyph_styles["input"]
+                and exec_glyph_styles["output"]["backgroundColor"] == exec_glyph_styles["input"]["backgroundColor"]
+                and exec_glyph_styles["input"]["backgroundColor"] != "rgba(0, 0, 0, 0)"
+            )
             context_after = page.locator('[data-blueprint-node="context"]').bounding_box()
             inputs_after = page.locator('[data-blueprint-node="Graph Inputs"]').bounding_box()
             context_moved = context_after and abs(context_after["x"] - context_before["x"]) > 30
@@ -213,12 +236,13 @@ def main():
     print(f"  parameter data line: {data_line}")
     print(f"  context moved: {context_moved}")
     print(f"  graph inputs moved: {inputs_moved}")
+    print(f"  exec glyph styles: {exec_glyph_styles}")
     print(f"  graph inputs hit: {inputs_hit_before}")
     print(f"  graph inputs before: {inputs_before}")
     print(f"  graph inputs after: {inputs_after}")
     print(f"  backend commands: {exec_commands}")
     print(f"Screenshots: {OUT}")
-    if lines < 2 or flow_line < 1 or data_line < 1 or not context_moved or not inputs_moved or exec_commands:
+    if lines < 2 or flow_line < 1 or data_line < 1 or not exec_input_matches_output or not context_moved or not inputs_moved or exec_commands:
         raise SystemExit("Expected context and graph parameter edges to render")
 
 

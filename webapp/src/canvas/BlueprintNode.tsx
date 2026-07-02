@@ -163,7 +163,7 @@ function PinRow({
           height: isExec ? 13 : glyphSize,
           borderRadius: isExec ? 0 : 1,
           border: `2px solid ${color}`,
-          background: pin.direction === 'out' ? color : 'var(--color-flow-node-bg)',
+          background: isExec || pin.direction === 'out' ? color : 'var(--color-flow-node-bg)',
           boxShadow: previewGlow ?? diagnosticGlow(highlight),
           clipPath: isExec ? 'polygon(16% 8%, 88% 50%, 16% 92%)' : undefined,
           transform: `translateY(-50%) ${isExec ? '' : 'rotate(45deg)'}`,
@@ -223,17 +223,12 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
   const headerStyle = headerStyleForNode(category, hasExec, data.isNative)
   const diagnostic = data.diagnostic
   const connectionPreview = data.connectionPreview ?? null
-  const isInterfaceNode = Boolean(data.isSynthetic)
-  const nodeBorder = diagnostic
-    ? diagnosticBorderColor(diagnostic)
-    : selected ? 'var(--color-flow-selected)' : isInterfaceNode ? 'oklch(0.58 0.075 190 / 0.72)' : 'var(--color-flow-node-border)'
+  const nodeBorder = diagnostic ? diagnosticBorderColor(diagnostic) : selected ? 'var(--color-flow-selected)' : 'var(--color-flow-node-border)'
   const nodeShadow = diagnostic
     ? `0 0 18px ${diagnostic.severity === 'error' ? 'oklch(0.58 0.22 25 / 0.42)' : 'oklch(0.72 0.15 80 / 0.36)'}, inset 0 1px 0 oklch(1 0 0 / 0.06)`
     : selected
       ? '0 0 0 1px var(--color-flow-selected), 0 0 0 2px oklch(0 0 0 / 0.65), 0 8px 20px oklch(0 0 0 / 0.5), inset 0 1px 0 oklch(1 0 0 / 0.04)'
-      : isInterfaceNode
-        ? '0 3px 14px oklch(0 0 0 / 0.26), inset 0 1px 0 oklch(1 0 0 / 0.06)'
-        : '0 2px 12px oklch(0 0 0 / 0.44), inset 0 1px 0 oklch(1 0 0 / 0.04)'
+      : '0 2px 12px oklch(0 0 0 / 0.44), inset 0 1px 0 oklch(1 0 0 / 0.04)'
   const pinSignature = pins.map(pin => `${pinHandleId(pin)}:${pin.type}`).join('|')
 
   useEffect(() => {
@@ -242,7 +237,7 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
 
   return (
     <div
-      className={`node-card relative overflow-visible border select-none ${isInterfaceNode ? 'min-w-[150px] rounded-[3px]' : 'min-w-[190px] rounded-[4px]'}`}
+      className="node-card relative min-w-[190px] rounded-[4px] overflow-visible border select-none"
       data-blueprint-node={label}
       onPointerDownCapture={(event) => {
         if (data.isSynthetic) return
@@ -254,23 +249,16 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
         }))
       }}
       style={{
-        background: isInterfaceNode
-          ? 'linear-gradient(180deg, oklch(0.19 0.02 205 / 0.94), oklch(0.13 0.014 230 / 0.9))'
-          : 'var(--color-flow-node-bg)',
+        background: 'var(--color-flow-node-bg)',
         borderColor: nodeBorder,
-        borderStyle: isInterfaceNode ? 'dashed' : 'solid',
         boxShadow: nodeShadow,
       }}
     >
       <div
-        className={`${isInterfaceNode ? 'rounded-t-[3px] px-2.5 py-[5px]' : 'rounded-t-[4px] px-3 py-[7px]'} flex items-center gap-2`}
+        className="rounded-t-[4px] px-3 py-[7px] flex items-center gap-2"
         style={{
-          background: isInterfaceNode
-            ? 'linear-gradient(135deg, oklch(0.34 0.075 190), oklch(0.19 0.05 205))'
-            : `linear-gradient(135deg, ${headerStyle.from}, ${headerStyle.to})`,
-          borderBottom: isInterfaceNode
-            ? '1px solid oklch(0.55 0.07 190 / 0.42)'
-            : '1px solid var(--color-flow-node-border)',
+          background: `linear-gradient(135deg, ${headerStyle.from}, ${headerStyle.to})`,
+          borderBottom: '1px solid var(--color-flow-node-border)',
         }}
       >
         {hasExec && (
@@ -282,7 +270,7 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
             }}
           />
         )}
-        <span className={`${isInterfaceNode ? 'text-[11px]' : 'text-[12px]'} font-semibold truncate text-foreground/90`}>
+        <span className="text-[12px] font-semibold truncate text-foreground/90">
           {label}
         </span>
         <span
@@ -308,7 +296,7 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
         )}
       </div>
 
-      <div className={`${isInterfaceNode ? 'gap-2 px-2 py-1.5 min-h-[24px]' : 'gap-3 px-2.5 py-2 min-h-[28px]'} flex`}>
+      <div className="flex gap-3 px-2.5 py-2 min-h-[28px]">
         <div className="flex flex-col gap-0 min-w-0">
           {execIn.map(pin => (
             <PinRow

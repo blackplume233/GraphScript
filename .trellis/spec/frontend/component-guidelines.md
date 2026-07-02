@@ -51,8 +51,9 @@ authority in the browser.
 - Synthetic graph interface nodes should remain draggable as UI-only layout
   helpers. Moving `context` or `Graph Inputs` updates local canvas position only
   and must not issue `annotate node`, `remove_node`, or other backend commands.
-  Render these nodes with a distinct lightweight interface style so graph flow
-  inputs do not look like ordinary black runtime nodes.
+  Keep them on the same node color system as ordinary graph nodes. Flow input
+  exec pins should use the same filled exec glyph treatment as flow outputs, not
+  a black or hollow block.
 
 ## Dockable Workbench Components
 
