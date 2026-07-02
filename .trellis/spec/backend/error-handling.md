@@ -191,6 +191,87 @@ Correct:
 GUI edit -> /api/exec CLI command -> CLI patches CST-backed text -> load_source()
 ```
 
+## Scenario: Source Diagnostics Import Resolver Root
+
+### 1. Scope / Trigger
+
+- Trigger: browser Source diagnostics or guarded source apply checks a source
+  buffer that contains `import` declarations.
+- Scope: `webapp/src/App.tsx` `sourceDiagnosticsOptions()`,
+  `webapp/src/api/client.ts`, `/api/diagnostics`, `/api/source`,
+  `/api/source_patch`, and `cli/source_diagnostics.cpp`.
+
+### 2. Signatures
+
+- API JSON request fields:
+  - `source: string`
+  - `resolve_imports: boolean`
+  - `source_path?: string`
+  - `base_dir?: string`
+  - `environment_hash?: string` for guarded apply paths.
+
+### 3. Contracts
+
+- If `resolve_imports=true`, the backend resolves only `.d.gs` imports inside
+  the configured resolver root.
+- `base_dir` is the resolver root. If omitted, backend current working directory
+  is used.
+- `source_path` may imply `base_dir` from its parent directory when explicit
+  `base_dir` is absent.
+- Absolute import paths are allowed only when their normalized target remains
+  inside the resolver root. Absolute paths outside the root must stay blocked.
+- Unsaved Web sessions may have empty `file_path`; in that case the frontend
+  should derive `base_dir` from loaded import `normalized_path` values before
+  calling import-aware diagnostics.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+| --- | --- |
+| Relative `.d.gs` import inside `base_dir` | Load into dry-run Environment. |
+| Absolute `.d.gs` import inside `base_dir` | Load into dry-run Environment. |
+| Relative import escaping `base_dir` | `GS_IMPORT_PATH_BLOCKED`. |
+| Absolute import outside `base_dir` | `GS_IMPORT_PATH_BLOCKED`. |
+| Non-`.d.gs` import | `GS_IMPORT_UNSUPPORTED_EXTENSION`. |
+| Missing import file | `GS_IMPORT_READ_FAILED`. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: unsaved Web source emitted from a session with native preset imports
+  passes `base_dir` derived from loaded imports, so absolute preset imports do
+  not appear as compile errors.
+- Base: saved source passes `source_path`, and the backend derives the parent
+  directory as resolver root.
+- Bad: frontend sends import-aware diagnostics for an unsaved source with no
+  `base_dir`, causing backend-emitted absolute imports to be treated as blocked
+  user imports.
+
+### 6. Tests Required
+
+- `SourceDiagnostics.ResolveImportsAllowsAbsoluteDeclarationInsideBaseDir`
+  asserts absolute imports under `base_dir` load successfully.
+- `SourceDiagnostics.ResolveImportsRejectsAbsoluteDeclarationOutsideBaseDir`
+  asserts absolute imports outside `base_dir` stay blocked.
+- Frontend build/type-check must cover `sourceDiagnosticsOptions()` when adding
+  or changing request fields.
+
+### 7. Wrong vs Correct
+
+Wrong:
+
+```typescript
+fetchDiagnostics(source, { resolveImports: true })
+```
+
+Correct:
+
+```typescript
+fetchDiagnostics(source, {
+  resolveImports: true,
+  baseDir: sourceDiagnosticsBaseDir(state),
+})
+```
+
 ## Anti-Patterns
 
 ### Do Not Throw For Expected User Input Errors

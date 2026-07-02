@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstring>
 #include <sstream>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
@@ -666,13 +667,31 @@ const ConstObject* find_const_object(const ItemContainer& items, const std::stri
     return nullptr;
 }
 
-void collect_node_aliases(const ItemContainer& items, std::unordered_set<std::string>& aliases, bool& duplicate) {
+void collect_duplicate_node_alias_diagnostics(const ItemContainer& items,
+                                              std::unordered_map<std::string, TextSpan>& aliases,
+                                              std::vector<Diagnostic>& diagnostics) {
     for (const auto& object : items.consts) {
-        if (!aliases.insert(object.alias).second) duplicate = true;
+        if (!aliases.emplace(object.alias, object.alias_span).second) {
+            diagnostics.push_back(make_diag(
+                Severity::Error,
+                "GS-LINT-003",
+                "Duplicate node alias",
+                object.alias_span.range,
+                object.alias,
+                "Rename this node alias so it is unique within the source module."));
+        }
     }
     for (const auto& block : items.blocks) {
-        if (block->kind == "node" && !aliases.insert(block->name).second) duplicate = true;
-        collect_node_aliases(block->items, aliases, duplicate);
+        if (block->kind == "node" && !aliases.emplace(block->name, block->name_span).second) {
+            diagnostics.push_back(make_diag(
+                Severity::Error,
+                "GS-LINT-003",
+                "Duplicate node alias",
+                block->name_span.range,
+                block->name,
+                "Rename this node alias so it is unique within the source module."));
+        }
+        collect_duplicate_node_alias_diagnostics(block->items, aliases, diagnostics);
     }
 }
 
@@ -901,12 +920,8 @@ std::vector<Diagnostic> Linter::lint(const Module& module, ModuleGraph* graph) {
         }
     }
 
-    std::unordered_set<std::string> aliases;
-    bool duplicate_alias = false;
-    collect_node_aliases(module.items, aliases, duplicate_alias);
-    if (duplicate_alias) {
-        diagnostics.push_back(make_diag(Severity::Error, "GS-LINT-003", "Duplicate node alias", {}));
-    }
+    std::unordered_map<std::string, TextSpan> aliases;
+    collect_duplicate_node_alias_diagnostics(module.items, aliases, diagnostics);
     return diagnostics;
 }
 

@@ -389,6 +389,9 @@ graph Execute {
 
     ASSERT_FALSE(node_diagnostics.empty());
     EXPECT_EQ(node_diagnostics[0].code, "GS-LINT-003");
+    EXPECT_EQ(node_diagnostics[0].context, "apply");
+    EXPECT_FALSE(node_diagnostics[0].hint.empty());
+    EXPECT_GT(node_diagnostics[0].range.start.line, 1);
 
     const std::string duplicate_const_and_node = R"(
 graph Execute {
@@ -404,6 +407,9 @@ graph Execute {
 
     ASSERT_FALSE(mixed_diagnostics.empty());
     EXPECT_EQ(mixed_diagnostics[0].code, "GS-LINT-003");
+    EXPECT_EQ(mixed_diagnostics[0].context, "apply");
+    EXPECT_FALSE(mixed_diagnostics[0].hint.empty());
+    EXPECT_GT(mixed_diagnostics[0].range.start.line, 1);
 }
 
 TEST(AssetLanguage, ProjectorDoesNotTreatMemberConnectAsCanonicalEdge) {

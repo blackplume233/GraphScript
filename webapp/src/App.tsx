@@ -362,11 +362,57 @@ function countImportDeclarations(source: string): number {
   return source.split(/\r?\n/).filter(line => /^\s*import\b/.test(line)).length
 }
 
+function normalizeSourcePath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+$/g, '')
+}
+
+function dirname(path: string): string {
+  const normalized = normalizeSourcePath(path)
+  const slash = normalized.lastIndexOf('/')
+  if (slash <= 0) return ''
+  return normalized.slice(0, slash)
+}
+
+function commonDirectory(paths: string[]): string | undefined {
+  const directories = paths
+    .map(dirname)
+    .filter(Boolean)
+  if (directories.length === 0) return undefined
+
+  const [first, ...rest] = directories
+  const firstParts = first.split('/')
+  let commonLength = firstParts.length
+  for (const dir of rest) {
+    const parts = dir.split('/')
+    commonLength = Math.min(commonLength, parts.length)
+    for (let index = 0; index < commonLength; index += 1) {
+      if (parts[index]?.toLowerCase() !== firstParts[index]?.toLowerCase()) {
+        commonLength = index
+        break
+      }
+    }
+  }
+
+  if (commonLength === 0) return undefined
+  return firstParts.slice(0, commonLength).join('/')
+}
+
+function sourceDiagnosticsBaseDir(state: GSState | null): string | undefined {
+  if (!state) return undefined
+  if (state.file_path) return undefined
+  return commonDirectory(
+    state.module.imports
+      .filter(importDef => importDef.loaded)
+      .map(importDef => importDef.normalized_path || importDef.path),
+  )
+}
+
 function sourceDiagnosticsOptions(source: string, state: GSState | null) {
   const resolveImports = countImportDeclarations(source) > 0
   return {
     resolveImports,
     sourcePath: resolveImports ? state?.file_path || undefined : undefined,
+    baseDir: resolveImports ? sourceDiagnosticsBaseDir(state) : undefined,
   }
 }
 

@@ -543,16 +543,6 @@ void resolve_import_node(const asset::ImportDecl& import,
         return;
     }
 
-    std::filesystem::path relative(import.path);
-    if (relative.is_absolute() || relative.has_root_name() || relative.has_root_directory()) {
-        finish_with_diagnostic(
-            "blocked",
-            "Blocked absolute source import '" + import.path + "'",
-            "GS_IMPORT_PATH_BLOCKED",
-            "Use a relative .d.gs path inside the configured source root.");
-        return;
-    }
-
     if (!has_dgs_extension(import.path)) {
         finish_with_diagnostic(
             "unsupported",
@@ -571,13 +561,18 @@ void resolve_import_node(const asset::ImportDecl& import,
         return;
     }
 
-    auto candidate = normalized_candidate(current_dir / relative);
+    std::filesystem::path import_path(import.path);
+    const bool absolute_import =
+        import_path.is_absolute() || import_path.has_root_name() || import_path.has_root_directory();
+    auto candidate = normalized_candidate(absolute_import ? import_path : current_dir / import_path);
     declaration.normalized_path = candidate.string();
     const std::string candidate_key = comparable_path(candidate);
     if (!is_within_root(root, candidate)) {
         finish_with_diagnostic(
             "blocked",
-            "Blocked source import outside root '" + import.path + "'",
+            absolute_import
+                ? "Blocked absolute source import outside root '" + import.path + "'"
+                : "Blocked source import outside root '" + import.path + "'",
             "GS_IMPORT_PATH_BLOCKED",
             "Keep source imports inside the configured base_dir.");
         return;

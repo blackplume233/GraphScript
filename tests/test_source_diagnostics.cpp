@@ -187,6 +187,62 @@ TEST(SourceDiagnostics, ResolveImportsRejectsPathEscape) {
     EXPECT_EQ(env.types().all().size(), 0u);
 }
 
+TEST(SourceDiagnostics, ResolveImportsAllowsAbsoluteDeclarationInsideBaseDir) {
+    auto dir = make_temp_dir("source_diag_absolute_inside");
+    auto declaration = dir / "custom.d.gs";
+    write_text(declaration,
+               "export declare type Exec;\n"
+               "export declare node CustomStart {\n"
+               "    @flow.input\n"
+               "    enter: Exec;\n"
+               "}\n");
+
+    Environment env;
+    SourceDiagnosticsOptions options;
+    options.resolve_imports = true;
+    options.base_dir = dir.string();
+
+    std::string source =
+        "import \"" + declaration.generic_string() + "\";\n"
+        "graph Demo {\n"
+        "    node start {\n"
+        "        type CustomStart;\n"
+        "    }\n"
+        "}\n";
+
+    auto json = source_diagnostics_to_json(source, env, options);
+
+    EXPECT_NE(json.find("\"ok\":true"), std::string::npos);
+    EXPECT_NE(json.find("\"stage\":\"asset\""), std::string::npos);
+    EXPECT_NE(json.find("\"status\":\"loaded\""), std::string::npos);
+    EXPECT_NE(json.find("\"node_type_count\":1"), std::string::npos);
+    EXPECT_EQ(json.find("\"code\":\"GS_IMPORT_PATH_BLOCKED\""), std::string::npos);
+    EXPECT_EQ(env.nodes().all().size(), 0u);
+}
+
+TEST(SourceDiagnostics, ResolveImportsRejectsAbsoluteDeclarationOutsideBaseDir) {
+    auto root = make_temp_dir("source_diag_absolute_root");
+    auto outside = root.parent_path() / "outside_absolute_graphscript_decl.d.gs";
+    write_text(outside, "export declare type FString;\n");
+
+    Environment env;
+    SourceDiagnosticsOptions options;
+    options.resolve_imports = true;
+    options.base_dir = root.string();
+
+    std::string source =
+        "import \"" + outside.generic_string() + "\";\n"
+        "graph Demo {}\n";
+
+    auto json = source_diagnostics_to_json(source, env, options);
+
+    EXPECT_NE(json.find("\"ok\":false"), std::string::npos);
+    EXPECT_NE(json.find("\"stage\":\"resolver\""), std::string::npos);
+    EXPECT_NE(json.find("\"code\":\"GS_IMPORT_PATH_BLOCKED\""), std::string::npos);
+    EXPECT_NE(json.find("\"Blocked absolute source import outside root"), std::string::npos);
+    EXPECT_EQ(env.types().all().size(), 0u);
+}
+
 TEST(SourceDiagnostics, ResolveImportsRejectsNonDeclarationImport) {
     auto dir = make_temp_dir("source_diag_unsupported");
     write_text(dir / "other.gs", "graph Other {}\n");
