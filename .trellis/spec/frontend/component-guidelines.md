@@ -31,10 +31,17 @@ authority in the browser.
   diagnostic wires above ordinary wires, and transient overlays such as context
   menus above the graph. Keep pins visually stronger than wires. Avoid
   persistent overlays like minimaps that cover editable graph content.
+- React Flow `Handle` elements should be the connection hit target. Render
+  custom pin glyphs as pointer-events-none siblings or children that do not
+  replace the handle's measured DOM box, and call `useUpdateNodeInternals()`
+  when dynamic pins change so edge endpoints stay aligned.
 - Selection and active wire feedback should use the FlowGraph yellow/orange
   highlight family rather than the application primary blue, so node selection,
   multi-select outlines, reconnect affordances, and highlighted wires read as a
   single editor interaction system.
+- Match Blueprint-style wire editing shortcuts: Alt+click on an edge removes
+  that connection through the same replayable CLI delete command as the visible
+  edge delete button and Delete/Backspace.
 
 ## Dockable Workbench Components
 
@@ -54,6 +61,10 @@ authority in the browser.
 - Tests for docked panels must interact with tabs explicitly when a panel may be
   inactive. Hidden Dockview panels may be unmounted, so visible text selectors
   should not assume all panels exist in the DOM at once.
+- Dockview chrome that is visually decorative, such as watermarks in empty
+  content containers, must not intercept pointer events over the Canvas. When a
+  canvas E2E drag fails, inspect `document.elementFromPoint()` at the pin center
+  before changing React Flow logic.
 
 ## Source Editor Components
 

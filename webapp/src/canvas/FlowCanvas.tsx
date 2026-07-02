@@ -7,6 +7,7 @@ import {
   BaseEdge,
   ConnectionMode,
   Controls,
+  EdgeLabelRenderer,
   getBezierPath,
   Position,
   ReactFlow,
@@ -30,6 +31,7 @@ import {
   type XYPosition,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { Trash2 } from 'lucide-react'
 import type { Annotation, Diagnostic, GraphDef, GSState, LogicBlock, NodeFieldDef, NodeInst, NodeTypeDef, PinDef, SourceRange } from '@/api/types'
 import BlueprintNode, { type BlueprintFlowNode, type BlueprintIntrinsicProperty, type BlueprintNodeData } from './BlueprintNode'
 import { buildDiagnosticHighlightIndex, edgeKey } from './diagnostic-highlights'
@@ -344,8 +346,30 @@ function connectionFailureMessage(
   if (port.kind === 'data' && targetPin && !dataTypesCompatible(targetPin.type, pending.type)) {
     return `Data type mismatch: ${pending.type || 'value'} -> ${targetPin.type || 'value'}`
   }
-  if (activeLogicBlock && hasIncomingConnection(graph, activeLogicBlock, nodeId, port.pin, port.kind)) {
-    return `${nodeId}.${port.pin} already has an incoming ${port.kind} connection`
+  if (activeLogicBlock) {
+    const edge: EdgeEditPayload = pending.port.direction === 'out'
+      ? {
+        kind: pending.port.kind,
+        blockKind: activeLogicBlock.kind,
+        blockName: activeLogicBlock.name,
+        sourceNode: pending.nodeId,
+        sourcePin: pending.port.pin,
+        targetNode: nodeId,
+        targetPin: port.pin,
+        annotations: [],
+      }
+      : {
+        kind: pending.port.kind,
+        blockKind: activeLogicBlock.kind,
+        blockName: activeLogicBlock.name,
+        sourceNode: nodeId,
+        sourcePin: port.pin,
+        targetNode: pending.nodeId,
+        targetPin: pending.port.pin,
+        annotations: [],
+      }
+    const message = connectionCardinalityMessage(graph, activeLogicBlock, edge)
+    if (message) return message
   }
   return 'This connection is not valid in the active graph scope'
 }
@@ -390,7 +414,18 @@ function eventClientPosition(event: globalThis.MouseEvent | TouchEvent): { x: nu
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   const tagName = target.tagName.toLowerCase()
-  return target.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select'
+  return target.isContentEditable ||
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select' ||
+    target.closest('[contenteditable="true"], [role="textbox"], .monaco-editor, .cm-editor, .native-edit-context') !== null
+}
+
+function isGraphKeyboardTarget(target: EventTarget | null, root: HTMLElement | null): boolean {
+  if (!root || !(target instanceof Node)) return false
+  if (root.contains(target)) return true
+  const active = document.activeElement
+  return active instanceof Node && root.contains(active)
 }
 
 function activeBlockForGraph(graph: GraphDef | undefined, block: LogicBlockRef | null | undefined): LogicBlock | undefined {
@@ -399,38 +434,66 @@ function activeBlockForGraph(graph: GraphDef | undefined, block: LogicBlockRef |
   return blocks.find(item => item.name === block.name)
 }
 
-function hasIncomingConnection(
+function edgeMatchesFlow(flow: LogicBlock['flows'][number], edge: EdgeEditPayload): boolean {
+  return edge.kind === 'exec' &&
+    flow.from_node === edge.sourceNode &&
+    flow.from_pin === edge.sourcePin &&
+    flow.to_node === edge.targetNode &&
+    flow.to_pin === edge.targetPin
+}
+
+function edgeMatchesLink(link: LogicBlock['links'][number], edge: EdgeEditPayload): boolean {
+  return edge.kind === 'data' &&
+    link.source_node === edge.sourceNode &&
+    link.source_pin === edge.sourcePin &&
+    link.target_node === edge.targetNode &&
+    link.target_pin === edge.targetPin
+}
+
+function hasDataTargetConnection(
   graph: GraphDef | undefined,
   block: LogicBlockRef | null | undefined,
   targetNode: string,
   targetPin: string,
-  kind: 'exec' | 'data',
   except?: EdgeEditPayload,
 ): boolean {
   const logicBlock = activeBlockForGraph(graph, block)
   if (!logicBlock) return false
-  if (kind === 'exec') {
-    return logicBlock.flows.some(flow => {
-      if (except?.kind === 'exec' &&
-        flow.from_node === except.sourceNode &&
-        flow.from_pin === except.sourcePin &&
-        flow.to_node === except.targetNode &&
-        flow.to_pin === except.targetPin) {
-        return false
-      }
-      return flow.to_node === targetNode && flow.to_pin === targetPin
-    })
-  }
   return logicBlock.links.some(link => {
-    if (except?.kind === 'data' &&
-      link.source_node === except.sourceNode &&
-      link.source_pin === except.sourcePin &&
-      link.target_node === except.targetNode &&
-      link.target_pin === except.targetPin) {
-      return false
-    }
+    if (except && edgeMatchesLink(link, except)) return false
     return link.target_node === targetNode && link.target_pin === targetPin
   })
+}
+
+function hasExecSourceConnection(
+  graph: GraphDef | undefined,
+  block: LogicBlockRef | null | undefined,
+  sourceNode: string,
+  sourcePin: string,
+  except?: EdgeEditPayload,
+): boolean {
+  const logicBlock = activeBlockForGraph(graph, block)
+  if (!logicBlock) return false
+  return logicBlock.flows.some(flow => {
+    if (except && edgeMatchesFlow(flow, except)) return false
+    return flow.from_node === sourceNode && flow.from_pin === sourcePin
+  })
+}
+
+function connectionCardinalityMessage(
+  graph: GraphDef | undefined,
+  block: LogicBlockRef | null | undefined,
+  edge: EdgeEditPayload,
+  except?: EdgeEditPayload,
+): string | null {
+  if (edge.kind === 'data') {
+    return hasDataTargetConnection(graph, block, edge.targetNode, edge.targetPin, except)
+      ? `${edge.targetNode}.${edge.targetPin} already has an incoming data connection`
+      : null
+  }
+  return hasExecSourceConnection(graph, block, edge.sourceNode, edge.sourcePin, except)
+    ? `${edge.sourceNode}.${edge.sourcePin} already has an outgoing exec connection`
+    : null
 }
 
 function edgeId(edge: EdgeEditPayload): string {
@@ -539,7 +602,7 @@ function BlueprintEdge({
   data,
   selected,
 }: EdgeProps<GraphScriptEdge>) {
-  const [edgePath] = getBezierPath({
+  const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -588,6 +651,27 @@ function BlueprintEdge({
       />
       {data && (
         <>
+          {selected && (
+            <EdgeLabelRenderer>
+              <button
+                type="button"
+                className="nodrag nopan graphscript-edge-delete-button"
+                aria-label={`Delete ${data.kind} connection ${data.sourceNode}.${data.sourcePin} to ${data.targetNode}.${data.targetPin}`}
+                title="Delete connection"
+                data-edge-delete-button={id}
+                style={{
+                  transform: `translate(-50%, -170%) translate(${labelX}px, ${labelY}px)`,
+                }}
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  window.dispatchEvent(new CustomEvent('graphscript:edge-delete-request', { detail: data }))
+                }}
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </EdgeLabelRenderer>
+          )}
           <circle
             cx={sourceReconnect.x}
             cy={sourceReconnect.y}
@@ -1141,7 +1225,7 @@ function FlowCanvasInner({
     if (!graph || !activeLogicBlock) return false
     const payload = payloadFromConnection(connection as Connection, activeLogicBlock)
     if (!payload) return false
-    return !hasIncomingConnection(graph, activeLogicBlock, payload.targetNode, payload.targetPin, payload.kind)
+    return connectionCardinalityMessage(graph, activeLogicBlock, payload) === null
   }, [activeLogicBlock, graph])
 
   const onConnect = useCallback<OnConnect>((connection) => {
@@ -1220,12 +1304,14 @@ function FlowCanvasInner({
       kind: previous.blockKind,
       name: previous.blockName,
     })
-    if (!next || hasIncomingConnection(graph, {
+    const blockRef = {
       kind: previous.blockKind,
       name: previous.blockName,
-    }, next.targetNode, next.targetPin, next.kind, previous)) {
+    }
+    const message = next ? connectionCardinalityMessage(graph, blockRef, next, previous) : null
+    if (!next || message) {
       const point = client ?? { x: 24, y: 24 }
-      showConnectionFeedback(point.x, point.y, 'Reconnect failed: incompatible pin or duplicate target input', 'error')
+      showConnectionFeedback(point.x, point.y, message ?? 'Reconnect failed: incompatible pin', 'error')
       void onRefresh?.()
       return
     }
@@ -1291,6 +1377,18 @@ function FlowCanvasInner({
       if (edge.data) void onEdgeDelete?.(edge.data)
     }
   }, [onEdgeDelete])
+
+  useEffect(() => {
+    function onEdgeDeleteRequest(event: Event) {
+      const edge = (event as CustomEvent<EdgeEditPayload>).detail
+      if (!edge) return
+      void onEdgeDelete?.(edge)
+      onEdgeSelect?.(null)
+    }
+
+    window.addEventListener('graphscript:edge-delete-request', onEdgeDeleteRequest)
+    return () => window.removeEventListener('graphscript:edge-delete-request', onEdgeDeleteRequest)
+  }, [onEdgeDelete, onEdgeSelect])
 
   const onNodesDelete = useCallback<OnNodesDelete<GraphScriptNode>>((deleted) => {
     for (const node of deleted) {
@@ -1414,12 +1512,20 @@ function FlowCanvasInner({
     onEdgeSelect?.(null)
   }, [onEdgeSelect, onNodeSelect])
 
-  const onEdgeClick = useCallback((_event: ReactMouseEvent, edge: GraphScriptEdge) => {
+  const onEdgeClick = useCallback((event: ReactMouseEvent, edge: GraphScriptEdge) => {
     if (edge.data) {
+      if (event.altKey) {
+        event.preventDefault()
+        event.stopPropagation()
+        void onEdgeDelete?.(edge.data)
+        onEdgeSelect?.(null)
+        onNodeSelect?.(null)
+        return
+      }
       onEdgeSelect?.(edge.data)
       onNodeSelect?.(null)
     }
-  }, [onEdgeSelect, onNodeSelect])
+  }, [onEdgeDelete, onEdgeSelect, onNodeSelect])
 
   const onSelectionChange = useCallback<OnSelectionChangeFunc<GraphScriptNode, GraphScriptEdge>>(({ nodes: selectedNodes, edges: selectedEdges }) => {
     if (selectedEdges.length > 0) {
@@ -1447,6 +1553,9 @@ function FlowCanvasInner({
   }, [])
 
   const onPanePointerDown = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!isEditableKeyboardTarget(event.target)) {
+      wrapperRef.current?.focus({ preventScroll: true })
+    }
     pointerDragRef.current = {
       button: event.button,
       startX: event.clientX,
@@ -1502,12 +1611,13 @@ function FlowCanvasInner({
     const newNodeId = await onNodeCreate(typeName, graphX, graphY)
     if (!pendingConnection || !compatiblePin || !newNodeId || !activeLogicBlock) return
     const payload = edgePayloadForPendingConnection(pendingConnection, String(newNodeId), compatiblePin, activeLogicBlock)
-    if (hasIncomingConnection(graph, activeLogicBlock, payload.targetNode, payload.targetPin, payload.kind)) {
+    const message = connectionCardinalityMessage(graph, activeLogicBlock, payload)
+    if (message) {
       const rect = wrapperRef.current?.getBoundingClientRect()
       showConnectionFeedback(
         (rect?.left ?? 0) + contextMenu.localX,
         (rect?.top ?? 0) + contextMenu.localY,
-        `${payload.targetNode}.${payload.targetPin} already has an incoming connection`,
+        message,
         'error',
       )
       return
@@ -1670,7 +1780,11 @@ function FlowCanvasInner({
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || isEditableKeyboardTarget(event.target)) return
+      if (
+        event.defaultPrevented ||
+        isEditableKeyboardTarget(event.target) ||
+        !isGraphKeyboardTarget(event.target, wrapperRef.current)
+      ) return
       const key = event.key.toLowerCase()
       const duplicateRequested = (event.ctrlKey || event.metaKey) && (key === 'd' || key === 'w')
       if (duplicateRequested) {
@@ -1796,8 +1910,9 @@ function FlowCanvasInner({
   return (
     <div
       ref={wrapperRef}
-      className="w-full h-full relative blueprint-grid"
+      className="w-full h-full relative blueprint-grid outline-none"
       data-canvas-context-root="true"
+      tabIndex={0}
       onPointerDown={onPanePointerDown}
       onPointerMove={onPanePointerMove}
       onPointerUp={onPanePointerUp}

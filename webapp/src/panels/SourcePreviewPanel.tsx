@@ -17,6 +17,7 @@ declare global {
       getSelectedText: () => string
       getValue: () => string
       setValue: (value: string) => void
+      focus: () => void
       getLastExternalSyncKind: () => string
     }
   }
@@ -505,6 +506,7 @@ export default function SourcePreviewPanel({
         editor.setValue(value)
         onSourceChange(value)
       },
+      focus: () => editor.focus(),
       getLastExternalSyncKind: () => lastExternalSyncKindRef.current,
     }
     focusMonacoRange(editor, source, focusedRange)

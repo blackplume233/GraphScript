@@ -1929,6 +1929,145 @@ static Result<void, std::string> apply_source_set_node_property(EditSession& ses
     return apply_asset_text_patch(session, insert_patch);
 }
 
+static const NodeInstance* find_active_node_instance(const EditSession& session,
+                                                     const std::string& instance_name) {
+    const auto* graph = session.active_graph();
+    if (!graph) return nullptr;
+    for (const auto& node : graph->node_instances) {
+        if (node.instance_name == instance_name) return &node;
+    }
+    return nullptr;
+}
+
+static const InitializerField* find_initializer_field(const NodeInstance& node,
+                                                      const std::string& field_name) {
+    for (const auto& field : node.initializer_fields) {
+        if (field.name == field_name) return &field;
+    }
+    return nullptr;
+}
+
+static const asset::Property* find_source_node_property(const asset::Block& graph,
+                                                        const std::string& node_name,
+                                                        const std::string& property_name) {
+    const auto* node_block = find_asset_logic_block(graph, "node", node_name);
+    if (!node_block) return nullptr;
+    for (const auto& property : node_block->items.properties) {
+        if (property.path == property_name) return &property;
+    }
+    return nullptr;
+}
+
+static Result<void, std::string> apply_source_set_node_constructor_property(
+    EditSession& session,
+    const std::string& node,
+    const std::string& property,
+    const std::string& constructor_type,
+    const std::string& argument) {
+    if (!is_identifier_text(constructor_type)) {
+        return Result<void, std::string>::err("Constructor type must be an identifier");
+    }
+    return apply_source_set_node_property(session, node, property, constructor_type + "(" + argument + ")");
+}
+
+static Result<void, std::string> apply_source_set_node_constructor_argument(
+    EditSession& session,
+    const std::string& node_name,
+    const std::string& field_name,
+    const std::string& argument) {
+    if (!session.asset_source()) return Result<void, std::string>::err("Session is not source-backed");
+    const auto* node = find_active_node_instance(session, node_name);
+    if (!node) return Result<void, std::string>::err("Node instance '" + node_name + "' not found");
+    const auto* field = find_initializer_field(*node, field_name);
+    if (!field) return Result<void, std::string>::err("Initializer field '" + field_name + "' not found");
+
+    const size_t open = field->value.find('(');
+    const size_t close = field->value.rfind(')');
+    if (open == std::string::npos || close != field->value.size() - 1 || open == 0) {
+        return Result<void, std::string>::err("Initializer field '" + field_name + "' is not a constructor call");
+    }
+
+    return apply_source_set_node_property(
+        session,
+        node_name,
+        field_name,
+        field->value.substr(0, open + 1) + argument + ")");
+}
+
+static Result<void, std::string> apply_source_set_node_constructor_type(
+    EditSession& session,
+    const std::string& node_name,
+    const std::string& field_name,
+    const std::string& constructor_type) {
+    if (!is_identifier_text(constructor_type)) {
+        return Result<void, std::string>::err("Constructor type must be an identifier");
+    }
+    if (!session.asset_source()) return Result<void, std::string>::err("Session is not source-backed");
+    const auto* node = find_active_node_instance(session, node_name);
+    if (!node) return Result<void, std::string>::err("Node instance '" + node_name + "' not found");
+    const auto* field = find_initializer_field(*node, field_name);
+    if (!field) return Result<void, std::string>::err("Initializer field '" + field_name + "' not found");
+
+    const size_t open = field->value.find('(');
+    const size_t close = field->value.rfind(')');
+    if (open == std::string::npos || close != field->value.size() - 1 || open == 0) {
+        return Result<void, std::string>::err("Initializer field '" + field_name + "' is not a constructor call");
+    }
+
+    return apply_source_set_node_property(
+        session,
+        node_name,
+        field_name,
+        constructor_type + field->value.substr(open));
+}
+
+static Result<void, std::string> apply_source_unset_node_property(EditSession& session,
+                                                                  const std::string& node_name,
+                                                                  const std::string& field_name) {
+    auto source_module = source_backed_asset_module(session);
+    if (source_module.is_err()) return Result<void, std::string>::err(source_module.error());
+    auto graph_name = active_graph_name(session);
+    if (!graph_name) return Result<void, std::string>::err("No active graph");
+    const auto* graph = find_asset_graph_block(source_module.value(), *graph_name);
+    if (!graph) return Result<void, std::string>::err("Graph block not found in source");
+    const auto* property = find_source_node_property(*graph, node_name, field_name);
+    if (!property) return Result<void, std::string>::err("Initializer field '" + field_name + "' not found");
+
+    asset::TextPatch patch;
+    patch.edits.push_back(source_full_line_edit(
+        *session.asset_source(),
+        property->span.offset,
+        property->span.offset + property->span.length,
+        "",
+        property->span.range));
+    return apply_asset_text_patch(session, patch);
+}
+
+static Result<void, std::string> apply_source_rename_node_property(EditSession& session,
+                                                                   const std::string& node_name,
+                                                                   const std::string& old_field,
+                                                                   const std::string& new_field) {
+    if (!is_identifier_text(new_field)) return Result<void, std::string>::err("New initializer field must be an identifier");
+    const auto* node = find_active_node_instance(session, node_name);
+    if (!node) return Result<void, std::string>::err("Node instance '" + node_name + "' not found");
+    if (find_initializer_field(*node, new_field)) {
+        return Result<void, std::string>::err("Initializer field '" + new_field + "' already exists");
+    }
+
+    auto source_module = source_backed_asset_module(session);
+    if (source_module.is_err()) return Result<void, std::string>::err(source_module.error());
+    auto graph_name = active_graph_name(session);
+    if (!graph_name) return Result<void, std::string>::err("No active graph");
+    const auto* graph = find_asset_graph_block(source_module.value(), *graph_name);
+    if (!graph) return Result<void, std::string>::err("Graph block not found in source");
+    const auto* property = find_source_node_property(*graph, node_name, old_field);
+    if (!property) return Result<void, std::string>::err("Initializer field '" + old_field + "' not found");
+
+    asset::TextPatch patch;
+    patch.edits.push_back({property->name_span.offset, property->name_span.length, new_field, property->name_span.range});
+    return apply_asset_text_patch(session, patch);
+}
+
 static Result<void, std::string> apply_source_remove_node(EditSession& session,
                                                           const std::string& alias) {
     auto source_module = source_backed_asset_module(session);
@@ -2595,6 +2734,10 @@ void CLIEditor::cmd_add(const std::vector<std::string>& args) {
 
 void CLIEditor::cmd_set_init_expr(const std::vector<std::string>& args) {
     if (args.size() < 2) { print_error("Usage: set_init_expr <node> [expr]"); return; }
+    if (session_.asset_source()) {
+        print_error("Source-backed set_init_expr is not supported for block-style nodes; use set_init or set_init_ctor");
+        return;
+    }
     const std::string initializer = args.size() >= 3 ? args[2] : "";
     auto r = session_.set_node_initializer(args[1], initializer);
     if (r.is_err()) print_error(r.error());
@@ -2617,6 +2760,12 @@ void CLIEditor::cmd_set_init(const std::vector<std::string>& args) {
 void CLIEditor::cmd_set_init_ctor(const std::vector<std::string>& args) {
     if (args.size() < 4) { print_error("Usage: set_init_ctor <node> <field> <Type> [arg]"); return; }
     const std::string argument = args.size() >= 5 ? args[4] : "";
+    if (session_.asset_source()) {
+        auto patched = apply_source_set_node_constructor_property(session_, args[1], args[2], args[3], argument);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Set initializer field '" + args[2] + "' to constructor '" + args[3] + "' on node '" + args[1] + "'");
+        return;
+    }
     auto r = session_.set_node_initializer_constructor_field(args[1], args[2], args[3], argument);
     if (r.is_err()) print_error(r.error());
     else print_ok("Set initializer field '" + args[2] + "' to constructor '" + args[3] + "' on node '" + args[1] + "'");
@@ -2625,6 +2774,12 @@ void CLIEditor::cmd_set_init_ctor(const std::vector<std::string>& args) {
 void CLIEditor::cmd_set_init_ctor_arg(const std::vector<std::string>& args) {
     if (args.size() < 3) { print_error("Usage: set_init_ctor_arg <node> <field> [arg]"); return; }
     const std::string argument = args.size() >= 4 ? args[3] : "";
+    if (session_.asset_source()) {
+        auto patched = apply_source_set_node_constructor_argument(session_, args[1], args[2], argument);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Set initializer constructor argument for field '" + args[2] + "' on node '" + args[1] + "'");
+        return;
+    }
     auto r = session_.set_node_initializer_constructor_argument(args[1], args[2], argument);
     if (r.is_err()) print_error(r.error());
     else print_ok("Set initializer constructor argument for field '" + args[2] + "' on node '" + args[1] + "'");
@@ -2632,6 +2787,12 @@ void CLIEditor::cmd_set_init_ctor_arg(const std::vector<std::string>& args) {
 
 void CLIEditor::cmd_set_init_ctor_type(const std::vector<std::string>& args) {
     if (args.size() < 4) { print_error("Usage: set_init_ctor_type <node> <field> <Type>"); return; }
+    if (session_.asset_source()) {
+        auto patched = apply_source_set_node_constructor_type(session_, args[1], args[2], args[3]);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Set initializer constructor type for field '" + args[2] + "' on node '" + args[1] + "'");
+        return;
+    }
     auto r = session_.set_node_initializer_constructor_type(args[1], args[2], args[3]);
     if (r.is_err()) print_error(r.error());
     else print_ok("Set initializer constructor type for field '" + args[2] + "' on node '" + args[1] + "'");
@@ -2639,6 +2800,12 @@ void CLIEditor::cmd_set_init_ctor_type(const std::vector<std::string>& args) {
 
 void CLIEditor::cmd_unset_init(const std::vector<std::string>& args) {
     if (args.size() < 3) { print_error("Usage: unset_init <node> <field>"); return; }
+    if (session_.asset_source()) {
+        auto patched = apply_source_unset_node_property(session_, args[1], args[2]);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Removed initializer field '" + args[2] + "' from node '" + args[1] + "'");
+        return;
+    }
     auto r = session_.remove_node_initializer_field(args[1], args[2]);
     if (r.is_err()) print_error(r.error());
     else print_ok("Removed initializer field '" + args[2] + "' from node '" + args[1] + "'");
@@ -2646,6 +2813,12 @@ void CLIEditor::cmd_unset_init(const std::vector<std::string>& args) {
 
 void CLIEditor::cmd_rename_init(const std::vector<std::string>& args) {
     if (args.size() < 4) { print_error("Usage: rename_init <node> <old_field> <new_field>"); return; }
+    if (session_.asset_source()) {
+        auto patched = apply_source_rename_node_property(session_, args[1], args[2], args[3]);
+        if (patched.is_err()) print_error(patched.error());
+        else print_ok("Renamed initializer field '" + args[2] + "' to '" + args[3] + "' on node '" + args[1] + "'");
+        return;
+    }
     auto r = session_.rename_node_initializer_field(args[1], args[2], args[3]);
     if (r.is_err()) print_error(r.error());
     else print_ok("Renamed initializer field '" + args[2] + "' to '" + args[3] + "' on node '" + args[1] + "'");

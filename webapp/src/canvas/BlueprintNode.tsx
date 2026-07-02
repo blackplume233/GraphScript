@@ -1,4 +1,5 @@
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
+import { useEffect } from 'react'
+import { Handle, Position, useUpdateNodeInternals, type Node, type NodeProps } from '@xyflow/react'
 import { pinColor, NODE_HEADER_COLORS } from './port-config'
 import type { PinDef } from '@/api/types'
 import {
@@ -42,6 +43,8 @@ export interface BlueprintNodeData extends Record<string, unknown> {
 }
 
 export type BlueprintFlowNode = Node<BlueprintNodeData, 'blueprint'>
+
+const EMPTY_PINS: PinDef[] = []
 
 function diagnosticBorderColor(highlight?: DiagnosticPinHighlight | DiagnosticHighlightData): string {
   if (!highlight) return 'transparent'
@@ -103,6 +106,8 @@ function PinRow({
   const isExec = pin.kind === 'exec'
   const handleType = pin.direction === 'out' ? 'source' : 'target'
   const position = isLeft ? Position.Left : Position.Right
+  const handleSize = isExec ? 18 : 16
+  const glyphSize = isExec ? 14 : 10
   const previewGlow = connectionState === 'compatible'
     ? `0 0 0 2px oklch(0.72 0.16 150 / 0.22), 0 0 12px ${color}`
     : connectionState === 'origin'
@@ -111,9 +116,10 @@ function PinRow({
 
   return (
     <div
-      className="relative flex items-center gap-1.5 py-[3px] group/pin transition-opacity duration-100"
+      className="relative flex min-h-[19px] items-center gap-1.5 py-[3px] group/pin transition-opacity duration-100"
       style={{ flexDirection: isLeft ? 'row' : 'row-reverse' }}
       data-pin-connection-state={connectionState}
+      data-pin-row={pinHandleId(pin)}
     >
       <Handle
         id={pinHandleId(pin)}
@@ -121,29 +127,50 @@ function PinRow({
         position={position}
         className={`nodrag graphscript-pin-handle graphscript-pin-handle-${pin.kind} graphscript-pin-handle-${pin.direction}`}
         style={{
-          position: 'relative',
-          left: 'auto',
-          right: 'auto',
-          top: 'auto',
-          transform: isExec ? 'none' : 'rotate(45deg)',
-          width: isExec ? 14 : 10,
-          height: isExec ? 13 : 10,
-          minWidth: isExec ? 14 : 10,
-          borderRadius: isExec ? 0 : 1,
-          border: `2px solid ${color}`,
-          background: pin.direction === 'out' ? color : 'var(--color-flow-node-bg)',
-          boxShadow: previewGlow ?? diagnosticGlow(highlight),
-          clipPath: isExec ? 'polygon(16% 8%, 88% 50%, 16% 92%)' : undefined,
+          position: 'absolute',
+          left: isLeft ? -18 : 'auto',
+          right: isLeft ? 'auto' : -18,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: handleSize,
+          height: handleSize,
+          minWidth: handleSize,
+          border: 'none',
+          background: 'transparent',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'visible',
+          boxShadow: 'none',
           opacity: connectionState === 'disabled' ? 0.28 : 1,
-          outline: connectionState === 'compatible'
-            ? '1px solid oklch(0.72 0.16 150 / 0.95)'
-            : highlight ? `1px solid ${diagnosticBorderColor(highlight)}` : undefined,
-          outlineOffset: 2,
         }}
         title={`${pin.direction} ${pin.name}: ${pin.type}`}
         data-port-id={pinHandleId(pin)}
         data-port-type={handleType}
         data-testid="sdk.workflow.canvas.node.port"
+      />
+      <span
+        aria-hidden="true"
+        data-pin-glyph="true"
+        className="graphscript-pin-glyph"
+        style={{
+          position: 'absolute',
+          left: isLeft ? -16 : 'auto',
+          right: isLeft ? 'auto' : -16,
+          top: '50%',
+          width: glyphSize,
+          height: isExec ? 13 : glyphSize,
+          borderRadius: isExec ? 0 : 1,
+          border: `2px solid ${color}`,
+          background: pin.direction === 'out' ? color : 'var(--color-flow-node-bg)',
+          boxShadow: previewGlow ?? diagnosticGlow(highlight),
+          clipPath: isExec ? 'polygon(16% 8%, 88% 50%, 16% 92%)' : undefined,
+          transform: `translateY(-50%) ${isExec ? '' : 'rotate(45deg)'}`,
+          outline: connectionState === 'compatible'
+            ? '1px solid oklch(0.72 0.16 150 / 0.95)'
+            : highlight ? `1px solid ${diagnosticBorderColor(highlight)}` : undefined,
+          outlineOffset: 2,
+        }}
       />
       <span
         className="text-[11px] leading-none whitespace-nowrap transition-colors duration-100 group-hover/pin:text-foreground"
@@ -181,8 +208,9 @@ function headerStyleForNode(category: string, hasExec: boolean, isNative: boolea
   return hasExec ? NODE_HEADER_COLORS.flow : NODE_HEADER_COLORS.pure
 }
 
-export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlowNode>) {
-  const pins = data.pins ?? []
+export default function BlueprintNode({ id, data, selected }: NodeProps<BlueprintFlowNode>) {
+  const updateNodeInternals = useUpdateNodeInternals()
+  const pins = data.pins ?? EMPTY_PINS
   const label = data.instanceName || data.label
   const typeName = data.typeName ?? ''
   const category = data.category || (data.isNative ? 'Native' : 'Graph')
@@ -200,10 +228,15 @@ export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlo
     : selected
       ? '0 0 0 1px var(--color-flow-selected), 0 0 0 2px oklch(0 0 0 / 0.65), 0 8px 20px oklch(0 0 0 / 0.5), inset 0 1px 0 oklch(1 0 0 / 0.04)'
       : '0 2px 12px oklch(0 0 0 / 0.44), inset 0 1px 0 oklch(1 0 0 / 0.04)'
+  const pinSignature = pins.map(pin => `${pinHandleId(pin)}:${pin.type}`).join('|')
+
+  useEffect(() => {
+    updateNodeInternals(id)
+  }, [id, pinSignature, updateNodeInternals])
 
   return (
     <div
-      className="node-card min-w-[190px] rounded-[4px] overflow-hidden border select-none"
+      className="node-card relative min-w-[190px] rounded-[4px] overflow-visible border select-none"
       data-blueprint-node={label}
       onPointerDownCapture={(event) => {
         window.dispatchEvent(new CustomEvent('graphscript:node-pointer-down', {
@@ -220,7 +253,7 @@ export default function BlueprintNode({ data, selected }: NodeProps<BlueprintFlo
       }}
     >
       <div
-        className="px-3 py-[7px] flex items-center gap-2"
+        className="rounded-t-[4px] px-3 py-[7px] flex items-center gap-2"
         style={{
           background: `linear-gradient(135deg, ${headerStyle.from}, ${headerStyle.to})`,
           borderBottom: '1px solid var(--color-flow-node-border)',

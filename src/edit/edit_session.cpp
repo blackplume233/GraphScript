@@ -1780,6 +1780,13 @@ Result<void, std::string> EditSession::add_flow(const std::string& block_name,
     auto err2 = check_block_scope(*g, block_name, to_node);
     if (!err2.empty()) return Result<void, std::string>::err(err2);
 
+    for (const auto& flow : block->flow_connections) {
+        if (flow.from.node_instance == from_node && flow.from.pin_name == from_pin) {
+            return Result<void, std::string>::err("Exec output '" + from_node + "." + from_pin +
+                                                  "' already has an outgoing connection");
+        }
+    }
+
     push_undo("add flow " + from_node + "." + from_pin + " -> " + to_node + "." + to_pin);
     FlowConnection fc;
     fc.from = {from_node, from_pin};
@@ -1818,6 +1825,13 @@ Result<void, std::string> EditSession::add_link(const std::string& block_name,
     if (!err1.empty()) return Result<void, std::string>::err(err1);
     auto err2 = check_block_scope(*g, block_name, source_node);
     if (!err2.empty()) return Result<void, std::string>::err(err2);
+
+    for (const auto& link : block->data_links) {
+        if (link.target.node_instance == target_node && link.target.pin_name == target_pin) {
+            return Result<void, std::string>::err("Data input '" + target_node + "." + target_pin +
+                                                  "' already has an incoming connection");
+        }
+    }
 
     push_undo("add link " + target_node + "." + target_pin + " = " + source_node +
               (source_pin.empty() ? "" : "." + source_pin));

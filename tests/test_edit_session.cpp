@@ -561,6 +561,32 @@ TEST(EditSession, FlowAndLinkOperations) {
     EXPECT_EQ(s.active_graph()->events[0].data_links.size(), 0u);
 }
 
+TEST(EditSession, PinCardinalityAllowsDataFanOutAndExecFanIn) {
+    Environment env;
+    EditSession s(env);
+    load_core(s);
+    ASSERT_TRUE(s.new_graph("G").is_ok());
+    ASSERT_TRUE(s.add_param(ParamDirection::In, "msg", "FString").is_ok());
+    ASSERT_TRUE(s.add_param(ParamDirection::In, "alt", "FString").is_ok());
+    ASSERT_TRUE(s.add_node("PrintString", "p1").is_ok());
+    ASSERT_TRUE(s.add_node("PrintString", "p2").is_ok());
+    ASSERT_TRUE(s.add_node("Delay", "d1").is_ok());
+    ASSERT_TRUE(s.add_node("Delay", "d2").is_ok());
+    ASSERT_TRUE(s.add_event("Ev").is_ok());
+
+    ASSERT_TRUE(s.add_link("Ev", "p1", "message", "msg").is_ok());
+    ASSERT_TRUE(s.add_link("Ev", "p2", "message", "msg").is_ok());
+    auto data_single_input = s.add_link("Ev", "p1", "message", "alt");
+    ASSERT_TRUE(data_single_input.is_err());
+    EXPECT_NE(data_single_input.error().find("already has an incoming connection"), std::string::npos);
+
+    ASSERT_TRUE(s.add_flow("Ev", "p1", "exit", "d1", "enter").is_ok());
+    ASSERT_TRUE(s.add_flow("Ev", "p2", "exit", "d1", "enter").is_ok());
+    auto exec_single_output = s.add_flow("Ev", "p1", "exit", "d2", "enter");
+    ASSERT_TRUE(exec_single_output.is_err());
+    EXPECT_NE(exec_single_output.error().find("already has an outgoing connection"), std::string::npos);
+}
+
 TEST(EditSession, FlowOnMissingBlockFails) {
     Environment env;
     EditSession s(env);
@@ -1192,10 +1218,11 @@ TEST(EditSession, RenameParamMigratesBareReferencesAndKeepsPersistentId) {
     ASSERT_TRUE(s.add_param(ParamDirection::In, "msg", "FString").is_ok());
     ASSERT_TRUE(s.add_param(ParamDirection::In, "locator", "AActor").is_ok());
     ASSERT_TRUE(s.add_node("PrintString", "logger").is_ok());
+    ASSERT_TRUE(s.add_node("PrintString", "logger2").is_ok());
     ASSERT_TRUE(s.add_node("GetActorLocation", "locator").is_ok());
     ASSERT_TRUE(s.add_event("OnStart").is_ok());
     ASSERT_TRUE(s.add_link("OnStart", "logger", "message", "msg").is_ok());
-    ASSERT_TRUE(s.add_link("OnStart", "logger", "message", "locator", "location").is_ok());
+    ASSERT_TRUE(s.add_link("OnStart", "logger2", "message", "locator", "location").is_ok());
     ASSERT_TRUE(s.set_param_annotation("msg", {"Id", {{"", "param-msg-stable"}}}).is_ok());
 
     ASSERT_TRUE(s.rename_param("msg", "text").is_ok());
@@ -1217,13 +1244,13 @@ TEST(EditSession, RenameParamMigratesBareReferencesAndKeepsPersistentId) {
     EXPECT_EQ(json.find("\"id\":\"param:RenameParamIds/msg\""), std::string::npos);
     EXPECT_NE(json.find("\"persistent_id\":\"param-msg-stable\""), std::string::npos);
     EXPECT_NE(json.find("\"id\":\"link:RenameParamIds/event/OnStart/text->logger.message\""), std::string::npos);
-    EXPECT_NE(json.find("\"id\":\"link:RenameParamIds/event/OnStart/locator.location->logger.message\""), std::string::npos);
+    EXPECT_NE(json.find("\"id\":\"link:RenameParamIds/event/OnStart/locator.location->logger2.message\""), std::string::npos);
 
     const std::string emitted = s.emit();
     EXPECT_NE(emitted.find("@Id(\"param-msg-stable\")"), std::string::npos);
     EXPECT_NE(emitted.find("param text: FString;"), std::string::npos);
     EXPECT_NE(emitted.find("bind(text, logger.message);"), std::string::npos);
-    EXPECT_NE(emitted.find("bind(locator.location, logger.message);"), std::string::npos);
+    EXPECT_NE(emitted.find("bind(locator.location, logger2.message);"), std::string::npos);
 
     auto undo = s.undo();
     ASSERT_TRUE(undo.is_ok()) << undo.error();
@@ -2022,7 +2049,7 @@ TEST(EditSession, StateJsonExportsDiagnostics) {
     ASSERT_TRUE(s.add_node("Delay", "wait").is_ok());
     ASSERT_TRUE(s.add_event("OnStart").is_ok());
     ASSERT_TRUE(s.add_flow("OnStart", "logger", "exit", "wait", "enter").is_ok());
-    ASSERT_TRUE(s.add_flow("OnStart", "logger", "exit", "wait", "enter").is_ok());
+    s.active_graph()->events[0].flow_connections.push_back(s.active_graph()->events[0].flow_connections[0]);
 
     auto diags = s.validate();
     ASSERT_FALSE(diags.empty());

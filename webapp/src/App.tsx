@@ -37,6 +37,24 @@ function quoteCommandArg(value: string): string {
     : value
 }
 
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tagName = target.tagName.toLowerCase()
+  return target.isContentEditable ||
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select' ||
+    target.closest('[contenteditable="true"], [role="textbox"], .monaco-editor, .cm-editor, .native-edit-context') !== null
+}
+
+function isGraphKeyboardTarget(target: EventTarget | null): boolean {
+  const root = document.querySelector('[data-canvas-context-root="true"]')
+  if (!root) return false
+  if (target instanceof Node && root.contains(target)) return true
+  const active = document.activeElement
+  return active instanceof Node && root.contains(active)
+}
+
 function annotationArgCommandPart(arg: Annotation['args'][number]): string {
   const value = quoteCommandArg(arg.value)
   return arg.name ? `${arg.name}=${value}` : value
@@ -1008,30 +1026,19 @@ export default function App() {
 
       const currentSource = await fetchEmit()
       const baseSource = sourceBaseTextRef.current
-      if (baseSource && currentSource !== baseSource) {
-        sourceSessionChangedRef.current = true
-        if (!sourceNeedsBaselineConfirmation || sourceApplyConfirmationBaseRef.current !== currentSource) {
-          sourceApplyConfirmationBaseRef.current = currentSource
-          setSourceNeedsBaselineConfirmation(true)
-          setSourceSyncState('stale')
-          setSourceSyncDetail('Backend source changed since this buffer was loaded; Apply again to sync this buffer as a full snapshot, or Revert to reload backend source')
-          return
-        }
-      } else {
-        sourceApplyConfirmationBaseRef.current = null
-        setSourceNeedsBaselineConfirmation(false)
-      }
+      if (baseSource && currentSource !== baseSource) sourceSessionChangedRef.current = true
+      sourceApplyConfirmationBaseRef.current = null
+      setSourceNeedsBaselineConfirmation(false)
 
-      if (baseSource && sourceText === baseSource) {
+      if (sourceText === currentSource || (baseSource && sourceText === baseSource && currentSource === baseSource)) {
         acceptSourceBaseline(sourceText)
         setSourceSyncState('session')
         setSourceSyncDetail('Manual source matches backend session; nothing to apply')
         return
       }
 
-      const diff = baseSource && currentSource === baseSource
-        ? sourceDiffEdit(baseSource, sourceText)
-        : null
+      const diffBaseSource = baseSource && currentSource === baseSource ? baseSource : currentSource
+      const diff = sourceDiffEdit(diffBaseSource, sourceText)
       const environmentGuard = result.environment
         ? {
             environmentHash: result.environment.environment_hash,
@@ -1039,7 +1046,7 @@ export default function App() {
           }
         : {}
       if (diff) {
-        const applied = await applySourcePatch(diff.range, diff.replacement, baseSource, sourceText, environmentGuard)
+        const applied = await applySourcePatch(diff.range, diff.replacement, diffBaseSource, sourceText, environmentGuard)
         if (applied.state) setState(applied.state)
         if (applied.ok) {
           acceptSourceBaseline(sourceText)
@@ -1071,7 +1078,7 @@ export default function App() {
     } finally {
       setApplyingSource(false)
     }
-  }, [acceptSourceBaseline, refresh, sourceNeedsBaselineConfirmation, sourceResolverEnvironment, sourceText, state, updatePendingSourcePatch])
+  }, [acceptSourceBaseline, refresh, sourceResolverEnvironment, sourceText, state, updatePendingSourcePatch])
 
   const handleRevertSourceText = useCallback(async () => {
     try {
@@ -1858,9 +1865,11 @@ export default function App() {
   // Keyboard shortcuts (Ctrl/Cmd support)
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented || isEditableKeyboardTarget(e.target) || !isGraphKeyboardTarget(e.target)) return
       const mod = e.ctrlKey || e.metaKey
-      if (mod && e.key === 'z') { e.preventDefault(); handleUndo() }
-      if (mod && e.key === 'y') { e.preventDefault(); handleRedo() }
+      const key = e.key.toLowerCase()
+      if (mod && key === 'z') { e.preventDefault(); handleUndo() }
+      if (mod && key === 'y') { e.preventDefault(); handleRedo() }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)

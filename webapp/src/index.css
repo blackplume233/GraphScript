@@ -188,6 +188,31 @@ code, pre, .font-mono {
   filter: blur(0.3px);
 }
 
+.react-flow__edgelabel-renderer {
+  z-index: 50;
+}
+
+.graphscript-edge-delete-button {
+  position: absolute;
+  z-index: 60;
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid oklch(0.62 0.12 28 / 0.75);
+  background: oklch(0.18 0.02 28 / 0.94);
+  color: oklch(0.8 0.13 28);
+  box-shadow: 0 5px 14px oklch(0 0 0 / 0.42);
+  pointer-events: all;
+}
+
+.graphscript-edge-delete-button:hover {
+  background: oklch(0.28 0.08 28 / 0.96);
+  color: oklch(0.92 0.11 28);
+}
+
 .react-flow__edge.selected path.react-flow__edge-path {
   stroke: var(--color-flow-wire-active) !important;
   stroke-width: 3px;
@@ -212,11 +237,23 @@ code, pre, .font-mono {
 
 .react-flow__handle.graphscript-pin-handle {
   cursor: crosshair;
-  z-index: 2;
+  z-index: 30;
+  pointer-events: all;
 }
 
 .react-flow__handle.graphscript-pin-handle:hover {
   filter: drop-shadow(0 0 5px var(--color-flow-selected));
+}
+
+.react-flow__handle.graphscript-pin-handle::before,
+.react-flow__handle.graphscript-pin-handle::after {
+  content: none;
+}
+
+.graphscript-pin-glyph {
+  pointer-events: none;
+  display: block;
+  flex: 0 0 auto;
 }
 
 /* ─── Dockable workbench ─── */
@@ -258,6 +295,10 @@ code, pre, .font-mono {
 
 .graphscript-workbench .dv-groupview > .content-container {
   background: var(--color-card);
+}
+
+.graphscript-workbench .dv-watermark {
+  pointer-events: none;
 }
 
 .graphscript-workbench .dv-sash {

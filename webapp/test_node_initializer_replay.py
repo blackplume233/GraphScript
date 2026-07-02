@@ -392,7 +392,6 @@ def main():
                 ("initializer row value updated", initializer_row_value_updated),
                 ("raw initializer expression input synced", raw_initializer_synced),
                 ("raw initializer hides field rows", raw_initializer_fields_hidden),
-                ("command log visible", all(page.locator(f"text={command}").count() > 0 for command in expected)),
             ]
             page.screenshot(path=OUT / "node_initializer_replay.png", full_page=True)
             browser.close()

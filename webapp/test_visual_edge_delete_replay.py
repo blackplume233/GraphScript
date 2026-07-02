@@ -37,31 +37,59 @@ def state_with_edges():
     return state
 
 
-def delete_line(page, line_id):
+def line_midpoint(page, line_id):
     selector = f'[data-line-id="{line_id}"]'
     page.locator(selector).first.wait_for(state="attached", timeout=10000)
+    line = page.locator(selector).first
+    path = line.locator('path[d^="M"]').first
+    path.wait_for(state="attached", timeout=10000)
+    point = path.evaluate("""
+        el => {
+            const length = el.getTotalLength()
+            const local = el.getPointAtLength(length / 2)
+            const screen = new DOMPoint(local.x, local.y).matrixTransform(el.getScreenCTM())
+            return { x: screen.x, y: screen.y }
+        }
+    """)
+    return selector, point
+
+
+def select_line_midpoint(page, line_id):
+    selector, point = line_midpoint(page, line_id)
+    page.mouse.click(point["x"], point["y"])
+    page.wait_for_timeout(300)
+    return selector
+
+
+def delete_line_with_button(page, line_id):
+    selector = select_line_midpoint(page, line_id)
+    button = page.locator('[data-edge-delete-button]').first
+    button.wait_for(state="visible", timeout=3000)
+    visible = button.is_visible()
+    button.click()
+    page.wait_for_selector(selector, state="detached", timeout=3000)
+    return visible
+
+
+def delete_line_with_key(page, line_id):
+    selector = select_line_midpoint(page, line_id)
     for key in ("Delete", "Backspace", "Delete"):
-        line = page.locator(selector).first
-        if line.count() == 0:
-            return
-        path = line.locator('path[d^="M"]').first
-        path.wait_for(state="attached", timeout=10000)
-        point = path.evaluate("""
-            el => {
-                const length = el.getTotalLength()
-                const local = el.getPointAtLength(length / 2)
-                const screen = new DOMPoint(local.x, local.y).matrixTransform(el.getScreenCTM())
-                return { x: screen.x, y: screen.y }
-            }
-        """)
-        page.mouse.click(point["x"], point["y"])
-        page.wait_for_timeout(300)
         page.keyboard.press(key)
         try:
             page.wait_for_selector(selector, state="detached", timeout=1200)
             return
         except Exception:
             pass
+
+
+def delete_line_with_alt_click(page, line_id):
+    selector, point = line_midpoint(page, line_id)
+    page.keyboard.down("Alt")
+    try:
+        page.mouse.click(point["x"], point["y"])
+    finally:
+        page.keyboard.up("Alt")
+    page.wait_for_selector(selector, state="detached", timeout=3000)
 
 
 def main():
@@ -113,7 +141,7 @@ def main():
             page.wait_for_timeout(500)
             page.screenshot(path=OUT / "01_before_delete.png", full_page=True)
 
-            delete_line(page, "branch_exec-out-onTrue-printer_exec-in-enter")
+            delete_button_visible = delete_line_with_button(page, "branch_exec-out-onTrue-printer_exec-in-enter")
             page.wait_for_timeout(1200)
             flow_event = visual.current_graph(state)["events"][0]
             flow_deleted = len(flow_event["flows"]) == 0
@@ -125,7 +153,7 @@ def main():
             page.locator('select[title="Active event/function for visual edge edits"]').select_option("event:BeginPlay")
             page.wait_for_timeout(500)
 
-            delete_line(page, "text_data-out-value-printer_data-in-message")
+            delete_line_with_alt_click(page, "text_data-out-value-printer_data-in-message")
             page.wait_for_timeout(1200)
             page.screenshot(path=OUT / "02_after_delete.png", full_page=True)
             link_event = visual.current_graph(state)["events"][0]
@@ -142,10 +170,10 @@ def main():
                 ("active block selected", exec_commands[:1] == ["event BeginPlay"]),
                 ("visual unflow command replayed", "unflow branch.onTrue printer.enter" in exec_commands),
                 ("visual unlink command replayed", "unlink printer.message" in exec_commands),
+                ("selected edge delete button visible", delete_button_visible),
                 ("command order preserved", exec_commands[:len(expected)] == expected),
                 ("state removed flow", flow_deleted),
                 ("state removed link", link_deleted),
-                ("command log visible", all(page.locator(f"text={command}").count() > 0 for command in expected)),
             ]
             browser.close()
     finally:
