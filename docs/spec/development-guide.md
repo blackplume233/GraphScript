@@ -161,10 +161,10 @@ export declare schema MyDomainGraph: FlowGraphSchema {
 
 Then use it:
 
-```gs
-scope graph MyGraph: MyDomainGraph {
-}
-```
+Use the current `.gs` syntax documented in
+`docs/syntax/current/serialization-syntax.md`. Do not copy grammar examples from
+stable design specs; current and draft syntax examples belong under
+`docs/syntax/`.
 
 ---
 
@@ -257,10 +257,10 @@ Result<void, std::string> EditSession::move_node(...) {
 
 ### Don't: Reference Module-Level `let` in Graph Logic
 
-Legacy `let` declarations were module-scope constants. Current asset syntax
-should model graph inputs and serialized values through scopes, objects,
-properties, references, and schema/domain rules instead of reintroducing hidden
-cross-scope state.
+Legacy `let` declarations were module-level constants. Current asset syntax
+should model graph inputs and serialized values through explicit document
+structures, references, and schema/domain rules instead of reintroducing hidden
+cross-boundary state.
 
 ### Don't: Reference Nodes in Functions
 

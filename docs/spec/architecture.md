@@ -1,116 +1,112 @@
-# GraphScript Architecture
+# GraphScript 架构
 
-> Current product architecture for human + AI collaborative game asset editing.
+> 当前用于人类 + AI 协作式游戏资产编辑的产品架构。
 
-GraphScript is an AI Native game asset format and authoring stack. The system is
-designed around one canonical source text that can be edited by AI agents,
-linted like a script, projected into graph/domain views, and patched from visual
-editor operations without erasing the user's text.
-
----
-
-## Highest Goal
-
-Humans and AI should collaborate organically on the same asset:
-
-- AI works directly on serialization text with diagnostics, source ranges, and
-  structured patches.
-- Humans work through graph and asset editors.
-- Both paths preserve one canonical source file, including comments, blank lines,
-  local formatting, and stable identities.
-
-This is the reason for the CST/AST/document model, Graph projection, LSP-facing
-diagnostics, and minimal source patching rules.
+GraphScript 是一种 AI Native 游戏资产格式和创作栈。系统围绕一个 canonical
+源码文本设计：AI 可以直接编辑它，工具可以像脚本一样 lint 它，领域层可以
+把它投影成图或其他视图，视觉编辑器也可以把操作 patch 回文本，同时不破坏
+用户已有文本。
 
 ---
 
-## Implementation Layers
+## 最高目标
+
+人类和 AI 应该能在同一个资产上自然协作：
+
+- AI 直接处理序列化文本、诊断、source range 和结构化 patch。
+- 人类通过图编辑器和资产编辑器工作。
+- 两条路径都保留同一个 canonical source file，包括注释、空行、局部格式和
+  稳定身份。
+
+CST/AST/document model、Graph projection、LSP-facing diagnostics 和最小
+source patching 规则都服务于这个目标。
+
+---
+
+## 实现层
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Web Editor                                                         │
-│  Human graph/asset editing surface. Issues replayable operations.   │
+│  人类 graph/asset 编辑界面，发出可 replay 的操作。                  │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Graph Domain                                                       │
-│  Interprets serialization facts as graph, node, pin, edge, entry.   │
+│  把序列化事实解释为 graph、node、pin、edge、entry。                 │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Serialization Document Library                                     │
-│  CST, typed AST facade, semantic model, diagnostics, rewrite ops.   │
+│  CST、typed AST facade、semantic model、diagnostics、rewrite ops。  │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Serialization Syntax                                               │
-│  .gs/.d.gs source grammar: file, import, scope, object, property.   │
+│  .gs/.d.gs source grammar；具体语法形态放在 docs/syntax/。          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1. Serialization Syntax
+### 1. 序列化语法
 
-The base language describes game asset facts:
+基础语言描述游戏资产事实：
 
-- files and imports
-- scopes/assets/fragments
-- objects and properties
-- values and references
-- attributes/metadata
-- declarations and schemas
+- 文件和 import。
+- 资产边界和贡献片段。
+- 类型化记录和命名字段。
+- 值和引用。
+- attribute/metadata。
+- declaration 和 schema。
 
-It does not make `Graph`, `Node`, `Pin`, `Edge`, HTN task, table row, or dialogue
-branch fundamental parser concepts. Those belong to domain projection layers.
+它不把 `Graph`、`Node`、`Pin`、`Edge`、HTN task、table row 或 dialogue
+branch 变成 parser 的基础概念。这些概念属于领域投影层。
 
-Current syntax shape: [docs/syntax/current/serialization-syntax.md](../syntax/current/serialization-syntax.md).
+当前语法形状见：[docs/syntax/current/serialization-syntax.md](../syntax/current/serialization-syntax.md)。
 
-### 2. Serialization Document Library
+### 2. 序列化文档库
 
-The document library is the editing foundation. It must provide:
+文档库是编辑基础。它必须提供：
 
-- lossless CST with tokens, trivia, comments, blank lines, source ranges, missing
-  nodes, and error nodes
-- typed AST wrappers over the CST
-- semantic model and partial binding
-- machine-usable diagnostics and quick fixes
-- document operations and rewrite planning
-- minimal `TextPatch` output
+- 无损 CST，包含 token、trivia、注释、空行、source range、missing node 和
+  error node。
+- CST 之上的 typed AST wrapper。
+- semantic model 和 partial binding。
+- 机器可用的 diagnostics 和 quick fix。
+- document operation 和 rewrite planning。
+- 最小 `TextPatch` 输出。
 
-The library is what lets AI patch text directly and lets graph edits preserve
-the surrounding source instead of re-emitting whole files.
+文档库让 AI 可以直接 patch 文本，也让图编辑可以保留周围源码，而不是整文
+件重写。
 
 ### 3. Graph Domain
 
-The Graph domain consumes serialization facts and projects them into an authoring
-model:
+Graph domain 消费序列化事实，并投影出 authoring model：
 
-- graph scopes
-- node candidates
-- entries
-- pins
-- edges
-- graph diagnostics
-- graph edit operations that lower back to document operations
+- graph authoring root。
+- node candidate。
+- entry。
+- pin。
+- edge。
+- graph diagnostic。
+- 可以降到 document operation 的 graph edit operation。
 
-Graph domain rules are described by declarations, schemas, attributes, binders,
-and projection providers. They must not leak back into base parser concepts.
+Graph domain 规则由 declaration、schema、attribute、binder 和 projection
+provider 描述。它们不能反向泄漏到基础 parser 概念里。
 
-The graph authoring model should stay associated with the document model through
-stable source bindings or document anchors. It should not depend on parser
-internals or own the CST directly. A graph item may cache domain data for fast
-editor interaction, but editable graph items need a way to resolve back to a
-source anchor exposed by the serialization document library. This association is
-what makes precise patches possible without serializing the whole graph back to
-text.
+graph authoring model 应通过稳定 source binding 或 document anchor 与文档
+模型关联。它不应依赖 parser 内部实现，也不应直接拥有 CST。graph item 可
+以为了编辑器交互缓存领域数据，但可编辑项必须能解析回序列化文档层公开的
+source anchor。这种关联让精确 patch 成为可能，而不需要把整个图重新序列
+化回文本。
 
-Current Graph contract: [graph-domain.md](./graph-domain.md).
+当前 Graph 契约见：[graph-domain.md](./graph-domain.md)。
 
 ### 4. Web Editor
 
-The Web editor is the human visual editing surface. It should:
+Web editor 是人类视觉编辑界面。它应该：
 
-- render from backend/domain state, not invent its own graph semantics
-- send replayable edit operations to the backend
-- display diagnostics and source ranges from the document/domain model
-- treat source text as canonical even when showing graph-first workflows
+- 从 backend/domain state 渲染，而不是发明自己的 graph semantics。
+- 向 backend 发送可 replay 的编辑操作。
+- 展示来自 document/domain model 的 diagnostics 和 source range。
+- 即使工作流以图为先，也把 source text 当作 canonical。
 
 ---
 
-## Source-First Pipeline
+## Source-First 流水线
 
 ```text
 .gs/.d.gs source text
@@ -122,13 +118,12 @@ The Web editor is the human visual editing surface. It should:
   -> Graph/Web/CLI authoring views
 ```
 
-Invalid or incomplete text should still produce partial structure whenever
-possible. A broken property should not make the whole graph disappear; it should
-produce a partial model plus diagnostics and invalid domain items.
+无效或不完整文本也应尽可能产生部分结构。一个损坏的 property 不应让整个
+graph 消失；它应产生部分模型、diagnostics 和 invalid domain item。
 
 ---
 
-## Visual Edit To Text Patch
+## 视觉编辑到文本 Patch
 
 ```text
 Human graph edit
@@ -139,25 +134,22 @@ Human graph edit
   -> Reparse + relint + reproject
 ```
 
-Required behavior:
+要求：
 
-- Patch the smallest stable source range.
-- Preserve unrelated text byte-for-byte.
-- Preserve comments, blank lines, and local formatting.
-- Reparse after patching and surface any new diagnostics.
-- Fall back to inserting a new fragment when a precise patch anchor is missing,
-  rather than rewriting the whole document.
+- patch 最小稳定 source range。
+- byte-for-byte 保留无关文本。
+- 保留注释、空行和局部格式。
+- patch 后重新 parse，并暴露新的 diagnostics。
+- 如果找不到精确 patch anchor，应插入新 fragment，而不是重写整个文档。
 
-The editor may keep an interactive graph model in memory, but that model should
-be source-bound through document-library anchors. It should store or reference
-enough stable binding data to answer: "which source range should this visual edit
-patch?" If the answer is unknown, the operation is degraded and should create an
-explicit fragment or diagnostic instead of pretending the graph can be safely
-serialized wholesale.
+编辑器可以在内存中维护交互式 graph model，但该模型必须通过 document
+library anchor 绑定到源码。它应保存或引用足够的稳定绑定信息，以回答“这次
+视觉编辑应该 patch 哪段 source range”。如果无法回答，应降级为显式 fragment
+或 diagnostic，而不是假装可以安全地整体序列化 graph。
 
 ---
 
-## AI Edit To Graph Refresh
+## AI 编辑到 Graph 刷新
 
 ```text
 AI text patch
@@ -167,15 +159,14 @@ AI text patch
   -> Web editor refresh
 ```
 
-AI-facing diagnostics should identify source ranges, expected shapes, candidate
-symbols, and executable quick fixes. Natural-language advice can be layered on
-top, but the core diagnostic contract should be structured.
+面向 AI 的 diagnostics 应识别 source range、期望形状、候选符号和可执行
+quick fix。自然语言建议可以叠加在上层，但核心诊断契约应保持结构化。
 
 ---
 
-## Dependency Direction
+## 依赖方向
 
-Allowed:
+允许：
 
 ```text
 Serialization Syntax
@@ -184,7 +175,7 @@ Serialization Syntax
   -> Web Editor
 ```
 
-Forbidden:
+禁止：
 
 ```text
 Serialization Syntax -> Graph Domain
@@ -192,21 +183,20 @@ Serialization Syntax -> Web Editor
 Serialization Document Library -> Web Editor
 ```
 
-The base parser must stay reusable for graph, table, dialogue, quest, level, and
-other game asset domains.
+基础 parser 必须能复用于 graph、table、dialogue、quest、level 等游戏资产
+领域。
 
 ---
 
-## Current CLI Surface
+## 当前 CLI 面
 
-| Subcommand | Purpose |
+| 子命令 | 目的 |
 | --- | --- |
-| `parse` | Parse `.gs/.d.gs` and report syntax structure/diagnostics. |
-| `lint` | Run syntax, semantic, and domain diagnostics where available. |
-| `project` | Project a domain view such as Graph/FlowGraph. |
-| `patch` | Apply a document-aware source patch. |
-| `edit` | Run an interactive source/domain editor. |
-| `serve` | Run the web editor server. |
+| `parse` | 解析 `.gs/.d.gs` 并报告语法结构和 diagnostics。 |
+| `lint` | 在可用范围内运行语法、语义和领域 diagnostics。 |
+| `project` | 投影 Graph/FlowGraph 等领域视图。 |
+| `patch` | 应用文档感知的 source patch。 |
+| `edit` | 运行交互式 source/domain editor。 |
+| `serve` | 运行 Web editor server。 |
 
-Legacy graph-only commands and old hand-written DSL behavior are archive or
-migration material, not the current architectural target.
+旧 graph-only 命令和旧手写 DSL 行为属于归档或迁移材料，不是当前架构目标。

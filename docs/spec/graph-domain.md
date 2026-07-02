@@ -1,64 +1,66 @@
-# Current Graph Domain
+# 当前 Graph Domain
 
-> Current contract for graph-specific meaning above the serialization layer.
+> 序列化层之上的图领域语义契约。
 
-The Graph domain is a projection over serialized asset facts. It gives humans a
-visual graph editing model while keeping source text canonical for AI, lint, LSP,
-and precise patches.
-
----
-
-## Boundary
-
-The Graph domain may define:
-
-- graph authoring models
-- graph entries
-- node authoring models
-- pin definitions and references
-- edges and connection policies
-- graph diagnostics
-- graph edit operations
-- graph runtime or bake inputs
-
-The Graph domain must not require the base parser or base serialization AST to
-contain graph-specific nodes.
+Graph domain 是序列化资产事实之上的投影。它为人类提供可视化图编辑模型，
+同时保持 source text 对 AI、lint、LSP 和精确 patch 是 canonical。
 
 ---
 
-## Source Mapping
+## 边界
 
-| Serialization source | Graph interpretation |
+Graph domain 可以定义：
+
+- graph authoring model。
+- graph entry。
+- node authoring model。
+- pin definition 和 pin reference。
+- edge 和 connection policy。
+- graph diagnostic。
+- graph edit operation。
+- graph runtime 或 bake input。
+
+Graph domain 不能要求基础 parser 或基础 serialization AST 包含 graph-specific
+node。
+
+---
+
+## 源码映射
+
+本文描述 graph-domain source role，不描述具体 grammar。当前语法或草稿语法示
+例属于 `docs/syntax/`。
+
+| 序列化 source role | Graph 解释 |
 | --- | --- |
-| `scope graph Execute: AbilityGraph` | Graph domain root named `Execute` with schema `AbilityGraph`. |
-| nested `scope entry Start` | Graph entry named `Start`. |
-| `const apply = new ApplyDamage { ... }` | Candidate graph node `apply` of type `ApplyDamage`. |
-| `property editor.pos: [x, y]` or equivalent metadata | Node/editor metadata. |
-| object field declarations with `@flow.pin(...)` | FlowGraph pin definitions. |
-| restricted command call `a.out.connect(b.in)` | Candidate graph edge. |
+| 带名称和可选 schema/type 的 graph authoring root | 同名、同 schema/type 的 graph domain root。 |
+| 嵌套的 entry/event-like source item | Graph entry 或执行 block。 |
+| 带稳定本地名称的 typed node contribution | 使用该本地名称和类型的候选 graph node。 |
+| editor metadata source item | Node/editor metadata。 |
+| 被标记为 flow/data pin 的 declaration member | FlowGraph pin definition。 |
+| 受限 connection command | 候选 graph edge。 |
 
-Every projected graph item should retain a source binding:
+每个被投影出的 graph item 都应保留 source binding：
 
 ```text
-Graph -> source scope range
-Entry -> source entry scope range
-Node -> source const/object range
-Node property -> source property range
+Graph -> source graph-root range
+Entry -> source entry/event range
+Node -> source node-contribution range
+Node property -> source property or field range
 Pin definition -> declaration field range
 Edge -> source command call range
 Diagnostic -> best source range plus related ranges
 ```
 
-If a graph item has no precise source binding, it must be marked synthetic or
-invalid so editors and AI tools know how cautiously to patch it.
+如果 graph item 没有精确 source binding，必须标记为 synthetic 或 invalid，
+让编辑器和 AI 工具知道 patch 时需要保守处理。
 
 ---
 
-## Source-Bound Authoring Model
+## 绑定源码的创作模型
 
-The editor-facing graph model should not be a detached graph DTO that later gets
-serialized back to text. It should be a source-bound projection that talks to the
-serialization document library through stable anchors:
+面向编辑器的 graph model 不应是一个脱离源码的 DTO，再被序列化回文本。它
+应该是一个 source-bound projection，通过稳定 anchor 与 serialization
+document library 交互：
 
 ```text
 Document model
@@ -68,79 +70,75 @@ Document model
   -> editor graph state
 ```
 
-Graph nodes, pins, edges, entries, and editable metadata should either carry a
-`SourceBinding` directly or reference a domain item that can resolve to one. This
-does not mean the Graph domain owns or directly manipulates CST internals. The
-CST stays inside the serialization document layer; the Graph domain consumes
-public binding/anchor handles from that layer.
+Graph node、pin、edge、entry 和可编辑 metadata 应直接携带 `SourceBinding`，
+或引用一个能解析到 `SourceBinding` 的 domain item。这并不意味着 Graph
+domain 拥有或直接操作 CST 内部。CST 保留在 serialization document layer；
+Graph domain 只消费该层公开的 binding/anchor handle。
 
-Useful binding data includes:
+有用的 binding 数据包括：
 
-- source file identity
-- primary syntax anchor kind exposed by the document layer
-- primary source range
-- value range when editing a property value
-- insertion anchor for adding related syntax
-- contribution ranges for fragment-based assets
-- stable semantic/domain id when available
+- source file identity。
+- document layer 暴露的 primary syntax anchor kind。
+- primary source range。
+- 编辑 property value 时的 value range。
+- 新增相关语法时的 insertion anchor。
+- fragment-based asset 的 contribution range。
+- 可用时的 stable semantic/domain id。
 
-This is not "runtime graph depends on CST" and not "Graph domain violates
-layering by owning parser details". Runtime/baked graph data can stay separate.
-The association belongs in the authoring graph model used by the editor,
-diagnostics, quick fixes, and AI repair loop.
+这不是“runtime graph 依赖 CST”，也不是“Graph domain 通过拥有 parser 细节
+破坏分层”。runtime/baked graph data 可以保持独立。关联关系属于 editor、
+diagnostics、quick fix 和 AI repair loop 使用的 authoring graph model。
 
-Without this association, graph edits must guess how to serialize back to text,
-which usually leads to whole-file emission and destroys comments or local
-formatting. With document anchors, a visual edit can become a document operation
-against a known source range.
+没有这种关联，graph edit 只能猜测如何写回文本，通常会退化成整文件输出并
+破坏注释或局部格式。有了 document anchor，视觉编辑就能变成针对已知 source
+range 的 document operation。
 
 ---
 
 ## Edit Contract
 
-Graph edit operations should lower to serialization document operations:
+Graph edit operation 应降到 serialization document operation：
 
-| Graph edit | Preferred source operation |
+| Graph edit | 首选 source operation |
 | --- | --- |
-| add node | insert `const alias = new Type { ... }` in the graph scope |
-| delete node | remove the source object and related source-bound edges when safe |
-| rename node | patch `const_declaration.name` and references |
-| move node | patch editor metadata property |
-| set node property | patch the corresponding property value |
-| connect pins | insert restricted command call |
-| disconnect edge | remove the source command call |
-| add entry | insert nested `scope entry Name { ... }` |
+| add node | 在 graph authoring root 中插入 typed node contribution。 |
+| delete node | 在安全时删除 source node contribution 和相关 source-bound edge。 |
+| rename node | patch node contribution name 和引用。 |
+| move node | patch editor metadata property。 |
+| set node property | patch 对应 property value。 |
+| connect pins | 插入受限 command call。 |
+| disconnect edge | 删除 source command call。 |
+| add entry | 插入嵌套 entry/event-like source item。 |
 
-When the preferred patch anchor is missing, the system should insert a new
-fragment or contribution rather than rewrite the whole file.
-
----
-
-## Graph Diagnostics
-
-Graph diagnostics are domain diagnostics over projected graph facts, not parser
-errors. Examples:
-
-- unknown node type
-- unknown pin
-- pin direction mismatch
-- type mismatch
-- fan-in/fan-out policy violation
-- missing required entry
-- disconnected required flow
-
-Diagnostics must include source ranges so AI can repair text and humans can see
-the issue in both text and graph views.
+当首选 patch anchor 缺失时，系统应插入新的 fragment 或 contribution，而不
+是重写整个文件。
 
 ---
 
-## Web Editor Responsibilities
+## Graph 诊断
 
-The Web editor should render the graph domain model and issue graph operations.
-It should not invent semantics that the backend cannot parse, bind, project,
-diagnose, and patch.
+Graph diagnostic 是投影出的 graph fact 上的领域诊断，不是 parser error。例
+如：
 
-Expected flow:
+- unknown node type。
+- unknown pin。
+- pin direction mismatch。
+- type mismatch。
+- fan-in/fan-out policy violation。
+- missing required entry。
+- disconnected required flow。
+
+诊断必须包含 source range，让 AI 可以修复文本，也让人类能在文本和
+图视图中看到问题。
+
+---
+
+## Web Editor 职责
+
+Web editor 应渲染 graph domain model，并发出 graph operation。它不应发明
+backend 无法 parse、bind、project、diagnose 和 patch 的语义。
+
+期望流程：
 
 ```text
 UI action
@@ -150,5 +148,4 @@ UI action
   -> refreshed UI state
 ```
 
-This keeps visual graph editing and AI text editing in the same collaboration
-loop.
+这能让可视化图编辑和 AI 文本编辑保持在同一个协作循环里。

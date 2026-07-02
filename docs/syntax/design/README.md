@@ -1,11 +1,12 @@
-# Design Drafts
+# 语法设计草稿
 
-This directory keeps long-form AI Native syntax and asset-format design notes.
-These documents are context for current work, but they are not automatically
-normative. When a design decision becomes active implementation guidance, move
-the distilled decision into `../current/`.
+本目录保存 AI Native 语法和资产格式的长文设计草稿。这些文档是当前工作的
+设计上下文，但不会自动成为规范。当某个设计决策进入实现指导阶段时，应把
+提炼后的结论移动到 `../current/`。
 
-Current design drafts:
+当前设计草稿：
 
+- [语法草稿文档要求](./syntax-draft-requirements.md)
+- [面向节点的语法草稿](./node-oriented-syntax-draft.md)
 - [AI Native Syntax Draft](./ai-native-syntax-draft.md)
 - [AI Native Asset Format](./ai-native-asset-format.md)

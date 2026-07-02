@@ -1,32 +1,35 @@
-# Current Serialization Syntax
+# 当前序列化语法
 
-> Current source-language shape for AI Native game asset serialization.
+> 当前 AI Native 游戏资产序列化源语言形状。
 
-This document describes current syntax structure and syntax decisions. Design
-review standards and implementation expectations live in `.trellis/spec/`.
+本文描述当前仓库已经使用的语法结构和语法决策。设计审查标准和实现期望位
+于 `.trellis/spec/`。
 
----
-
-## Purpose
-
-The base language records static game asset facts:
-
-- file and import declarations
-- asset/scope boundaries
-- fragments that contribute to logical assets
-- typed objects
-- named properties
-- static values
-- references
-- attributes/metadata
-- declarations and schemas
-
-Graph, FlowGraph, table, dialogue, quest, HTN, and level-script concepts are
-domain interpretations of those facts.
+本文是当前实现侧语法快照。目标语法实验单独记录在 `../design/`，尤其是
+那些有意区别于当前解析器或格式化器的草稿。
 
 ---
 
-## Current Base Concepts
+## 目的
+
+基础语言记录静态游戏资产事实：
+
+- file 和 import declaration。
+- asset/scope 边界。
+- 贡献到逻辑资产的 fragment。
+- typed object。
+- named property。
+- static value。
+- reference。
+- attribute/metadata。
+- declaration 和 schema。
+
+Graph、FlowGraph、table、dialogue、quest、HTN 和 level-script 概念都是这
+些事实的领域解释。
+
+---
+
+## 当前基础概念
 
 ```text
 source_file
@@ -43,9 +46,9 @@ schema
 syntax_error / missing node
 ```
 
-These concepts are allowed in the base CST/AST facade.
+这些概念允许出现在基础 CST/AST facade 中。
 
-These concepts are not base parser concepts:
+这些概念不是基础 parser 概念：
 
 ```text
 Graph
@@ -62,12 +65,12 @@ TableRow
 DialogueBranch
 ```
 
-Domain layers may use these names in projection models, diagnostics, UI state,
-and runtime IR.
+领域层可以在 projection model、diagnostics、UI state 和 runtime IR 中使用
+这些名称。
 
 ---
 
-## Current Authoring Shape
+## 当前创作形状
 
 ```ts
 import "ability_core.d.gs";
@@ -94,24 +97,24 @@ scope asset Fireball: Ability {
 }
 ```
 
-Important decisions:
+重要决策：
 
-- `scope` is the generic boundary syntax.
-- `asset`, `graph`, `entry`, `table`, and similar words are scope kind
-  identifiers interpreted by semantic/domain layers.
-- `const alias = new Type { ... }` creates a typed serialized object.
-- `property: value` records static serialized data.
-- `.connect(...)` is a restricted command call, not arbitrary runtime execution.
-- Attributes are the primary extension mechanism for stable identity, editor
-  metadata, flow metadata, table metadata, and deprecation.
+- `scope` 是当前通用边界语法。
+- `asset`、`graph`、`entry`、`table` 等词是 scope kind identifier，由
+  semantic/domain 层解释。
+- `const alias = new Type { ... }` 创建 typed serialized object。
+- `property: value` 记录静态序列化数据。
+- `.connect(...)` 是受限 command call，不是任意 runtime execution。
+- Attribute 是 stable identity、editor metadata、flow metadata、table
+  metadata 和 deprecation 的主要扩展机制。
 
 ---
 
-## Current Decisions
+## 当前决策
 
 ### Stable Identity
 
-Use declaration-prefix attributes as the current default:
+当前默认使用 declaration-prefix attribute：
 
 ```ts
 @id("01J2FIREBALLAPPLY")
@@ -120,13 +123,13 @@ const apply = new ApplyDamage {
 }
 ```
 
-Older suffix examples such as `const apply @id(...) = ...` are design-history
-material unless explicitly reintroduced. Tools may support migration from suffix
-forms, but new current syntax should prefer prefix attributes.
+旧的 suffix 示例，例如 `const apply @id(...) = ...`，属于设计历史材料，除非
+显式重新引入。工具可以支持从 suffix 形式迁移，但新的 current syntax 应优
+先使用 prefix attribute。
 
 ### Object Fields And Pins
 
-FlowGraph pins are expressed as object fields plus attributes in `.d.gs`:
+FlowGraph pin 在 `.d.gs` 中通过 object field 加 attribute 表达：
 
 ```ts
 export declare object ApplyDamage {
@@ -138,21 +141,21 @@ export declare object ApplyDamage {
 }
 ```
 
-The base parser sees attributes and fields. Graph/FlowGraph projection decides
-which fields become pins.
+基础 parser 只看到 attribute 和 field。Graph/FlowGraph projection 决定哪些
+field 会成为 pin。
 
 ### Directive Statements
 
-Directive-like statements are a compatibility or schema-extension mechanism, not
-the preferred core reversible authoring form. The core reversible subset should
-prefer properties, attributes, restricted command calls, and declarations.
+Directive-like statement 是兼容机制或 schema-extension 机制，不是当前偏好
+的 core reversible authoring form。核心可逆子集应优先使用 property、
+attribute、restricted command call 和 declaration。
 
-If a directive is retained, the parser should treat it as a generic directive,
-not as a hard-coded graph primitive.
+如果保留 directive，parser 应把它视为 generic directive，而不是 hard-coded
+graph primitive。
 
 ### Scope Kind Declarations
 
-Scope kind declarations describe the allowed kind and its schema hooks:
+Scope kind declaration 描述允许的 kind 及其 schema hook：
 
 ```ts
 export declare scope graph: FlowGraphScope {
@@ -162,14 +165,14 @@ export declare scope graph: FlowGraphScope {
 }
 ```
 
-Declarations that look like `declare scope graph AbilityGraph` are design-draft
-material until the grammar assigns them a precise role.
+形如 `declare scope graph AbilityGraph` 的 declaration 属于设计草稿材料，
+直到 grammar 为它分配精确角色。
 
 ---
 
-## Reversible Authoring Subset
+## 可逆创作子集
 
-Allowed in the core reversible subset:
+核心可逆子集允许：
 
 ```text
 scope
@@ -185,7 +188,7 @@ attribute
 comment
 ```
 
-Not allowed in the core reversible subset:
+核心可逆子集不允许：
 
 ```text
 if / for / while
@@ -199,14 +202,14 @@ operator expressions such as a + b
 import-time execution
 ```
 
-Non-reversible generation layers may exist later, but they must not be confused
-with the canonical human/AI collaborative source.
+后续可以存在非可逆 generation layer，但不能把它和 canonical human/AI
+collaborative source 混淆。
 
 ---
 
-## Design Drafts
+## 设计草稿
 
-Long-form design history remains in:
+长文设计历史保留在：
 
 - [AI Native Syntax Draft](../design/ai-native-syntax-draft.md)
 - [AI Native Asset Format](../design/ai-native-asset-format.md)
