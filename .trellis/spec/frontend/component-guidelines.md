@@ -61,6 +61,35 @@ authority in the browser.
   `remove_node`, or other backend commands. Keep them on the same node color
   system as ordinary graph nodes. Flow input exec pins should use the same
   filled exec glyph treatment as flow outputs, not a black or hollow block.
+- Real graph nodes without `Position` annotations must still receive a stable,
+  readable canvas fallback. Prefer deriving columns from the active
+  event/function flow topology, use data links to place otherwise data-only
+  nodes near their consumers, and put unused nodes in a separated fallback
+  grid. Existing `Position` annotations remain authoritative, and dragging a
+  real node should still persist through `annotate node <instance> Position ...`.
+- Active event/function views should not render every graph node. Show only
+  real nodes referenced by that block's flow or data links, plus the needed
+  synthetic entry/return and parameter getter nodes. Nodes used only by other
+  blocks should not appear as disconnected islands in the current block view.
+- Real nodes remain graph-owned even when the canvas is filtered to one
+  event/function block. If multiple blocks reference the same real node, render
+  that same node in each referencing block with a visible shared marker; do not
+  duplicate it into block-local copies, and do not delete the node just because
+  the active block no longer references it. Edge rendering still remains
+  block-local so another block's connections do not appear in the current view.
+- Do not model cross-event reuse by reusing the same exec-output chain in
+  multiple blocks. A real node may be shared as an exec target or data consumer,
+  but if its output pin drives another node in more than one block the backend
+  duplicate-connection/fan-out diagnostics will reject the graph. Use distinct
+  node instances for re-entrant event chains, or add a backend-supported
+  call-like abstraction before exposing that pattern in the canvas. Regression
+  tests should assert both the rendered shared marker and zero backend
+  diagnostics for the fixture.
+- Parameter getters should render as compact Blueprint-style capsules near
+  their data-link consumers, not as a large grouped input node or a distant
+  full card. Per-bind duplicate getter capsules are acceptable UI-only helpers
+  as long as their visual IDs map back to the same source parameter name for
+  replayable commands.
 
 ## Dockable Workbench Components
 

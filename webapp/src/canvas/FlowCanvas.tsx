@@ -32,7 +32,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { Trash2 } from 'lucide-react'
-import type { Annotation, Diagnostic, GraphDef, GraphParam, GSState, LogicBlock, NodeFieldDef, NodeInst, NodeTypeDef, PinDef, SourceRange } from '@/api/types'
+import type { Annotation, DataLink, Diagnostic, GraphDef, GraphParam, GSState, LogicBlock, NodeFieldDef, NodeInst, NodeTypeDef, PinDef, SourceRange } from '@/api/types'
 import BlueprintNode, { type BlueprintFlowNode, type BlueprintIntrinsicProperty, type BlueprintNodeData } from './BlueprintNode'
 import { buildDiagnosticHighlightIndex, edgeKey } from './diagnostic-highlights'
 
@@ -50,6 +50,7 @@ interface FlowCanvasProps {
   onCommentBoxDelete?: (annotationName: string) => Promise<void> | void
   onRefresh?: () => Promise<void> | void
   activeLogicBlock?: LogicBlockRef | null
+  onLogicBlockChange?: (block: LogicBlockRef | null) => Promise<void> | void
   onEdgeCreate?: (edge: EdgeEditPayload) => Promise<void> | void
   onEdgeDelete?: (edge: EdgeEditPayload) => Promise<void> | void
   onEdgeReconnect?: (previous: EdgeEditPayload, next: EdgeEditPayload) => Promise<void> | void
@@ -204,14 +205,173 @@ function logicReturnNodeId(block: LogicBlockRef): string {
   return `${LOGIC_RETURN_NODE_ID_PREFIX}${block.kind}:${block.name}`
 }
 
-function graphParameterGetterNodeId(parameterName: string): string {
-  return `${GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX}${parameterName}`
+function graphParameterGetterNodeId(parameterName: string, contextKey = ''): string {
+  return `${GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX}${parameterName}${contextKey ? `:${contextKey}` : ''}`
 }
 
 function graphParameterNameFromGetterNodeId(nodeId: string): string | null {
-  return nodeId.startsWith(GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX)
-    ? nodeId.slice(GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX.length)
-    : null
+  if (!nodeId.startsWith(GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX)) return null
+  const rest = nodeId.slice(GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX.length)
+  return rest.split(':')[0] || null
+}
+
+function graphParameterGetterNodeIdForLink(link: DataLink, block: LogicBlockRef): string {
+  return graphParameterGetterNodeId(
+    link.source_node,
+    `${block.kind}:${block.name}:${link.target_node}:${link.target_pin}`,
+  )
+}
+
+function visualNodeIdForDataLinkSource(graph: GraphDef, block: LogicBlockRef, link: DataLink): string {
+  return !link.source_pin && graph.parameters.some(parameter => parameter.name === link.source_node)
+    ? graphParameterGetterNodeIdForLink(link, block)
+    : visualNodeIdForEndpoint(graph, block, 'data', link.source_node, link.source_pin)
+}
+
+function visibleGraphNodeNamesForBlock(graph: GraphDef, block: LogicBlock | undefined): Set<string> | null {
+  if (!block) return null
+  const graphNodeNames = new Set(graph.nodes.map(node => node.instance))
+  const visible = new Set<string>()
+  block.flows.forEach(flow => {
+    if (graphNodeNames.has(flow.from_node)) visible.add(flow.from_node)
+    if (graphNodeNames.has(flow.to_node)) visible.add(flow.to_node)
+  })
+  block.links.forEach(link => {
+    if (graphNodeNames.has(link.source_node)) visible.add(link.source_node)
+    if (graphNodeNames.has(link.target_node)) visible.add(link.target_node)
+  })
+  return visible
+}
+
+function visibleGraphNodesForBlock(graph: GraphDef, block: LogicBlock | undefined): NodeInst[] {
+  const visibleNames = visibleGraphNodeNamesForBlock(graph, block)
+  return visibleNames
+    ? graph.nodes.filter(node => visibleNames.has(node.instance))
+    : graph.nodes
+}
+
+function logicBlockReferencesNode(block: LogicBlock, nodeName: string): boolean {
+  return block.flows.some(flow => flow.from_node === nodeName || flow.to_node === nodeName) ||
+    block.links.some(link => link.source_node === nodeName || link.target_node === nodeName)
+}
+
+function blockLabel(block: LogicBlock): string {
+  return `${block.kind === 'event' ? 'event' : 'fn'} ${block.name}`
+}
+
+function nodeBlockUsage(graph: GraphDef): Map<string, string[]> {
+  const usage = new Map<string, string[]>()
+  const blocks = [...graph.events, ...graph.functions]
+  graph.nodes.forEach(node => {
+    const labels = blocks
+      .filter(block => logicBlockReferencesNode(block, node.instance))
+      .map(blockLabel)
+    usage.set(node.instance, labels)
+  })
+  return usage
+}
+
+function graphWithVisibleNodes(graph: GraphDef, nodes: NodeInst[]): GraphDef {
+  return {
+    ...graph,
+    nodes,
+  }
+}
+
+function parameterForBareSource(graph: GraphDef, link: DataLink): GraphParam | undefined {
+  return link.source_pin
+    ? undefined
+    : graph.parameters.find(parameter => parameter.name === link.source_node)
+}
+
+function parameterGetterPositionForLink(
+  link: DataLink,
+  targetPosition: FlowPosition | undefined,
+  index: number,
+): FlowPosition {
+  if (!targetPosition) {
+    return { x: -180, y: 160 + index * 58 }
+  }
+  return {
+    x: targetPosition.x - 210,
+    y: targetPosition.y + 52 + (index % 3) * 38,
+  }
+}
+
+function parameterGetterNodeData(
+  graph: GraphDef,
+  parameter: GraphParam,
+  connectionPreview: PendingConnection | null,
+): BlueprintNodeData {
+  return {
+    label: parameter.name,
+    typeName: parameter.type,
+    instanceName: parameter.name,
+    init: '',
+    category: 'Parameter',
+    sourceGraph: graph.name,
+    isNative: false,
+    isSynthetic: true,
+    variant: 'parameterGetter',
+    pins: [graphParameterGetterPin(parameter)],
+    intrinsicProperties: [],
+    connectionPreview,
+  }
+}
+
+function targetPositionForDataLink(
+  link: DataLink,
+  block: LogicBlock,
+  blockRef: LogicBlockRef,
+  nodePositions: Map<string, FlowPosition>,
+  syntheticNodePositions: Map<string, FlowPosition>,
+): FlowPosition | undefined {
+  if (link.target_node === 'context' && block.kind === 'function') {
+    const returnId = logicReturnNodeId(blockRef)
+    return syntheticNodePositions.get(returnId) ?? { x: 620, y: 40 }
+  }
+  return nodePositions.get(link.target_node)
+}
+
+function parameterGetterNodesForBlock(
+  graph: GraphDef,
+  block: LogicBlock | undefined,
+  graphNodePositions: Map<string, FlowPosition>,
+  syntheticNodePositions: Map<string, FlowPosition>,
+  connectionPreview: PendingConnection | null,
+): BlueprintFlowNode[] {
+  if (!block) {
+    return graph.parameters.map((parameter, index) => {
+      const id = graphParameterGetterNodeId(parameter.name)
+      return {
+        id,
+        type: 'blueprint' as const,
+        position: syntheticNodePositions.get(id) ?? { x: -120, y: 80 + index * 58 },
+        data: parameterGetterNodeData(graph, parameter, connectionPreview),
+        deletable: false,
+        zIndex: 10,
+      }
+    })
+  }
+
+  const blockRef: LogicBlockRef = { kind: block.kind, name: block.name }
+  let getterIndex = 0
+  return block.links.flatMap(link => {
+    const parameter = parameterForBareSource(graph, link)
+    if (!parameter) return []
+    const id = graphParameterGetterNodeIdForLink(link, blockRef)
+    const targetPosition = targetPositionForDataLink(link, block, blockRef, graphNodePositions, syntheticNodePositions)
+    const position = syntheticNodePositions.get(id) ?? parameterGetterPositionForLink(link, targetPosition, getterIndex)
+    getterIndex += 1
+    return [{
+      id,
+      type: 'blueprint' as const,
+      position,
+      data: parameterGetterNodeData(graph, parameter, connectionPreview),
+      deletable: false,
+      zIndex: 11,
+    }]
+  })
 }
 
 function isLogicEntryNodeId(nodeId: string): boolean {
@@ -264,14 +424,167 @@ function findAnnotationArg(node: NodeInst, annotationName: string, argName: stri
   return annotation?.args.find(arg => arg.name === argName)?.value
 }
 
-function nodePosition(node: NodeInst, index: number): FlowPosition {
+function annotatedNodePosition(node: NodeInst): FlowPosition | null {
   const x = Number(findAnnotationArg(node, 'Position', 'X'))
   const y = Number(findAnnotationArg(node, 'Position', 'Y'))
-  if (Number.isFinite(x) && Number.isFinite(y)) return { x, y }
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null
+}
+
+function fallbackGridPosition(index: number, originY = 120): FlowPosition {
   return {
-    x: 200 + (index % 4) * 300,
-    y: 120 + Math.floor(index / 4) * 200,
+    x: 220 + (index % 4) * 320,
+    y: originY + Math.floor(index / 4) * 180,
   }
+}
+
+function positionsOverlap(left: FlowPosition, right: FlowPosition): boolean {
+  return Math.abs(left.x - right.x) < 230 && Math.abs(left.y - right.y) < 130
+}
+
+function avoidOccupiedPosition(position: FlowPosition, occupied: FlowPosition[]): FlowPosition {
+  let next = position
+  let guard = 0
+  while (occupied.some(item => positionsOverlap(item, next)) && guard < 40) {
+    next = { x: next.x, y: next.y + 170 }
+    guard += 1
+  }
+  occupied.push(next)
+  return next
+}
+
+function sortedByDeclarationOrder(names: Iterable<string>, order: Map<string, number>): string[] {
+  return [...names].sort((left, right) =>
+    (order.get(left) ?? Number.MAX_SAFE_INTEGER) - (order.get(right) ?? Number.MAX_SAFE_INTEGER) ||
+    left.localeCompare(right),
+  )
+}
+
+function buildAutoNodePositions(graph: GraphDef, block: LogicBlock | undefined): Map<string, FlowPosition> {
+  const positions = new Map<string, FlowPosition>()
+  const graphNodeNames = new Set(graph.nodes.map(node => node.instance))
+  const nodeByName = new Map(graph.nodes.map(node => [node.instance, node]))
+  const declarationOrder = new Map(graph.nodes.map((node, index) => [node.instance, index]))
+  const occupied = graph.nodes
+    .map(node => annotatedNodePosition(node))
+    .filter((position): position is FlowPosition => Boolean(position))
+
+  if (!block) {
+    graph.nodes.forEach((node, index) => {
+      if (!annotatedNodePosition(node)) {
+        positions.set(node.instance, avoidOccupiedPosition(fallbackGridPosition(index), occupied))
+      }
+    })
+    return positions
+  }
+
+  const involved = new Set<string>()
+  const contextRoots = new Set<string>()
+  const outgoing = new Map<string, string[]>()
+  const incomingCount = new Map<string, number>()
+  graph.nodes.forEach(node => {
+    outgoing.set(node.instance, [])
+    incomingCount.set(node.instance, 0)
+  })
+
+  block.flows.forEach(flow => {
+    const fromIsNode = graphNodeNames.has(flow.from_node)
+    const toIsNode = graphNodeNames.has(flow.to_node)
+    if (fromIsNode) involved.add(flow.from_node)
+    if (toIsNode) involved.add(flow.to_node)
+    if (flow.from_node === 'context' && toIsNode) contextRoots.add(flow.to_node)
+    if (fromIsNode && toIsNode) {
+      outgoing.get(flow.from_node)?.push(flow.to_node)
+      incomingCount.set(flow.to_node, (incomingCount.get(flow.to_node) ?? 0) + 1)
+    }
+  })
+
+  block.links.forEach(link => {
+    if (graphNodeNames.has(link.source_node)) involved.add(link.source_node)
+    if (graphNodeNames.has(link.target_node)) involved.add(link.target_node)
+  })
+
+  const depth = new Map<string, number>()
+  const roots = contextRoots.size > 0
+    ? sortedByDeclarationOrder(contextRoots, declarationOrder)
+    : sortedByDeclarationOrder([...involved].filter(name => (incomingCount.get(name) ?? 0) === 0), declarationOrder)
+  roots.forEach(name => depth.set(name, 0))
+
+  for (let pass = 0; pass < Math.max(1, graph.nodes.length); pass += 1) {
+    let changed = false
+    for (const name of sortedByDeclarationOrder(involved, declarationOrder)) {
+      const currentDepth = depth.get(name)
+      if (currentDepth === undefined) continue
+      for (const next of outgoing.get(name) ?? []) {
+        const nextDepth = Math.max(depth.get(next) ?? 0, currentDepth + 1)
+        if (nextDepth !== depth.get(next)) {
+          depth.set(next, nextDepth)
+          changed = true
+        }
+      }
+    }
+    if (!changed) break
+  }
+
+  for (let pass = 0; pass < Math.max(1, graph.nodes.length); pass += 1) {
+    let changed = false
+    for (const link of block.links) {
+      const sourceIsNode = graphNodeNames.has(link.source_node)
+      const targetIsNode = graphNodeNames.has(link.target_node)
+      if (sourceIsNode && targetIsNode) {
+        const sourceDepth = depth.get(link.source_node)
+        const targetDepth = depth.get(link.target_node)
+        if (sourceDepth !== undefined && targetDepth === undefined) {
+          depth.set(link.target_node, sourceDepth + 1)
+          changed = true
+        } else if (targetDepth !== undefined && sourceDepth === undefined) {
+          depth.set(link.source_node, Math.max(0, targetDepth - 1))
+          changed = true
+        }
+      } else if (targetIsNode && !depth.has(link.target_node)) {
+        depth.set(link.target_node, 0)
+        changed = true
+      }
+    }
+    if (!changed) break
+  }
+
+  sortedByDeclarationOrder(involved, declarationOrder).forEach(name => {
+    if (!depth.has(name)) depth.set(name, 0)
+  })
+
+  const columns = new Map<number, string[]>()
+  for (const name of sortedByDeclarationOrder(involved, declarationOrder)) {
+    const column = depth.get(name) ?? 0
+    const items = columns.get(column) ?? []
+    items.push(name)
+    columns.set(column, items)
+  }
+
+  for (const column of [...columns.keys()].sort((left, right) => left - right)) {
+    const names = columns.get(column) ?? []
+    names.forEach((name, row) => {
+      const node = nodeByName.get(name)
+      if (!node || annotatedNodePosition(node)) return
+      positions.set(name, avoidOccupiedPosition({
+        x: 220 + column * 320,
+        y: 100 + row * 180,
+      }, occupied))
+    })
+  }
+
+  const usedRows = Math.max(1, ...[...columns.values()].map(items => items.length))
+  const unusedOriginY = 100 + usedRows * 180 + 140
+  let unusedIndex = 0
+  graph.nodes.forEach(node => {
+    if (positions.has(node.instance) || annotatedNodePosition(node)) return
+    positions.set(node.instance, avoidOccupiedPosition(fallbackGridPosition(unusedIndex, unusedOriginY), occupied))
+    unusedIndex += 1
+  })
+  return positions
+}
+
+function nodePosition(node: NodeInst, index: number, autoPositions: Map<string, FlowPosition>): FlowPosition {
+  return annotatedNodePosition(node) ?? autoPositions.get(node.instance) ?? fallbackGridPosition(index)
 }
 
 function intrinsicPropertiesForNode(node: NodeInst, nodeFields: NodeFieldDef[], pins: PinDef[]): BlueprintIntrinsicProperty[] {
@@ -965,6 +1278,15 @@ function toReactFlowNodes(
   syntheticNodePositions: Map<string, FlowPosition>,
 ): BlueprintFlowNode[] {
   const nodes: BlueprintFlowNode[] = []
+  const visibleGraphNodes = visibleGraphNodesForBlock(graph, block)
+  const visibleGraph = graphWithVisibleNodes(graph, visibleGraphNodes)
+  const autoNodePositions = buildAutoNodePositions(visibleGraph, block)
+  const blockUsage = nodeBlockUsage(graph)
+  const graphNodePositions = new Map(visibleGraphNodes.map((node, index) => [
+    node.instance,
+    nodePosition(node, index, autoNodePositions),
+  ]))
+
   if (block) {
     const blockRef: LogicBlockRef = { kind: block.kind, name: block.name }
     const entryId = logicEntryNodeId(blockRef)
@@ -1018,33 +1340,16 @@ function toReactFlowNodes(
     }
   }
 
-  graph.parameters.forEach((parameter, index) => {
-    const id = graphParameterGetterNodeId(parameter.name)
-    const data: BlueprintNodeData = {
-      label: parameter.name,
-      typeName: 'Parameter Getter',
-      instanceName: parameter.name,
-      init: '',
-      category: 'Parameter',
-      sourceGraph: graph.name,
-      isNative: false,
-      isSynthetic: true,
-      pins: [graphParameterGetterPin(parameter)],
-      intrinsicProperties: [],
-      connectionPreview,
-    }
-    nodes.push({
-      id,
-      type: 'blueprint' as const,
-      position: syntheticNodePositions.get(id) ?? { x: -120, y: (block ? 160 : 80) + index * 92 },
-      data,
-      deletable: false,
-      zIndex: 10,
-    })
-  })
+  nodes.push(...parameterGetterNodesForBlock(
+    graph,
+    block,
+    graphNodePositions,
+    syntheticNodePositions,
+    connectionPreview,
+  ))
 
-  nodes.push(...graph.nodes.map((node, index) => {
-    const position = nodePosition(node, index)
+  nodes.push(...visibleGraphNodes.map((node, index) => {
+    const position = graphNodePositions.get(node.instance) ?? nodePosition(node, index, autoNodePositions)
     const typeDef = state.types.find(type => type.type_name === node.type)
     const pins = typeDef?.pins ?? []
     const data: BlueprintNodeData = {
@@ -1055,6 +1360,7 @@ function toReactFlowNodes(
       category: typeDef ? nodeTypeCategory(typeDef) : 'Unknown',
       sourceGraph: typeDef?.source_graph ?? '',
       isNative: typeDef?.is_native ?? false,
+      sharedBlockLabels: blockUsage.get(node.instance) ?? [],
       pins,
       intrinsicProperties: intrinsicPropertiesForNode(node, typeDef?.fields ?? [], pins),
       diagnostic: diagnostics?.nodes[node.instance],
@@ -1176,7 +1482,7 @@ function toReactFlowEdges(
     edges.push({
       id: edgeId(payload),
       type: 'blueprint',
-      source: visualNodeIdForEndpoint(graph, blockRef, 'data', payload.sourceNode, payload.sourcePin),
+      source: visualNodeIdForDataLinkSource(graph, blockRef, link),
       target: visualNodeIdForEndpoint(graph, blockRef, 'data', payload.targetNode, payload.targetPin),
       sourceHandle: `data-out-${visualPinForEndpoint('data', payload.sourceNode, payload.sourcePin)}`,
       targetHandle: `data-in-${visualPinForEndpoint('data', payload.targetNode, payload.targetPin)}`,
@@ -1204,6 +1510,7 @@ function FlowCanvasInner({
   onCommentBoxDelete,
   onRefresh,
   activeLogicBlock,
+  onLogicBlockChange,
   onEdgeCreate,
   onEdgeDelete,
   onEdgeReconnect,
@@ -1214,6 +1521,7 @@ function FlowCanvasInner({
   const wrapperRef = useRef<HTMLDivElement>(null)
   const reactFlow = useReactFlow<GraphScriptNode, GraphScriptEdge>()
   const graph: GraphDef | undefined = state?.module.graphs[graphIndex]
+  const logicBlocks = useMemo(() => graph ? [...graph.events, ...graph.functions] : [], [graph])
   const activeBlock = useMemo(() => activeBlockForGraph(graph, activeLogicBlock), [activeLogicBlock, graph])
   const diagnosticHighlights = useMemo(() => {
     if (!graph) return null
@@ -2236,6 +2544,39 @@ function FlowCanvasInner({
       {!activeLogicBlock && (
         <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-md border border-warning/25 bg-card/90 px-3 py-2 text-[11px] text-warning shadow-lg">
           Select or create an event/function block before connecting pins.
+        </div>
+      )}
+
+      {logicBlocks.length > 0 && (
+        <div
+          className="absolute left-3 top-3 z-30 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1 rounded-md border border-border/70 bg-card/90 p-1 shadow-lg backdrop-blur"
+          data-logic-block-switcher="true"
+        >
+          {logicBlocks.map(block => {
+            const active = activeLogicBlock?.kind === block.kind && activeLogicBlock.name === block.name
+            return (
+              <button
+                key={`${block.kind}:${block.name}`}
+                type="button"
+                className={`h-6 max-w-[180px] rounded-[4px] border px-2 text-[10px] font-semibold transition-colors ${
+                  active
+                    ? 'border-[color:var(--color-flow-selected)] bg-[color:var(--color-flow-selected)]/16 text-foreground shadow-[0_0_12px_oklch(0.78_0.14_75_/_0.18)]'
+                    : 'border-border/60 bg-secondary/45 text-muted-foreground hover:bg-secondary/75 hover:text-foreground'
+                }`}
+                title={`${block.kind === 'event' ? 'event' : 'fn'} ${block.name}`}
+                data-logic-block-chip={`${block.kind}:${block.name}`}
+                data-logic-block-active={active ? 'true' : 'false'}
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  void onLogicBlockChange?.({ kind: block.kind, name: block.name })
+                }}
+              >
+                <span className="mr-1 opacity-60">{block.kind === 'event' ? 'event' : 'fn'}</span>
+                <span className="inline-block max-w-[120px] truncate align-bottom">{block.name}</span>
+              </button>
+            )
+          })}
         </div>
       )}
 

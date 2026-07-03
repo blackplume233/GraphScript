@@ -37,6 +37,8 @@ export interface BlueprintNodeData extends Record<string, unknown> {
   sourceGraph: string
   isNative: boolean
   isSynthetic?: boolean
+  variant?: 'parameterGetter'
+  sharedBlockLabels?: string[]
   pins: PinDef[]
   intrinsicProperties: BlueprintIntrinsicProperty[]
   diagnostic?: DiagnosticHighlightData
@@ -222,6 +224,7 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
   const hasExec = execIn.length > 0 || execOut.length > 0
   const headerStyle = headerStyleForNode(category, hasExec, data.isNative)
   const diagnostic = data.diagnostic
+  const sharedBlockLabels = data.sharedBlockLabels ?? []
   const connectionPreview = data.connectionPreview ?? null
   const nodeBorder = diagnostic ? diagnosticBorderColor(diagnostic) : selected ? 'var(--color-flow-selected)' : 'var(--color-flow-node-border)'
   const nodeShadow = diagnostic
@@ -234,6 +237,81 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
   useEffect(() => {
     updateNodeInternals(id)
   }, [id, pinSignature, updateNodeInternals])
+
+  if (data.variant === 'parameterGetter') {
+    const pin = dataOut[0]
+    const color = pin ? pinColor(pin.type, pin.kind) : 'var(--color-flow-data-wire)'
+    return (
+      <div
+        className="node-card relative flex h-[34px] min-w-[126px] max-w-[180px] items-center rounded-full border px-3 pr-5 select-none"
+        data-blueprint-node={label}
+        data-blueprint-node-variant="parameter-getter"
+        style={{
+          background: 'linear-gradient(180deg, oklch(0.27 0.018 250), oklch(0.2 0.014 250))',
+          borderColor: selected ? 'var(--color-flow-selected)' : 'oklch(0.45 0.032 250)',
+          boxShadow: selected
+            ? '0 0 0 1px var(--color-flow-selected), 0 6px 14px oklch(0 0 0 / 0.42)'
+            : '0 4px 12px oklch(0 0 0 / 0.32), inset 0 1px 0 oklch(1 0 0 / 0.05)',
+        }}
+      >
+        <span
+          className="min-w-0 truncate text-[11px] font-semibold"
+          style={{ color: 'oklch(0.86 0.018 250)' }}
+        >
+          {label}
+        </span>
+        {typeName && (
+          <span className="ml-2 shrink-0 text-[9px] font-mono opacity-45">
+            {typeName}
+          </span>
+        )}
+        {pin && (
+          <>
+            <Handle
+              id={pinHandleId(pin)}
+              type="source"
+              position={Position.Right}
+              className="nodrag graphscript-pin-handle graphscript-pin-handle-data graphscript-pin-handle-out"
+              style={{
+                position: 'absolute',
+                right: -13,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 18,
+                height: 18,
+                minWidth: 18,
+                border: 'none',
+                background: 'transparent',
+                boxShadow: 'none',
+              }}
+              title={`out ${pin.name}: ${pin.type}`}
+              data-port-id={pinHandleId(pin)}
+              data-port-type="source"
+              data-testid="sdk.workflow.canvas.node.port"
+            />
+            <span
+              aria-hidden="true"
+              data-pin-row={pinHandleId(pin)}
+              data-pin-glyph="true"
+              className="graphscript-pin-glyph pointer-events-none"
+              style={{
+                position: 'absolute',
+                right: -8,
+                top: '50%',
+                width: 10,
+                height: 10,
+                borderRadius: 1,
+                border: `2px solid ${color}`,
+                background: color,
+                boxShadow: diagnosticGlow(diagnostic?.pins[portKey('data', 'out', pin.name)]),
+                transform: 'translateY(-50%) rotate(45deg)',
+              }}
+            />
+          </>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -289,8 +367,17 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
             }}
           />
         )}
+        {!data.isSynthetic && sharedBlockLabels.length > 1 && (
+          <span
+            className={`${diagnostic ? '' : 'ml-auto'} shrink-0 rounded-[3px] border border-white/10 bg-black/25 px-1 text-[8px] font-semibold uppercase tracking-[0.08em] text-white/60`}
+            title={`Referenced by ${sharedBlockLabels.join(', ')}`}
+            data-node-shared-block-count={sharedBlockLabels.length}
+          >
+            shared {sharedBlockLabels.length}
+          </span>
+        )}
         {typeName && typeName !== label && (
-          <span className={`text-[10px] opacity-35 truncate font-mono ${diagnostic ? '' : 'ml-auto'}`}>
+          <span className={`text-[10px] opacity-35 truncate font-mono ${diagnostic || sharedBlockLabels.length > 1 ? '' : 'ml-auto'}`}>
             {typeName}
           </span>
         )}

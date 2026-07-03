@@ -163,9 +163,18 @@ graph InterfaceShape {
     node printer {
         type PrintString;
     }
+    node resetDelay {
+        type Delay;
+    }
 
     event OnStart {
         connect(context.start, printer.enter);
+        bind(message, printer.message);
+    }
+
+    event OnReset {
+        connect(context.start, resetDelay.enter);
+        connect(resetDelay.completed, printer.enter);
         bind(message, printer.message);
     }
 
@@ -187,9 +196,15 @@ graph InterfaceShape {
                 """(() => ({
                   eventEntry: Boolean(document.querySelector('[data-blueprint-node="OnStart Entry"]')),
                   parameterGetter: Boolean(document.querySelector('[data-blueprint-node="message"] [data-pin-row="data-out-message"]')),
+                  blockSwitcher: Boolean(document.querySelector('[data-logic-block-switcher="true"]')),
+                  eventChip: Boolean(document.querySelector('[data-logic-block-chip="event:OnStart"][data-logic-block-active="true"]')),
+                  resetChip: Boolean(document.querySelector('[data-logic-block-chip="event:OnReset"]')),
+                  functionChip: Boolean(document.querySelector('[data-logic-block-chip="function:Echo"]')),
                   oldContext: Boolean(document.querySelector('[data-blueprint-node="context"]')),
                   oldGraphInputs: Boolean(document.querySelector('[data-blueprint-node="Graph Inputs"]')),
                   eventDonePin: Boolean(document.querySelector('[data-pin-row="exec-in-done"]')),
+                  sharedPrinter: Boolean(document.querySelector('[data-blueprint-node="printer"] [data-node-shared-block-count="2"]')),
+                  resetDelayVisible: Boolean(document.querySelector('[data-blueprint-node="resetDelay"]')),
                   flowLine: Boolean(document.querySelector('[data-line-id="context_exec-out-start-printer_exec-in-enter"]')),
                   dataLine: Boolean(document.querySelector('[data-line-id="message_data-out-message-printer_data-in-message"]')),
                 }))()"""
@@ -197,10 +212,30 @@ graph InterfaceShape {
 
             eval_js(
                 """(() => {
-                  const select = document.querySelector('[title="Active event/function for visual edge edits"]');
-                  if (!select) return false;
-                  select.value = 'function:Echo';
-                  select.dispatchEvent(new Event('change', { bubbles: true }));
+                  const chip = document.querySelector('[data-logic-block-chip="event:OnReset"]');
+                  if (!chip) return false;
+                  chip.click();
+                  return true;
+                })()"""
+            )
+            wait_for_js("Boolean(document.querySelector('[data-blueprint-node=\"resetDelay\"]'))")
+            reset_shape = eval_js(
+                """(() => ({
+                  resetChipActive: Boolean(document.querySelector('[data-logic-block-chip="event:OnReset"][data-logic-block-active="true"]')),
+                  printerVisible: Boolean(document.querySelector('[data-blueprint-node="printer"]')),
+                  sharedPrinter: Boolean(document.querySelector('[data-blueprint-node="printer"] [data-node-shared-block-count="2"]')),
+                  resetDelayVisible: Boolean(document.querySelector('[data-blueprint-node="resetDelay"]')),
+                  startToPrinterLine: Boolean(document.querySelector('[data-line-id="context_exec-out-start-printer_exec-in-enter"]')),
+                  resetFlowLine: Boolean(document.querySelector('[data-line-id="resetDelay_exec-out-completed-printer_exec-in-enter"]')),
+                  dataLine: Boolean(document.querySelector('[data-line-id="message_data-out-message-printer_data-in-message"]')),
+                }))()"""
+            )
+
+            eval_js(
+                """(() => {
+                  const chip = document.querySelector('[data-logic-block-chip="function:Echo"]');
+                  if (!chip) return false;
+                  chip.click();
                   return true;
                 })()"""
             )
@@ -211,6 +246,8 @@ graph InterfaceShape {
                   functionReturn: Boolean(document.querySelector('[data-blueprint-node="Return"]')),
                   returnDonePin: Boolean(document.querySelector('[data-blueprint-node="Return"] [data-pin-row="exec-in-done"]')),
                   returnResultPin: Boolean(document.querySelector('[data-blueprint-node="Return"] [data-pin-row="data-in-result"]')),
+                  printerVisible: Boolean(document.querySelector('[data-blueprint-node="printer"]')),
+                  resetDelayVisible: Boolean(document.querySelector('[data-blueprint-node="resetDelay"]')),
                   oldContext: Boolean(document.querySelector('[data-blueprint-node="context"]')),
                   oldGraphInputs: Boolean(document.querySelector('[data-blueprint-node="Graph Inputs"]')),
                   flowLine: Boolean(document.querySelector('[data-line-id="context_exec-out-start-context_exec-in-done"]')),
@@ -228,15 +265,30 @@ graph InterfaceShape {
     results = [
         ("event renders explicit entry node", event_shape["eventEntry"]),
         ("event renders parameter getter", event_shape["parameterGetter"]),
+        ("block switcher is visible", event_shape["blockSwitcher"]),
+        ("event chip is active", event_shape["eventChip"]),
+        ("second event chip is available", event_shape["resetChip"]),
+        ("function chip is available", event_shape["functionChip"]),
         ("event omits old context node", not event_shape["oldContext"]),
         ("event omits old graph inputs node", not event_shape["oldGraphInputs"]),
         ("event omits done input pin", not event_shape["eventDonePin"]),
+        ("event marks cross-event node as shared", event_shape["sharedPrinter"]),
+        ("event hides nodes only used by another event", not event_shape["resetDelayVisible"]),
         ("event context.start edge still renders", event_shape["flowLine"]),
         ("event parameter bind edge still renders", event_shape["dataLine"]),
+        ("second event chip becomes active", reset_shape["resetChipActive"]),
+        ("shared node appears in second event", reset_shape["printerVisible"]),
+        ("shared node keeps shared marker in second event", reset_shape["sharedPrinter"]),
+        ("second event renders its private node", reset_shape["resetDelayVisible"]),
+        ("second event does not show first event-only edge", not reset_shape["startToPrinterLine"]),
+        ("second event renders its own flow edge", reset_shape["resetFlowLine"]),
+        ("second event parameter bind edge still renders", reset_shape["dataLine"]),
         ("function renders entry node", function_shape["functionEntry"]),
         ("function renders return node", function_shape["functionReturn"]),
         ("function return accepts done", function_shape["returnDonePin"]),
         ("function return accepts result", function_shape["returnResultPin"]),
+        ("function hides event shared node when unreferenced", not function_shape["printerVisible"]),
+        ("function hides event private node when unreferenced", not function_shape["resetDelayVisible"]),
         ("function omits old context node", not function_shape["oldContext"]),
         ("function omits old graph inputs node", not function_shape["oldGraphInputs"]),
         ("function context.done edge still renders", function_shape["flowLine"]),

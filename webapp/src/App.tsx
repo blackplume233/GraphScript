@@ -2166,6 +2166,7 @@ export default function App() {
                   onCommentBoxDelete={handleCommentBoxDelete}
                   onRefresh={refresh}
                   activeLogicBlock={activeLogicBlock}
+                  onLogicBlockChange={handleLogicBlockChange}
                   onEdgeCreate={(edge) => handleEdgeEdit('add', edge)}
                   onEdgeDelete={(edge) => handleEdgeEdit('remove', edge)}
                   onEdgeReconnect={handleEdgeReconnect}
