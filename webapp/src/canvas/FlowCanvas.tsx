@@ -32,7 +32,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { Trash2 } from 'lucide-react'
-import type { Annotation, Diagnostic, GraphDef, GSState, LogicBlock, NodeFieldDef, NodeInst, NodeTypeDef, PinDef, SourceRange } from '@/api/types'
+import type { Annotation, Diagnostic, GraphDef, GraphParam, GSState, LogicBlock, NodeFieldDef, NodeInst, NodeTypeDef, PinDef, SourceRange } from '@/api/types'
 import BlueprintNode, { type BlueprintFlowNode, type BlueprintIntrinsicProperty, type BlueprintNodeData } from './BlueprintNode'
 import { buildDiagnosticHighlightIndex, edgeKey } from './diagnostic-highlights'
 
@@ -192,15 +192,34 @@ export interface EdgeEditPayload extends Record<string, unknown> {
   annotations: Annotation[]
 }
 
-const GRAPH_PARAMETERS_NODE_ID = '__graph_parameters__'
-const CONTEXT_NODE_ID_PREFIX = '__logic_context__:'
+const GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX = '__graph_parameter_getter__:'
+const LOGIC_ENTRY_NODE_ID_PREFIX = '__logic_entry__:'
+const LOGIC_RETURN_NODE_ID_PREFIX = '__logic_return__:'
 
-function logicContextNodeId(block: LogicBlockRef): string {
-  return `${CONTEXT_NODE_ID_PREFIX}${block.kind}:${block.name}`
+function logicEntryNodeId(block: LogicBlockRef): string {
+  return `${LOGIC_ENTRY_NODE_ID_PREFIX}${block.kind}:${block.name}`
 }
 
-function isLogicContextNodeId(nodeId: string): boolean {
-  return nodeId.startsWith(CONTEXT_NODE_ID_PREFIX)
+function logicReturnNodeId(block: LogicBlockRef): string {
+  return `${LOGIC_RETURN_NODE_ID_PREFIX}${block.kind}:${block.name}`
+}
+
+function graphParameterGetterNodeId(parameterName: string): string {
+  return `${GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX}${parameterName}`
+}
+
+function graphParameterNameFromGetterNodeId(nodeId: string): string | null {
+  return nodeId.startsWith(GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX)
+    ? nodeId.slice(GRAPH_PARAMETER_GETTER_NODE_ID_PREFIX.length)
+    : null
+}
+
+function isLogicEntryNodeId(nodeId: string): boolean {
+  return nodeId.startsWith(LOGIC_ENTRY_NODE_ID_PREFIX)
+}
+
+function isLogicReturnNodeId(nodeId: string): boolean {
+  return nodeId.startsWith(LOGIC_RETURN_NODE_ID_PREFIX)
 }
 
 function endpointLabel(node: string, pin: string): string {
@@ -213,19 +232,24 @@ function dataSourceEndpointLabel(edge: EdgeEditPayload): string {
 }
 
 function endpointFromVisualNodeId(nodeId: string, port: PortRef): EndpointRef {
-  if (nodeId === GRAPH_PARAMETERS_NODE_ID && port.kind === 'data') {
-    return { node: port.pin, pin: '' }
+  const parameterName = graphParameterNameFromGetterNodeId(nodeId)
+  if (parameterName && port.kind === 'data') {
+    return { node: parameterName, pin: '' }
   }
-  if (isLogicContextNodeId(nodeId)) {
+  if (isLogicEntryNodeId(nodeId) || isLogicReturnNodeId(nodeId)) {
     return { node: 'context', pin: port.pin }
   }
   return { node: nodeId, pin: port.pin }
 }
 
 function visualNodeIdForEndpoint(graph: GraphDef, block: LogicBlockRef, kind: 'exec' | 'data', node: string, pin: string): string {
-  if (node === 'context') return logicContextNodeId(block)
+  if (node === 'context') {
+    if (pin === 'start') return logicEntryNodeId(block)
+    if (block.kind === 'function' && (pin === 'done' || pin === 'result')) return logicReturnNodeId(block)
+    return logicEntryNodeId(block)
+  }
   if (kind === 'data' && !pin && graph.parameters.some(parameter => parameter.name === node)) {
-    return GRAPH_PARAMETERS_NODE_ID
+    return graphParameterGetterNodeId(node)
   }
   return node
 }
@@ -351,16 +375,21 @@ function dataTypesCompatible(left: string, right: string): boolean {
   return left === right
 }
 
-function contextPins(): PinDef[] {
+function logicEntryPins(): PinDef[] {
   return [
-    { name: 'start', kind: 'exec', direction: 'out', type: '', annotations: [] },
-    { name: 'done', kind: 'exec', direction: 'in', type: '', annotations: [] },
+    { name: 'start', kind: 'exec', direction: 'out', type: 'Exec', annotations: [] },
+  ]
+}
+
+function logicReturnPins(): PinDef[] {
+  return [
+    { name: 'done', kind: 'exec', direction: 'in', type: 'Exec', annotations: [] },
     { name: 'result', kind: 'data', direction: 'in', type: '', annotations: [] },
   ]
 }
 
-function graphParameterPins(graph: GraphDef): PinDef[] {
-  return graph.parameters.map(parameter => ({
+function graphParameterGetterPin(parameter: GraphParam): PinDef {
+  return {
     name: parameter.name,
     kind: 'data',
     direction: 'out',
@@ -370,7 +399,7 @@ function graphParameterPins(graph: GraphDef): PinDef[] {
     source_range: parameter.source_range,
     name_source_range: parameter.name_source_range,
     type_source_range: parameter.type_source_range,
-  }))
+  }
 }
 
 function findNodeTypeForInstance(graph: GraphDef | undefined, types: NodeTypeDef[], instanceName: string): NodeTypeDef | undefined {
@@ -385,11 +414,15 @@ function pinDefinitionForVisualPort(
   nodeId: string,
   port: PortRef,
 ): PinDef | undefined {
-  const pins = nodeId === GRAPH_PARAMETERS_NODE_ID
-    ? graphParameterPins(graph)
-    : isLogicContextNodeId(nodeId)
-      ? contextPins()
-      : findNodeTypeForInstance(graph, types, nodeId)?.pins ?? []
+  const parameterName = graphParameterNameFromGetterNodeId(nodeId)
+  const parameter = parameterName ? graph.parameters.find(item => item.name === parameterName) : undefined
+  const pins = parameter
+    ? [graphParameterGetterPin(parameter)]
+    : isLogicEntryNodeId(nodeId)
+      ? logicEntryPins()
+      : isLogicReturnNodeId(nodeId)
+        ? logicReturnPins()
+        : findNodeTypeForInstance(graph, types, nodeId)?.pins ?? []
   return pins.find(pin =>
     pin.kind === port.kind &&
     pin.direction === port.direction &&
@@ -933,55 +966,82 @@ function toReactFlowNodes(
 ): BlueprintFlowNode[] {
   const nodes: BlueprintFlowNode[] = []
   if (block) {
-    const id = logicContextNodeId(block)
-    const data: BlueprintNodeData = {
-      label: 'Context',
-      typeName: block.kind === 'event' ? 'Event Context' : 'Function Context',
-      instanceName: 'context',
+    const blockRef: LogicBlockRef = { kind: block.kind, name: block.name }
+    const entryId = logicEntryNodeId(blockRef)
+    const entryData: BlueprintNodeData = {
+      label: block.kind === 'event' ? `${block.name} Entry` : 'Function Entry',
+      typeName: block.kind === 'event' ? 'Event Entry' : 'Function Entry',
+      instanceName: block.kind === 'event' ? `${block.name} Entry` : 'Function Entry',
       init: '',
       category: block.kind === 'event' ? 'Event' : 'Function',
       sourceGraph: graph.name,
       isNative: false,
       isSynthetic: true,
-      pins: contextPins(),
+      pins: logicEntryPins(),
       intrinsicProperties: [],
       diagnostic: diagnostics?.nodes.context,
       connectionPreview,
     }
     nodes.push({
-      id,
+      id: entryId,
       type: 'blueprint' as const,
-      position: syntheticNodePositions.get(id) ?? { x: -120, y: 40 },
-      data,
+      position: syntheticNodePositions.get(entryId) ?? { x: -120, y: 40 },
+      data: entryData,
       deletable: false,
       zIndex: 10,
     })
+
+    if (block.kind === 'function') {
+      const returnId = logicReturnNodeId(blockRef)
+      const returnData: BlueprintNodeData = {
+        label: 'Return',
+        typeName: 'Function Return',
+        instanceName: 'Return',
+        init: '',
+        category: 'Function',
+        sourceGraph: graph.name,
+        isNative: false,
+        isSynthetic: true,
+        pins: logicReturnPins(),
+        intrinsicProperties: [],
+        diagnostic: diagnostics?.nodes.context,
+        connectionPreview,
+      }
+      nodes.push({
+        id: returnId,
+        type: 'blueprint' as const,
+        position: syntheticNodePositions.get(returnId) ?? { x: 620, y: 40 },
+        data: returnData,
+        deletable: false,
+        zIndex: 10,
+      })
+    }
   }
 
-  const parameterPins = graphParameterPins(graph)
-  if (parameterPins.length > 0) {
+  graph.parameters.forEach((parameter, index) => {
+    const id = graphParameterGetterNodeId(parameter.name)
     const data: BlueprintNodeData = {
-      label: 'Graph Inputs',
-      typeName: 'Graph Parameters',
-      instanceName: 'Graph Inputs',
+      label: parameter.name,
+      typeName: 'Parameter Getter',
+      instanceName: parameter.name,
       init: '',
-      category: 'Graph',
+      category: 'Parameter',
       sourceGraph: graph.name,
       isNative: false,
       isSynthetic: true,
-      pins: parameterPins,
+      pins: [graphParameterGetterPin(parameter)],
       intrinsicProperties: [],
       connectionPreview,
     }
     nodes.push({
-      id: GRAPH_PARAMETERS_NODE_ID,
+      id,
       type: 'blueprint' as const,
-      position: syntheticNodePositions.get(GRAPH_PARAMETERS_NODE_ID) ?? { x: -120, y: block ? 210 : 80 },
+      position: syntheticNodePositions.get(id) ?? { x: -120, y: (block ? 160 : 80) + index * 92 },
       data,
       deletable: false,
       zIndex: 10,
     })
-  }
+  })
 
   nodes.push(...graph.nodes.map((node, index) => {
     const position = nodePosition(node, index)
@@ -1051,7 +1111,12 @@ function toReactFlowEdges(
   const blockRef: LogicBlockRef = { kind: block.kind, name: block.name }
   const graphNodes = new Set(graph.nodes.map(node => node.instance))
   const hasVisualEndpoint = (kind: 'exec' | 'data', node: string, pin: string) => {
-    if (node === 'context') return true
+    if (node === 'context') {
+      if (kind === 'exec' && pin === 'start') return true
+      if (block.kind === 'function' && kind === 'exec' && pin === 'done') return true
+      if (block.kind === 'function' && kind === 'data' && pin === 'result') return true
+      return false
+    }
     if (kind === 'data' && !pin && graph.parameters.some(parameter => parameter.name === node)) return true
     return graphNodes.has(node)
   }

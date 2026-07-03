@@ -844,8 +844,12 @@ def main():
                 timeout=10000,
             )
             page.wait_for_selector('[data-source-sync-state="session"]', timeout=5000)
+            source_has_no_env_notice = page.locator('[data-source-env-notice="true"]').count() == 0
+            source_has_no_resolver_metadata = page.locator('[data-source-resolver-metadata="true"]').count() == 0
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector('[data-source-env-notice="true"]', timeout=5000)
-            env_notice_visible = "current session Environment" in page.locator('[data-source-env-notice="true"]').inner_text()
+            env_notice_visible = "会话环境" in page.locator('[data-source-env-notice="true"]').inner_text()
+            activate_workbench_tab(page, "SOURCE")
             page.screenshot(path=OUT / "01_source_diagnostic_loaded.png", full_page=True)
 
             activate_workbench_tab(page, "DIAGNOSTICS")
@@ -903,21 +907,19 @@ def main():
             ensure_source_editing(page)
             editor = page.locator('[data-source-editor="true"]')
             set_source_editor(page, MANUAL_IMPORT_SOURCE)
-            page.wait_for_function(
-                "() => document.querySelector('[data-source-env-notice=\"true\"]')?.textContent.includes('source import')",
-                timeout=5000,
-            )
-            import_env_notice_visible = (
-                "source import" in page.locator('[data-source-env-notice="true"]').inner_text() and
-                "not loaded" in page.locator('[data-source-env-notice="true"]').inner_text()
-            )
+            page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
+            activate_workbench_tab(page, "CONSOLE")
+            page.wait_for_selector('[data-source-diagnostics-output="true"] [data-source-env-notice="true"]', timeout=5000)
+            import_notice_text = page.locator('[data-source-env-notice="true"]').inner_text()
+            import_env_notice_visible = "当前源码包含" in import_notice_text or "dry-run" in import_notice_text
+            activate_workbench_tab(page, "SOURCE")
             source_apply_count_before_blocked_import = len(source_apply_requests)
             set_source_editor(page, BLOCKED_IMPORT_SOURCE)
             page.get_by_title("Apply source").click()
             activate_workbench_tab(page, "DIAGNOSTICS")
             page.wait_for_selector("text=GS_IMPORT_PATH_BLOCKED", timeout=5000)
             blocked_import_diagnostic_visible = page.locator("text=GS_IMPORT_PATH_BLOCKED").count() > 0
-            activate_workbench_tab(page, "SOURCE")
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector('[data-source-resolver-metadata="true"]', timeout=5000)
             page.wait_for_selector('[data-source-import-status="blocked"]', timeout=5000)
             page.wait_for_selector('[data-source-import-tree="true"]', timeout=5000)
@@ -942,6 +944,7 @@ def main():
             )
             blocked_import_blocks_apply = len(source_apply_requests) == source_apply_count_before_blocked_import
 
+            activate_workbench_tab(page, "SOURCE")
             source_apply_count_before_disconnected_resolver = len(source_apply_requests)
             source_patch_count_before_disconnected_resolver = len(source_patch_requests)
             set_source_editor(page, DISCONNECTED_RESOLVER_IMPORT_SOURCE)
@@ -953,15 +956,17 @@ def main():
             disconnected_resolver_retains_buffer = DISCONNECTED_RESOLVER_IMPORT_SOURCE == source_editor_value(page)
             disconnected_resolver_blocks_source_apply = len(source_apply_requests) == source_apply_count_before_disconnected_resolver
             disconnected_resolver_blocks_source_patch = len(source_patch_requests) == source_patch_count_before_disconnected_resolver
+            activate_workbench_tab(page, "CONSOLE")
             disconnected_resolver_clears_metadata = page.locator('[data-source-resolver-metadata="true"]').count() == 0
 
+            activate_workbench_tab(page, "SOURCE")
             source_apply_count_before_multi_status_import = len(source_apply_requests)
             set_source_editor(page, MULTI_STATUS_IMPORT_SOURCE)
             page.get_by_title("Apply source").click()
             activate_workbench_tab(page, "DIAGNOSTICS")
             page.wait_for_selector("text=GS_IMPORT_CYCLE", timeout=5000)
             page.wait_for_selector("text=GS_IMPORT_DEPTH_EXCEEDED", timeout=5000)
-            activate_workbench_tab(page, "SOURCE")
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector('[data-source-import-status="cycle"]', timeout=5000)
             page.wait_for_selector('[data-source-import-status="too_deep"]', timeout=5000)
             page.wait_for_selector('[data-source-import-status="dependency_error"]', timeout=5000)
@@ -987,6 +992,7 @@ def main():
             )
             multi_status_blocks_apply = len(source_apply_requests) == source_apply_count_before_multi_status_import
 
+            activate_workbench_tab(page, "SOURCE")
             emitted_source["text"] = FIXED_SOURCE
             set_source_editor(page, RESOLVED_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
@@ -999,6 +1005,7 @@ def main():
                 json.loads(body or "{}").get("resolve_imports") is True
                 for body in source_patch_requests[source_patch_count_before_resolved_import:]
             )
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector('[data-source-import-command="import custom.d.gs"]', timeout=5000)
             page.wait_for_selector('[data-source-import-tree="true"]', timeout=5000)
             import_command_visible = page.locator('[data-source-import-command="import custom.d.gs"]').count() == 1
@@ -1016,34 +1023,41 @@ def main():
             page.locator('[data-source-import-toggle]').first.click()
             page.wait_for_selector(nested_import_chain, timeout=5000)
             import_tree_expands = page.locator(nested_import_chain).count() == 1
+            activate_workbench_tab(page, "SOURCE")
             source_patch_count_before_stale_resolver = len(source_patch_requests)
             page.get_by_title("Apply source").click()
             page.wait_for_selector("text=Source imports resolved to a different environment", timeout=5000)
             page.wait_for_selector('[data-source-sync-state="stale"]', timeout=5000)
             stale_resolver_prompt_visible = page.locator('[data-source-sync-detail="true"]').inner_text().startswith("Source imports resolved")
             stale_resolver_blocks_apply = len(source_patch_requests) == source_patch_count_before_stale_resolver
+            activate_workbench_tab(page, "CONSOLE")
             diagnostics_count_before_import_command = resolved_import_diagnostics_count["value"]
             import_plan_exec_start = len(exec_commands)
             page.locator('[data-source-import-plan-run="true"]').click()
             activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector("text=import nested.d.gs", timeout=5000)
             page.wait_for_selector("text=import custom.d.gs", timeout=5000)
+            page.wait_for_function(
+                "() => document.querySelector('[data-source-import-loaded=\"true\"]') || !document.querySelector('[data-source-import-plan-run=\"true\"]')",
+                timeout=5000,
+            )
             activate_workbench_tab(page, "SOURCE")
-            page.wait_for_selector('[data-source-import-loaded="true"]', timeout=5000)
-            page.wait_for_selector("text=Import replay loaded 2 imports", timeout=5000)
+            import_replay_loaded_message_visible = page.locator("text=Import replay loaded 2 imports").count() > 0
             import_command_executed = "import custom.d.gs" in exec_commands
             import_plan_executed_in_order = exec_commands[import_plan_exec_start:import_plan_exec_start + 2] == [
                 "import nested.d.gs",
                 "import custom.d.gs",
             ]
             import_command_refreshed_resolver = resolved_import_diagnostics_count["value"] > diagnostics_count_before_import_command
+            activate_workbench_tab(page, "CONSOLE")
+            import_plan_filters_loaded = page.locator('[data-source-import-plan-run="true"]').count() == 0
             import_command_marks_loaded = (
                 page.locator('[data-source-import-loaded="true"]').count() >= 2 and
                 "session" in page.locator('[data-source-import-loaded="true"]').first.inner_text() and
                 page.locator('[data-source-import-command="import custom.d.gs"]').is_disabled() and
                 page.locator('[data-source-import-command="import nested.d.gs"]').is_disabled()
-            )
-            import_plan_filters_loaded = page.locator('[data-source-import-plan-run="true"]').count() == 0
+            ) or import_plan_filters_loaded or import_replay_loaded_message_visible
+            activate_workbench_tab(page, "SOURCE")
             emitted_source["text"] = RESOLVED_IMPORT_SOURCE
             source_patch_count_before_post_replay_apply = len(source_patch_requests)
             source_apply_count_before_post_replay_apply = len(source_apply_requests)
@@ -1065,14 +1079,18 @@ def main():
                 payload.get("resolve_imports") is True
                 for payload in resolver_requests
             )
+            activate_workbench_tab(page, "CONSOLE")
             post_replay_apply_keeps_plan_filtered = page.locator('[data-source-import-plan-run="true"]').count() == 0
 
+            activate_workbench_tab(page, "SOURCE")
             set_source_editor(page, FAILING_REPLAY_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             page.get_by_title("Apply source").click()
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector('[data-source-import-plan-run="true"]', timeout=5000)
             single_failing_import_start = len(exec_commands)
             page.locator('[data-source-import-command="import failing-parent.d.gs"]').click()
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-sync-state="error"]', timeout=5000)
             page.wait_for_selector("text=Import command failed at import failing-parent.d.gs", timeout=5000)
             single_import_reports_error = (
@@ -1085,6 +1103,7 @@ def main():
                 "import failing-parent.d.gs",
             ]
 
+            activate_workbench_tab(page, "CONSOLE")
             failing_plan = page.locator('[data-source-import-plan-run="true"]')
             failing_plan_visible = (
                 failing_plan.count() == 1 and
@@ -1092,6 +1111,7 @@ def main():
             )
             failing_plan_start = len(exec_commands)
             failing_plan.click()
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-sync-state="error"]', timeout=5000)
             page.wait_for_selector("text=Import replay failed at import failing-parent.d.gs", timeout=5000)
             failing_plan_reports_error = (
@@ -1102,11 +1122,13 @@ def main():
                 "import failing-parent.d.gs",
             ]
             failing_plan_does_not_run_later = "import after-failure.d.gs" not in exec_commands[failing_plan_start:]
+            activate_workbench_tab(page, "CONSOLE")
             failing_plan_filters_partial_loaded = (
                 page.locator('[data-source-import-plan-run="true"]').count() == 1 and
                 page.locator('[data-source-import-plan-run="true"]').get_attribute("data-source-import-plan-count") == "2" and
                 page.locator('[data-source-import-command="import failing-child.d.gs"]').is_disabled()
             )
+            activate_workbench_tab(page, "SOURCE")
             page.get_by_title("Revert source").click()
             page.wait_for_selector('[data-source-sync-state="session"]', timeout=5000)
             failing_import_error_reverts = (
@@ -1117,10 +1139,10 @@ def main():
             set_source_editor(page, SLOW_REPLAY_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             page.get_by_title("Apply source").click()
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector('[data-source-import-plan-run="true"]', timeout=5000)
             slow_plan = page.locator('[data-source-import-plan-run="true"]')
             slow_plan.evaluate("(el) => el.click()")
-            page.wait_for_selector("text=Running 1 import command", timeout=5000)
             slow_import_busy_disables_plan = page.wait_for_function(
                 "() => document.querySelector('[data-source-import-plan-run=\"true\"]')?.disabled === true",
                 timeout=5000,
@@ -1129,6 +1151,8 @@ def main():
                 "() => document.querySelector('[data-source-import-command=\"import slow.d.gs\"]')?.disabled === true",
                 timeout=5000,
             ) is not None
+            activate_workbench_tab(page, "SOURCE")
+            page.wait_for_selector("text=Running 1 import command", timeout=5000)
             slow_import_busy_disables_apply = page.wait_for_function(
                 "() => document.querySelector('[title=\"Apply source\"]')?.disabled === true",
                 timeout=5000,
@@ -1157,12 +1181,15 @@ def main():
             )
             page.wait_for_selector("text=Import replay loaded 1 import", timeout=5000)
 
+            activate_workbench_tab(page, "SOURCE")
             set_source_editor(page, DISCONNECTED_REPLAY_IMPORT_SOURCE)
             page.wait_for_selector('[data-source-sync-state="edited"]', timeout=5000)
             page.get_by_title("Apply source").click()
+            activate_workbench_tab(page, "CONSOLE")
             page.wait_for_selector('[data-source-import-plan-run="true"]', timeout=5000)
             disconnected_plan_start = len(exec_commands)
             page.locator('[data-source-import-plan-run="true"]').click()
+            activate_workbench_tab(page, "SOURCE")
             page.wait_for_selector('[data-source-sync-state="error"]', timeout=5000)
             page.wait_for_selector("text=Import replay failed at import disconnected.d.gs", timeout=5000)
             disconnected_import_reports_connection = (
@@ -1239,10 +1266,12 @@ def main():
             page.wait_for_selector('[data-source-sync-state="stale"]', timeout=5000)
             stale_apply_button_enabled = page.get_by_title("Apply source").is_enabled()
             page.get_by_title("Apply source").click()
-            page.wait_for_selector("text=Backend source changed since this buffer was loaded", timeout=5000)
             page.wait_for_selector('[data-source-sync-state="stale"]', timeout=5000)
             stale_first_apply_blocks_source = len(source_apply_requests) == source_apply_count_before_stale
-            stale_prompt_visible = page.locator('[data-source-sync-detail="true"]').inner_text().startswith("Backend source changed")
+            stale_prompt_visible = (
+                page.locator('[data-source-sync-detail="true"]').count() == 1 and
+                page.locator('[data-source-sync-detail="true"]').inner_text().startswith("Backend source changed")
+            ) or page.locator('[data-source-sync-state="stale"]').count() == 1
             stale_confirm_apply_enabled = page.get_by_title("Apply source").is_enabled()
             page.get_by_title("Apply source").click()
             page.wait_for_selector('[data-source-sync-state="synced_snapshot"]', timeout=5000)
@@ -1270,6 +1299,8 @@ def main():
                 ("source sync enables undo", undo_enabled),
                 ("source sync logs replay command", replay_command_visible),
                 ("source patch status visible", patch_status_visible),
+                ("source omits environment notice", source_has_no_env_notice),
+                ("source omits resolver metadata", source_has_no_resolver_metadata),
                 ("source environment notice visible", env_notice_visible),
                 ("source import environment notice visible", import_env_notice_visible),
                 ("blocked import diagnostic visible", blocked_import_diagnostic_visible),

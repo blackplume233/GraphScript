@@ -304,7 +304,7 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
               pin={pin}
               side="left"
               highlight={diagnostic?.pins[portKey('exec', 'in', pin.name)]}
-              connectionState={connectionStateForPin(pin, label, connectionPreview)}
+              connectionState={connectionStateForPin(pin, id, connectionPreview)}
             />
           ))}
           {dataIn.map(pin => (
@@ -313,7 +313,7 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
               pin={pin}
               side="left"
               highlight={diagnostic?.pins[portKey('data', 'in', pin.name)]}
-              connectionState={connectionStateForPin(pin, label, connectionPreview)}
+              connectionState={connectionStateForPin(pin, id, connectionPreview)}
             />
           ))}
           {execIn.length === 0 && dataIn.length === 0 && <div className="h-4" />}
@@ -328,7 +328,7 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
               pin={pin}
               side="right"
               highlight={diagnostic?.pins[portKey('exec', 'out', pin.name)]}
-              connectionState={connectionStateForPin(pin, label, connectionPreview)}
+              connectionState={connectionStateForPin(pin, id, connectionPreview)}
             />
           ))}
           {dataOut.map(pin => (
@@ -337,7 +337,7 @@ export default function BlueprintNode({ id, data, selected }: NodeProps<Blueprin
               pin={pin}
               side="right"
               highlight={diagnostic?.pins[portKey('data', 'out', pin.name)]}
-              connectionState={connectionStateForPin(pin, label, connectionPreview)}
+              connectionState={connectionStateForPin(pin, id, connectionPreview)}
             />
           ))}
           {execOut.length === 0 && dataOut.length === 0 && <div className="h-4" />}

@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type * as Monaco from 'monaco-editor'
-import { AlertTriangle, ChevronDown, ChevronRight, FileText, Pencil, Play, RefreshCw, RotateCcw, Save } from 'lucide-react'
+import { FileText, Pencil, RefreshCw, RotateCcw, Save } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { fetchCompletions } from '@/api/client'
-import type { SourceDiagnosticsEnvironment, SourceRange } from '@/api/types'
+import type { Diagnostic, SourceRange } from '@/api/types'
 
 type MonacoEditorInstance = Parameters<OnMount>[0]
 type MonacoApi = Parameters<OnMount>[1]
 
 let graphScriptMonacoConfigured = false
+const SOURCE_DIAGNOSTIC_MARKER_OWNER = 'graphscript-source-diagnostics'
 
 declare global {
   interface Window {
@@ -22,6 +23,7 @@ declare global {
       focus: () => void
       getLastExternalSyncKind: () => string
       isReadOnly: () => boolean
+      getDiagnosticMarkers: () => Array<{ severity: string; message: string; line: number; column: number }>
     }
   }
 }
@@ -83,17 +85,12 @@ interface SourcePreviewPanelProps {
   canApplySource: boolean
   pendingPatchRange: SourceRange | null
   pendingPatchSummary: string
-  environmentNotice: string
-  resolverEnvironment: SourceDiagnosticsEnvironment | null
-  sessionImports: string[]
+  sourceDiagnostics: Diagnostic[]
   declarationRenameContext: DeclarationRenameContext | null
   onCheckSource: () => void
   onSourceChange: (source: string) => void
   onApplySource: () => void
   onRevertSource: () => void
-  onImportCommand: (command: string) => void
-  onImportPlan: (commands: string[]) => void
-  onOpenDeclarationSource: (path: string, contentHash: string) => void
   onRenameDeclaration: (newName: string) => void
 }
 
@@ -356,119 +353,20 @@ function syncClasses(state: SourceSyncState): string {
   }
 }
 
-function importStatusClasses(status: string): string {
-  switch (status) {
-    case 'loaded':
-      return 'border-success/30 bg-success/10 text-success'
-    case 'unsupported':
-    case 'missing':
-    case 'blocked':
-    case 'too_large':
-    case 'too_deep':
-    case 'cycle':
-    case 'dependency_error':
-    case 'parse_error':
-    case 'semantic_error':
-      return 'border-destructive/30 bg-destructive/10 text-destructive'
-    default:
-      return 'border-warning/30 bg-warning/10 text-warning'
-  }
-}
-
-function commandImportPath(command: string): string {
-  const trimmed = command.trim()
-  if (!trimmed.startsWith('import')) return ''
-  const path = trimmed.slice('import'.length).trim()
-  if (path.length >= 2 && path.startsWith('"') && path.endsWith('"')) {
-    return path.slice(1, -1)
-  }
-  return path
-}
-
-type SourceDeclaration = SourceDiagnosticsEnvironment['declarations'][number]
-
-interface ImportTreeNode {
-  key: string
-  pathKey: string
-  declaration: SourceDeclaration
-  children: ImportTreeNode[]
-}
-
-function declarationPathKey(declaration: SourceDeclaration): string {
-  return declaration.normalized_path || declaration.path
-}
-
-function declarationNodeKey(declaration: SourceDeclaration, index: number): string {
-  return `${declarationPathKey(declaration)}::${index}`
-}
-
-function declarationParentPathKey(declaration: SourceDeclaration): string {
-  return declaration.parent_normalized_path || declaration.parent_path || ''
-}
-
-function buildImportTree(declarations: SourceDeclaration[]): ImportTreeNode[] {
-  const nodes = declarations.map((declaration, index) => ({
-    key: declarationNodeKey(declaration, index),
-    pathKey: declarationPathKey(declaration),
-    declaration,
-    children: [],
-  }))
-  const firstNodeByPath = new Map<string, ImportTreeNode>()
-  for (const node of nodes) {
-    if (node.pathKey && !firstNodeByPath.has(node.pathKey)) {
-      firstNodeByPath.set(node.pathKey, node)
-    }
-  }
-
-  const roots: ImportTreeNode[] = []
-  for (const node of nodes) {
-    const parentKey = declarationParentPathKey(node.declaration)
-    const parent = parentKey ? firstNodeByPath.get(parentKey) : null
-    if (parent && parent !== node) {
-      parent.children.push(node)
-    } else {
-      roots.push(node)
-    }
-  }
-  return roots
-}
-
-function declarationLabel(declaration: SourceDeclaration): string {
-  const chain = declaration.import_chain || declaration.path
-  return `${chain} ${declaration.status}`
-}
-
-function declarationIssueMessage(declaration: SourceDeclaration): string {
-  if (declaration.status === 'loaded' || declaration.status === 'skipped') return ''
-  return declaration.message || declaration.status
-}
-
-function declarationLoadedInSession(declaration: SourceDeclaration, sessionImportSet: Set<string>): boolean {
-  const commandPath = commandImportPath(declaration.command)
-  return sessionImportSet.has(declaration.path) ||
-    sessionImportSet.has(declaration.normalized_path) ||
-    (commandPath.length > 0 && sessionImportSet.has(commandPath))
-}
-
-function buildImportReplayPlan(
-  declarations: SourceDeclaration[],
-  sessionImportSet: Set<string>,
-): string[] {
-  const commands: string[] = []
-  const planned = new Set<string>()
-  for (const declaration of declarations) {
-    if (declaration.status !== 'loaded' || declaration.command.length === 0) continue
-    if (declarationLoadedInSession(declaration, sessionImportSet)) continue
-    const key = declarationPathKey(declaration) || commandImportPath(declaration.command)
-    if (!key || planned.has(key)) continue
-    planned.add(key)
-    commands.push(declaration.command)
-  }
-  return commands
-}
-
 function isIdentifier(text: string): boolean {
   return /^[A-Za-z_][A-Za-z0-9_]*$/.test(text)
+}
+
+function markerSeverity(monaco: MonacoApi, severity: Diagnostic['severity']) {
+  return severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning
+}
+
+function diagnosticLineClass(severity: Diagnostic['severity']): string {
+  return severity === 'error' ? 'source-diagnostic-error-line' : 'source-diagnostic-warning-line'
+}
+
+function diagnosticGlyphClass(severity: Diagnostic['severity']): string {
+  return severity === 'error' ? 'source-diagnostic-error-glyph' : 'source-diagnostic-warning-glyph'
 }
 
 export default function SourcePreviewPanel({
@@ -483,36 +381,23 @@ export default function SourcePreviewPanel({
   canApplySource,
   pendingPatchRange,
   pendingPatchSummary,
-  environmentNotice,
-  resolverEnvironment,
-  sessionImports,
+  sourceDiagnostics,
   declarationRenameContext,
   onCheckSource,
   onSourceChange,
   onApplySource,
   onRevertSource,
-  onImportCommand,
-  onImportPlan,
-  onOpenDeclarationSource,
   onRenameDeclaration,
 }: SourcePreviewPanelProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<MonacoEditorInstance | null>(null)
+  const monacoRef = useRef<MonacoApi | null>(null)
+  const diagnosticDecorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null)
   const suppressEditorChangeRef = useRef(false)
   const lastExternalSyncKindRef = useRef('')
   const [editing, setEditing] = useState(true)
   const [declarationRenameValue, setDeclarationRenameValue] = useState('')
-  const [collapsedImportNodes, setCollapsedImportNodes] = useState<Set<string>>(() => new Set())
   const lines = useMemo(() => source ? source.split(/\r?\n/) : [], [source])
-  const importTree = useMemo(
-    () => buildImportTree(resolverEnvironment?.declarations ?? []),
-    [resolverEnvironment],
-  )
-  const sessionImportSet = useMemo(() => new Set(sessionImports), [sessionImports])
-  const importReplayCommands = useMemo(
-    () => buildImportReplayPlan(resolverEnvironment?.declarations ?? [], sessionImportSet),
-    [resolverEnvironment, sessionImportSet],
-  )
   const busy = checkingSource || applyingSource || syncState === 'checking'
   const displayRange = focusedRange ?? (editing ? null : pendingPatchRange)
   const canRenameDeclaration = Boolean(
@@ -532,12 +417,10 @@ export default function SourcePreviewPanel({
     setDeclarationRenameValue(declarationRenameContext?.oldName ?? '')
   }, [declarationRenameContext?.oldName])
 
-  useEffect(() => {
-    setCollapsedImportNodes(new Set())
-  }, [resolverEnvironment?.environment_hash])
-
   const handleEditorMount = useCallback<OnMount>((editor, monaco) => {
     editorRef.current = editor
+    monacoRef.current = monaco
+    diagnosticDecorationsRef.current = editor.createDecorationsCollection()
     configureGraphScriptMonaco(monaco)
     monaco.editor.setTheme('graphscript-dark')
     window.__graphScriptSourceEditor = {
@@ -554,6 +437,17 @@ export default function SourcePreviewPanel({
       focus: () => editor.focus(),
       getLastExternalSyncKind: () => lastExternalSyncKindRef.current,
       isReadOnly: () => editor.getOption(monaco.editor.EditorOption.readOnly),
+      getDiagnosticMarkers: () => {
+        const model = editor.getModel()
+        if (!model) return []
+        return monaco.editor.getModelMarkers({ owner: SOURCE_DIAGNOSTIC_MARKER_OWNER, resource: model.uri })
+          .map((marker: Monaco.editor.IMarker) => ({
+            severity: marker.severity === monaco.MarkerSeverity.Error ? 'error' : 'warning',
+            message: marker.message,
+            line: marker.startLineNumber,
+            column: marker.startColumn,
+          }))
+      },
     }
     focusMonacoRange(editor, source, focusedRange)
   }, [focusedRange, onSourceChange, source])
@@ -575,6 +469,52 @@ export default function SourcePreviewPanel({
   }, [editing, source])
 
   useEffect(() => {
+    const editor = editorRef.current
+    const monaco = monacoRef.current
+    if (!editor || !monaco) return
+
+    const model = editor.getModel()
+    if (!model) return
+
+    const rangedDiagnostics = sourceDiagnostics
+      .filter(diagnostic => Boolean(diagnostic.range))
+      .map(diagnostic => {
+        const monacoRange = toMonacoRange(source, diagnostic.range)
+        return monacoRange ? { diagnostic, monacoRange } : null
+      })
+      .filter((item): item is { diagnostic: Diagnostic; monacoRange: NonNullable<ReturnType<typeof toMonacoRange>> } => Boolean(item))
+
+    monaco.editor.setModelMarkers(model, SOURCE_DIAGNOSTIC_MARKER_OWNER, rangedDiagnostics.map(({ diagnostic, monacoRange }) => ({
+      severity: markerSeverity(monaco, diagnostic.severity),
+      message: diagnostic.message,
+      code: diagnostic.code,
+      startLineNumber: monacoRange.startLineNumber,
+      startColumn: monacoRange.startColumn,
+      endLineNumber: monacoRange.endLineNumber,
+      endColumn: monacoRange.endColumn,
+    })))
+
+    diagnosticDecorationsRef.current?.set(rangedDiagnostics.map(({ diagnostic, monacoRange }) => ({
+      range: new monaco.Range(
+        monacoRange.startLineNumber,
+        monacoRange.startColumn,
+        monacoRange.endLineNumber,
+        monacoRange.endColumn,
+      ),
+      options: {
+        isWholeLine: true,
+        className: diagnosticLineClass(diagnostic.severity),
+        glyphMarginClassName: diagnosticGlyphClass(diagnostic.severity),
+        hoverMessage: { value: `**${diagnostic.code || diagnostic.severity}** ${diagnostic.message}` },
+        overviewRuler: {
+          color: diagnostic.severity === 'error' ? '#dc2626' : '#f59e0b',
+          position: monaco.editor.OverviewRulerLane.Right,
+        },
+      },
+    })))
+  }, [source, sourceDiagnostics])
+
+  useEffect(() => {
     if (editing) {
       focusMonacoRange(editorRef.current, source, focusedRange)
       return
@@ -589,124 +529,17 @@ export default function SourcePreviewPanel({
   }, [editing, focusedRange, pendingPatchRange, source])
 
   useEffect(() => () => {
+    const editor = editorRef.current
+    const monaco = monacoRef.current
+    const model = editor?.getModel()
+    if (monaco && model) {
+      monaco.editor.setModelMarkers(model, SOURCE_DIAGNOSTIC_MARKER_OWNER, [])
+    }
+    diagnosticDecorationsRef.current?.clear()
     window.__graphScriptSourceEditor = undefined
     editorRef.current = null
+    monacoRef.current = null
   }, [])
-
-  const toggleImportNode = (key: string) => {
-    setCollapsedImportNodes(previous => {
-      const next = new Set(previous)
-      if (next.has(key)) {
-        next.delete(key)
-      } else {
-        next.add(key)
-      }
-      return next
-    })
-  }
-
-  const renderImportNode = (node: ImportTreeNode) => {
-    const { declaration } = node
-    const loadedInSession = declarationLoadedInSession(declaration, sessionImportSet)
-    const canImport = declaration.status === 'loaded' && declaration.command.length > 0 && !loadedInSession
-    const canOpenSource = declaration.status === 'loaded' && Boolean(declarationPathKey(declaration))
-    const hasChildren = node.children.length > 0
-    const collapsed = collapsedImportNodes.has(node.key)
-    const issueMessage = declarationIssueMessage(declaration)
-
-    return (
-      <div
-        key={node.key}
-        data-source-import-tree-node="true"
-        data-source-import-status={declaration.status}
-        data-source-import-loaded={loadedInSession ? 'true' : 'false'}
-        data-source-import-problem={issueMessage ? 'true' : 'false'}
-        data-source-import-has-command={declaration.command.length > 0 ? 'true' : 'false'}
-        data-source-import-depth={declaration.depth ?? 1}
-        className="min-w-0 font-mono text-[9px]"
-      >
-        <div
-          className={`flex min-w-0 items-center gap-1 rounded border px-1.5 py-0.5 ${importStatusClasses(declaration.status)}`}
-          title={loadedInSession
-            ? `${declaration.import_chain || declaration.path}: already loaded in session`
-            : `${declaration.import_chain || declaration.path}: ${declaration.message || declaration.status}`}
-        >
-          <button
-            type="button"
-            data-source-import-toggle={node.key}
-            className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded text-current hover:bg-current/10 disabled:opacity-30"
-            title={hasChildren ? (collapsed ? 'Expand import' : 'Collapse import') : 'No nested imports'}
-            disabled={!hasChildren}
-            aria-expanded={hasChildren ? !collapsed : undefined}
-            onClick={() => toggleImportNode(node.key)}
-          >
-            {hasChildren ? (
-              collapsed ? <ChevronRight className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />
-            ) : (
-              <span className="h-1 w-1 rounded-full bg-current/50" />
-            )}
-            <span className="sr-only">{hasChildren ? (collapsed ? 'Expand import' : 'Collapse import') : 'No nested imports'}</span>
-          </button>
-          <span
-            className="min-w-0 flex-1 truncate"
-            data-source-import-chain={declaration.import_chain || declaration.path}
-          >
-            {declarationLabel(declaration)}
-          </span>
-          {loadedInSession && (
-            <span className="shrink-0 rounded bg-current/10 px-1 text-[8px]">
-              session
-            </span>
-          )}
-          {(canImport || loadedInSession) && (
-            <button
-              type="button"
-              data-source-import-command={declaration.command}
-              className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded text-current hover:bg-current/10 disabled:opacity-40"
-              title={loadedInSession ? 'Import already loaded in session' : declaration.command}
-              disabled={busy || loadedInSession}
-              onClick={() => onImportCommand(declaration.command)}
-            >
-              <Play className="h-2.5 w-2.5" />
-              <span className="sr-only">Run import command</span>
-            </button>
-          )}
-          {canOpenSource && (
-            <button
-              type="button"
-              data-source-declaration-open={declarationPathKey(declaration)}
-              className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded text-current hover:bg-current/10 disabled:opacity-40"
-              title={`Open declaration source ${declaration.path}`}
-              disabled={busy}
-              onClick={() => onOpenDeclarationSource(declarationPathKey(declaration), declaration.content_hash)}
-            >
-              <FileText className="h-2.5 w-2.5" />
-              <span className="sr-only">Open declaration source</span>
-            </button>
-          )}
-        </div>
-        {issueMessage && (
-          <div
-            data-source-import-message="true"
-            data-source-import-message-status={declaration.status}
-            className="mt-0.5 flex min-w-0 items-center gap-1 px-5 text-[8px] text-destructive"
-            title={issueMessage}
-          >
-            <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
-            <span className="truncate">{issueMessage}</span>
-          </div>
-        )}
-        {hasChildren && !collapsed && (
-          <div
-            data-source-import-children={node.key}
-            className="ml-3 mt-1 space-y-1 border-l border-current/20 pl-2"
-          >
-            {node.children.map(child => renderImportNode(child))}
-          </div>
-        )}
-      </div>
-    )
-  }
 
   return (
     <div className="flex h-full flex-col">
@@ -845,48 +678,6 @@ export default function SourcePreviewPanel({
           {pendingPatchSummary}
         </div>
       )}
-      {environmentNotice && (
-        <div
-          data-source-env-notice="true"
-          className="shrink-0 truncate border-b border-warning/20 bg-warning/5 px-3 py-1 text-[10px] text-warning/80"
-          title={environmentNotice}
-        >
-          {environmentNotice}
-        </div>
-      )}
-      {resolverEnvironment && (
-        <div
-          data-source-resolver-metadata="true"
-          className="shrink-0 border-b border-primary/20 bg-primary/5 px-3 py-1 text-[10px] text-primary/80"
-          title={`Environment ${resolverEnvironment.environment_hash}`}
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="min-w-0 flex-1 truncate">
-              Resolver {resolverEnvironment.mode}; {resolverEnvironment.declarations.length} import{resolverEnvironment.declarations.length === 1 ? '' : 's'}; {resolverEnvironment.node_type_count} node types; {resolverEnvironment.schema_count} schemas
-            </span>
-            {importReplayCommands.length > 0 && (
-              <button
-                type="button"
-                data-source-import-plan-run="true"
-                data-source-import-plan-count={importReplayCommands.length}
-                data-source-import-plan-commands={importReplayCommands.join('\n')}
-                className="inline-flex h-4 shrink-0 items-center gap-1 rounded border border-current/20 px-1.5 text-[8px] hover:bg-current/10 disabled:opacity-40"
-                title={`Run ${importReplayCommands.length} import command${importReplayCommands.length === 1 ? '' : 's'}`}
-                disabled={busy}
-                onClick={() => onImportPlan(importReplayCommands)}
-              >
-                <Play className="h-2.5 w-2.5" />
-                <span>Import {importReplayCommands.length}</span>
-              </button>
-            )}
-          </div>
-          {importTree.length > 0 && (
-            <div data-source-import-tree="true" className="mt-1 space-y-1">
-              {importTree.map(node => renderImportNode(node))}
-            </div>
-          )}
-        </div>
-      )}
 
       {editing ? (
         <div data-source-editor="true" className="min-h-0 flex-1 p-2">
@@ -906,6 +697,7 @@ export default function SourcePreviewPanel({
                 fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
                 fontSize: 12,
                 lineHeight: 20,
+                glyphMargin: true,
                 minimap: { enabled: false },
                 padding: { top: 8, bottom: 8 },
                 readOnly: applyingSource || !sourceEditable,

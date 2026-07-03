@@ -4,13 +4,30 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import SourceDiagnosticsOutput from './SourceDiagnosticsOutput'
+import type { SourceDiagnosticsEnvironment } from '@/api/types'
 
 interface CommandLogProps {
   log: string[]
   onExec: (command: string) => void
+  sourceEnvironmentNotice: string
+  sourceResolverEnvironment: SourceDiagnosticsEnvironment | null
+  sessionImports: string[]
+  sourceBusy: boolean
+  onImportPlan: (commands: string[]) => void
+  onOpenDeclarationSource: (path: string, contentHash: string) => void
 }
 
-export default function CommandLog({ log, onExec }: CommandLogProps) {
+export default function CommandLog({
+  log,
+  onExec,
+  sourceEnvironmentNotice,
+  sourceResolverEnvironment,
+  sessionImports,
+  sourceBusy,
+  onImportPlan,
+  onOpenDeclarationSource,
+}: CommandLogProps) {
   const [input, setInput] = useState('')
   const [history, setHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
@@ -65,6 +82,16 @@ export default function CommandLog({ log, onExec }: CommandLogProps) {
           {log.length}
         </Badge>
       </div>
+
+      <SourceDiagnosticsOutput
+        environmentNotice={sourceEnvironmentNotice}
+        resolverEnvironment={sourceResolverEnvironment}
+        sessionImports={sessionImports}
+        busy={sourceBusy}
+        onImportCommand={onExec}
+        onImportPlan={onImportPlan}
+        onOpenDeclarationSource={onOpenDeclarationSource}
+      />
 
       {/* Log area */}
       <ScrollArea className="flex-1 min-h-0">

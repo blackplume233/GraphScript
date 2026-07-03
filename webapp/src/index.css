@@ -311,6 +311,34 @@ code, pre, .font-mono {
   background-color: var(--color-background) !important;
 }
 
+.source-diagnostic-error-line {
+  background: oklch(0.58 0.22 25 / 0.13);
+  border-left: 2px solid var(--color-destructive);
+}
+
+.source-diagnostic-warning-line {
+  background: oklch(0.72 0.15 80 / 0.10);
+  border-left: 2px solid var(--color-warning);
+}
+
+.source-diagnostic-error-glyph {
+  background: var(--color-destructive);
+  border-radius: 999px;
+  height: 0.5rem !important;
+  margin-left: 0.25rem;
+  margin-top: 0.38rem;
+  width: 0.5rem !important;
+}
+
+.source-diagnostic-warning-glyph {
+  background: var(--color-warning);
+  border-radius: 999px;
+  height: 0.5rem !important;
+  margin-left: 0.25rem;
+  margin-top: 0.38rem;
+  width: 0.5rem !important;
+}
+
 .react-flow__selection {
   background: oklch(0.78 0.14 75 / 0.10);
   border: 1px solid oklch(0.78 0.14 75 / 0.95);

@@ -155,16 +155,16 @@ def main():
                 body=json.dumps({"ok": True, "items": []}),
             ))
             page.goto(URL, wait_until="domcontentloaded", timeout=20000)
-            page.wait_for_selector('[data-blueprint-node="context"]', timeout=10000)
-            page.wait_for_selector('[data-blueprint-node="Graph Inputs"]', timeout=10000)
+            page.wait_for_selector('[data-blueprint-node="OnStart Entry"]', timeout=10000)
+            page.wait_for_selector('[data-blueprint-node="message"]', timeout=10000)
             page.wait_for_selector('[data-blueprint-node="printer"]', timeout=10000)
             page.wait_for_timeout(700)
 
-            context_before = page.locator('[data-blueprint-node="context"]').bounding_box()
-            inputs_before = page.locator('[data-blueprint-node="Graph Inputs"]').bounding_box()
-            if not context_before or not inputs_before:
+            entry_before = page.locator('[data-blueprint-node="OnStart Entry"]').bounding_box()
+            getter_before = page.locator('[data-blueprint-node="message"]').bounding_box()
+            if not entry_before or not getter_before:
                 raise RuntimeError("Expected synthetic nodes to have visible bounds")
-            inputs_hit_before = page.evaluate(
+            getter_hit_before = page.evaluate(
                 """point => {
                     const element = document.elementFromPoint(point.x, point.y)
                     return {
@@ -173,17 +173,17 @@ def main():
                         nodeClassName: String(element?.closest('.react-flow__node')?.className || ''),
                     }
                 }""",
-                {"x": inputs_before["x"] + 22, "y": inputs_before["y"] + 9},
+                {"x": getter_before["x"] + 22, "y": getter_before["y"] + 9},
             )
-            page.mouse.move(context_before["x"] + context_before["width"] / 2, context_before["y"] + context_before["height"] / 2)
+            page.mouse.move(entry_before["x"] + entry_before["width"] / 2, entry_before["y"] + entry_before["height"] / 2)
             page.mouse.down()
-            page.mouse.move(context_before["x"] + context_before["width"] / 2 + 90, context_before["y"] + context_before["height"] / 2 + 55, steps=12)
+            page.mouse.move(entry_before["x"] + entry_before["width"] / 2 + 90, entry_before["y"] + entry_before["height"] / 2 + 55, steps=12)
             page.mouse.up()
-            inputs_drag_x = inputs_before["x"] + 22
-            inputs_drag_y = inputs_before["y"] + 9
-            page.mouse.move(inputs_drag_x, inputs_drag_y)
+            getter_drag_x = getter_before["x"] + 22
+            getter_drag_y = getter_before["y"] + 9
+            page.mouse.move(getter_drag_x, getter_drag_y)
             page.mouse.down()
-            page.mouse.move(inputs_drag_x + 75, inputs_drag_y + 40, steps=12)
+            page.mouse.move(getter_drag_x + 75, getter_drag_y + 40, steps=12)
             page.mouse.up()
             page.wait_for_timeout(400)
 
@@ -204,7 +204,7 @@ def main():
                         }
                     }
                     return {
-                        output: styleFor('[data-blueprint-node="context"] [data-pin-row="exec-out-start"] [data-pin-glyph="true"]'),
+                        output: styleFor('[data-blueprint-node="OnStart Entry"] [data-pin-row="exec-out-start"] [data-pin-glyph="true"]'),
                         input: styleFor('[data-blueprint-node="printer"] [data-pin-row="exec-in-enter"] [data-pin-glyph="true"]'),
                     }
                 }""",
@@ -215,13 +215,16 @@ def main():
                 and exec_glyph_styles["output"]["backgroundColor"] == exec_glyph_styles["input"]["backgroundColor"]
                 and exec_glyph_styles["input"]["backgroundColor"] != "rgba(0, 0, 0, 0)"
             )
-            context_after = page.locator('[data-blueprint-node="context"]').bounding_box()
-            inputs_after = page.locator('[data-blueprint-node="Graph Inputs"]').bounding_box()
-            context_moved = context_after and abs(context_after["x"] - context_before["x"]) > 30
-            inputs_moved = inputs_after and (
-                abs(inputs_after["x"] - inputs_before["x"]) > 30 or
-                abs(inputs_after["y"] - inputs_before["y"]) > 30
+            entry_after = page.locator('[data-blueprint-node="OnStart Entry"]').bounding_box()
+            getter_after = page.locator('[data-blueprint-node="message"]').bounding_box()
+            entry_moved = entry_after and abs(entry_after["x"] - entry_before["x"]) > 30
+            getter_moved = getter_after and (
+                abs(getter_after["x"] - getter_before["x"]) > 30 or
+                abs(getter_after["y"] - getter_before["y"]) > 30
             )
+            old_context_absent = page.locator('[data-blueprint-node="context"]').count() == 0
+            old_graph_inputs_absent = page.locator('[data-blueprint-node="Graph Inputs"]').count() == 0
+            event_done_absent = page.locator('[data-pin-row="exec-in-done"]').count() == 0
             browser.close()
     finally:
         proc.terminate()
@@ -232,17 +235,28 @@ def main():
 
     print("Visual graph interface edge regression")
     print(f"  lines: {lines}")
-    print(f"  context flow line: {flow_line}")
+    print(f"  event entry flow line: {flow_line}")
     print(f"  parameter data line: {data_line}")
-    print(f"  context moved: {context_moved}")
-    print(f"  graph inputs moved: {inputs_moved}")
+    print(f"  event entry moved: {entry_moved}")
+    print(f"  parameter getter moved: {getter_moved}")
     print(f"  exec glyph styles: {exec_glyph_styles}")
-    print(f"  graph inputs hit: {inputs_hit_before}")
-    print(f"  graph inputs before: {inputs_before}")
-    print(f"  graph inputs after: {inputs_after}")
+    print(f"  parameter getter hit: {getter_hit_before}")
+    print(f"  parameter getter before: {getter_before}")
+    print(f"  parameter getter after: {getter_after}")
     print(f"  backend commands: {exec_commands}")
     print(f"Screenshots: {OUT}")
-    if lines < 2 or flow_line < 1 or data_line < 1 or not exec_input_matches_output or not context_moved or not inputs_moved or exec_commands:
+    if (
+        lines < 2 or
+        flow_line < 1 or
+        data_line < 1 or
+        not exec_input_matches_output or
+        not entry_moved or
+        not getter_moved or
+        not old_context_absent or
+        not old_graph_inputs_absent or
+        not event_done_absent or
+        exec_commands
+    ):
         raise SystemExit("Expected context and graph parameter edges to render")
 
 

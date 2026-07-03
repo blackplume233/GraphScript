@@ -48,12 +48,19 @@ authority in the browser.
   synthetic node IDs must never leak into backend edit payloads. Convert visual
   IDs back to backend endpoints before creating, deleting, reconnecting, or
   logging edges.
+- Render graph interface facts as semantic helper nodes, not as misleading
+  grouped object nodes. Event blocks expose an `Event Entry` node with only
+  `context.start`; event views must not show `context.done` or `context.result`.
+  Function blocks expose separate `Function Entry` and `Function Return` nodes,
+  where return owns `context.done` and `context.result`. Bare graph parameters
+  render as one `Parameter Getter` node per parameter instead of a grouped
+  `Graph Inputs` node.
 - Synthetic graph interface nodes should remain draggable as UI-only layout
-  helpers. Moving `context` or `Graph Inputs` updates local canvas position only
-  and must not issue `annotate node`, `remove_node`, or other backend commands.
-  Keep them on the same node color system as ordinary graph nodes. Flow input
-  exec pins should use the same filled exec glyph treatment as flow outputs, not
-  a black or hollow block.
+  helpers. Moving event/function entry, function return, or parameter getter
+  nodes updates local canvas position only and must not issue `annotate node`,
+  `remove_node`, or other backend commands. Keep them on the same node color
+  system as ordinary graph nodes. Flow input exec pins should use the same
+  filled exec glyph treatment as flow outputs, not a black or hollow block.
 
 ## Dockable Workbench Components
 
@@ -97,6 +104,15 @@ authority in the browser.
   manual Apply/Revert operations visibly busy, but treat debounced background
   checks as non-blocking and ignore stale async results if the buffer changed
   while they were in flight.
+- Source diagnostics resolver/import environment details belong in the
+  Console/Output panel, not inside Source. Source may show compact sync state,
+  pending patch state, and inline Monaco markers, but it must not render bulky
+  resolver summaries, import trees, dry-run environment text, or replay plans
+  above the editor because those blocks shift the user's cursor context.
+- Ranged Source diagnostics must create Monaco markers/decorations from
+  backend-provided `Diagnostic.range`. Errors should visibly mark the affected
+  line in red and warnings in warning color without focusing, scrolling, or
+  changing selection unless the user explicitly chooses a diagnostic location.
 - Source range focus must translate backend `{ line, column }` ranges into
   Monaco selections and reveal the range in view. Preview mode must continue to
   highlight backend-provided ranges without guessing semantic targets.

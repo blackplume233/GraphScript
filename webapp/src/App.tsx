@@ -506,17 +506,17 @@ function sourceEnvironmentNotice(source: string, state: GSState | null, resolver
   if (resolverEnvironment) {
     const loadedCount = resolverEnvironment.declarations.filter(declaration => declaration.status === 'loaded').length
     const blockedCount = resolverEnvironment.declarations.filter(declaration => declaration.status !== 'loaded').length
-    return `Source diagnostics resolved ${loadedCount}/${resolverEnvironment.declarations.length} import${resolverEnvironment.declarations.length === 1 ? '' : 's'} in a dry-run Environment (${resolverEnvironment.node_type_count} node types, ${resolverEnvironment.schema_count} schemas). ${blockedCount > 0 ? `${blockedCount} import${blockedCount === 1 ? '' : 's'} blocked or unresolved.` : 'Apply still uses the current session Environment until imports are loaded through CLI commands.'}`
+    return `Source 诊断在 dry-run 环境中解析了 ${loadedCount}/${resolverEnvironment.declarations.length} 个导入（${resolverEnvironment.node_type_count} 个节点类型，${resolverEnvironment.schema_count} 个 Schema）。${blockedCount > 0 ? `${blockedCount} 个导入被阻止或未解析。` : 'Apply 仍使用当前会话环境，除非先通过 CLI import 命令加载这些声明。'}`
   }
 
   const typeCount = state?.types.length ?? 0
   const schemaCount = state?.schemas.length ?? 0
   const sessionImportCount = state?.module.imports.filter(importDef => importDef.loaded).length ?? 0
-  const base = `Source diagnostics and Apply use the current session Environment (${typeCount} node types, ${schemaCount} schemas).`
+  const base = `Source 诊断和 Apply 当前使用会话环境（${typeCount} 个节点类型，${schemaCount} 个 Schema）。`
   if (importCount > 0) {
-    return `${base} ${importCount} source import${importCount === 1 ? '' : 's'} parsed here; import files are not loaded by this editor check. Session has ${sessionImportCount} loaded import${sessionImportCount === 1 ? '' : 's'}.`
+    return `${base} 当前源码包含 ${importCount} 个 import；会话已加载 ${sessionImportCount} 个 import。`
   }
-  return `${base} Import files are not loaded by this editor check.`
+  return base
 }
 
 function applySourceEdit(source: string, range: SourceRange, replacement: string): { source: string; range: SourceRange } | null {
@@ -2044,6 +2044,14 @@ export default function App() {
     () => sourceEnvironmentNotice(sourceText, state, sourceResolverEnvironment),
     [sourceText, state, sourceResolverEnvironment],
   )
+  const sessionImports = useMemo(
+    () => state?.module.imports
+      .filter(importDef => importDef.loaded)
+      .flatMap(importDef => [importDef.path, importDef.normalized_path ?? ''])
+      .filter(Boolean) ?? [],
+    [state],
+  )
+  const sourceBusy = checkingSource || applyingSource || sourceSyncState === 'checking'
 
   useEffect(() => {
     if (!currentGraph) return
@@ -2204,24 +2212,27 @@ export default function App() {
                 canApplySource={canApplySource}
                 pendingPatchRange={pendingSourcePatchRange}
                 pendingPatchSummary={pendingSourcePatchSummary}
-                environmentNotice={sourceEnvNotice}
-                resolverEnvironment={sourceResolverEnvironment}
-                sessionImports={state?.module.imports
-                  .filter(importDef => importDef.loaded)
-                  .flatMap(importDef => [importDef.path, importDef.normalized_path ?? ''])
-                  .filter(Boolean) ?? []}
+                sourceDiagnostics={sourceDiagnostics}
                 declarationRenameContext={declarationRenameContext}
                 onCheckSource={handleCheckSourceDiagnostics}
                 onSourceChange={handleSourceTextChange}
                 onApplySource={handleApplySourceText}
                 onRevertSource={handleRevertSourceText}
-                onImportCommand={handleExec}
-                onImportPlan={handleImportPlan}
-                onOpenDeclarationSource={handleOpenDeclarationSource}
                 onRenameDeclaration={handleRenameDeclaration}
               />
             )}
-            console={<CommandLog log={state?.command_log ?? []} onExec={handleExec} />}
+            console={(
+              <CommandLog
+                log={state?.command_log ?? []}
+                onExec={handleExec}
+                sourceEnvironmentNotice={sourceEnvNotice}
+                sourceResolverEnvironment={sourceResolverEnvironment}
+                sessionImports={sessionImports}
+                sourceBusy={sourceBusy}
+                onImportPlan={handleImportPlan}
+                onOpenDeclarationSource={handleOpenDeclarationSource}
+              />
+            )}
           />
         </div>
       </div>
