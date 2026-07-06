@@ -1449,7 +1449,7 @@ PEGTL 适合想完全掌控 parser、且语法规模较小的场景。作为快�
 
 也就是说，Tree-sitter 是正式的 Syntax Parser 技术选型，但它不替代整个 GraphScript compiler service。
 
-具体 CST named node、field name、source patch anchor 和错误恢复要求以 [AI Native 资产语法](./ai-native-syntax-draft.md) 的 “Tree-sitter CST 契约” 为准。
+具体 CST named node、field name、source patch anchor 和错误恢复要求以 [AI Native 资产语法](./syntax-draft.md) 的 “Tree-sitter CST 契约” 为准。
 
 ```text
 可以复用：

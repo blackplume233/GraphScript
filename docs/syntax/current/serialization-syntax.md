@@ -211,5 +211,5 @@ collaborative source 混淆。
 
 长文设计历史保留在：
 
-- [AI Native Syntax Draft](../design/ai-native-syntax-draft.md)
-- [AI Native Asset Format](../design/ai-native-asset-format.md)
+- [AI Native Syntax Draft](../design/ai-native/syntax-draft.md)
+- [AI Native Asset Format](../design/ai-native/asset-format.md)

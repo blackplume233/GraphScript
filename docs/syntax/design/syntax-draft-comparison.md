@@ -10,9 +10,9 @@
 
 当前主要候选：
 
-1. [面向节点的类型化表层语法](./node-oriented-syntax-draft.md)
-2. [JSON 超集 DocumentNode 语法](./json-superset-documentnode-draft.md)
-3. [JSON-like Authoring Syntax](./json-like-authoring-syntax-draft.md)
+1. [面向节点的类型化表层语法](./node-oriented/syntax-draft.md)
+2. [JSON 超集 DocumentNode 语法](./json-superset-documentnode/syntax-draft.md)
+3. [JSON-like Authoring Syntax](./json-like-authoring/syntax-draft.md)
 
 这些草稿都不重新定义稳定设计理念。稳定原则以 `docs/spec/` 为准。
 

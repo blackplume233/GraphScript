@@ -4,7 +4,7 @@
 >
 > 状态：语法草稿决策记录。
 >
-> 对应草稿：[JSON-like Authoring Syntax 草稿](./json-like-authoring-syntax-draft.md)
+> 对应草稿：[JSON-like Authoring Syntax 草稿](./syntax-draft.md)
 
 ---
 
@@ -228,11 +228,11 @@ linter 应能识别重复 command，但删除时不能只说“删掉重复项�
 
 本次记录对应的正式草稿文件是：
 
-- [JSON-like Authoring Syntax 草稿](./json-like-authoring-syntax-draft.md)
+- [JSON-like Authoring Syntax 草稿](./syntax-draft.md)
 
 语法路线对比文件是：
 
-- [语法草稿对比](./syntax-draft-comparison.md)
+- [语法草稿对比](../syntax-draft-comparison.md)
 
 这份记录只保存讨论和取舍背景。若某个决策进入实现指导阶段，应把提炼后的
 稳定结论移动到 `../current/` 或 `docs/spec/` 中，而不是继续扩展本文。
