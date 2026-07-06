@@ -20,7 +20,7 @@ cmake --build build --config Release
 | Parser or syntax | Parser tests, invalid-input cases, fixtures, and current syntax docs. |
 | Document patch/format | Round-trip tests and preservation checks for unrelated text. |
 | Projection/domain | Projection tests, diagnostics tests, and graph-domain docs. |
-| EditSession/API | Edit/replay tests and API state checks. |
+| EditSession/API | Edit/replay tests, source patch checks, reparse/reproject checks, and API state checks. |
 | CLI | Dispatch/help updates and smoke tests. |
 | Fixtures | Integration parse/project test and round-trip coverage where relevant. |
 
@@ -52,6 +52,9 @@ Follow this order unless a task proves a narrower scope:
 - Scope validation should use positive allowed-name sets rather than
   blacklisting forbidden references.
 - CLI and GUI editing operations must go through replayable command semantics.
+- Programmatic CRUD APIs may expose simple collection-like methods, but backend
+  implementation must lower them to source-bound semantic operations and verify
+  the resulting semantic delta after reparse/reproject.
 - Search for existing helpers before adding new utilities or constants.
 
 ## Forbidden Patterns

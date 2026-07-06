@@ -110,6 +110,27 @@ Graph edit operation 应降到 serialization document operation：
 | disconnect edge | 删除 source command call。 |
 | add entry | 插入嵌套 entry/event-like source item。 |
 
+UI、CLI 或 SDK 可以暴露简单的集合式操作，例如 `steps.push(...)`、
+`nodes.delete(...)` 或 `edge.reconnect(...)`。这些只是外层 authoring API，
+后端必须把它们记录为 source-bound semantic operation，再生成
+serialization document operation 和 `TextPatch`。不能先修改一个脱离源码的
+graph DTO，再在保存时整图序列化。
+
+每个 graph edit 在接受前必须完成：
+
+```text
+graph operation
+  -> semantic edit op
+  -> source anchor lookup
+  -> TextPatch
+  -> reparse + relint + reproject
+  -> expected semantic delta check
+```
+
+如果重新投影后的 graph facts 与操作意图不一致，本次编辑必须失败并返回
+diagnostic。重复节点、重复 step 或重复 edge 的删除必须依赖 stable id、
+source range 或同一列表内的 item index，不能只按语义相等删除。
+
 当首选 patch anchor 缺失时，系统应插入新的 fragment 或 contribution，而不
 是重写整个文件。
 

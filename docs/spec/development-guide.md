@@ -205,6 +205,114 @@ tx.target = SourceBinding{/* file, node range, value range */};
 tx.patches = rewrite.set_property_value(tx.target, "75");
 ```
 
+## Scenario: Source-Bound Programmatic CRUD
+
+### 1. Scope / Trigger
+
+Any programmatic create/update/delete/move API that changes graph, flow,
+parameter, node, edge, metadata, or source-visible domain state must compile to a
+source-bound document edit. This applies even when the public API is intentionally
+simple, such as `steps.push(...)`, `nodes.erase(...)`, or `edge.reconnect(...)`.
+
+### 2. Signatures
+
+Public APIs may look collection-like:
+
+```cpp
+Result<EditResult, std::string> push_step(FlowRef flow, StepSpec step);
+Result<EditResult, std::string> delete_step(StepId step_id);
+Result<EditResult, std::string> set_node_property(NodeId node, std::string key, ValueSpec value);
+Result<EditResult, std::string> move_node(NodeId node, EditorPosition position);
+```
+
+Internally they must lower to semantic operations and document patches:
+
+```cpp
+struct SemanticEditOp {
+    EditKind kind;
+    SourceAnchor target;
+    std::optional<SourceAnchor> insertion_anchor;
+    EditPayload payload;
+};
+
+struct EditResult {
+    DocumentSnapshot before;
+    std::vector<TextPatch> patches;
+    DocumentSnapshot after;
+    SemanticDelta semantic_delta;
+    std::vector<Diagnostic> diagnostics;
+};
+```
+
+### 3. Contracts
+
+- `DocumentSnapshot` is immutable for a completed operation.
+- `LosslessDocument` owns token, trivia, comments, blank lines, source ranges,
+  missing nodes, and error nodes.
+- `SemanticModel`, graph model, and editor state are projections; they must not
+  be persisted as a second source of truth.
+- A public mutation API records a `SemanticEditOp`; it does not directly mutate
+  persisted graph state.
+- Applying an operation must produce one or more minimal `TextPatch` values.
+- After patching, the implementation must reparse, relint, and reproject.
+- The final `SemanticDelta` must match the requested operation before the edit is
+  accepted.
+- Unmodified source ranges must remain byte-for-byte unchanged.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required behavior |
+| --- | --- |
+| Target has no source anchor | Return diagnostic; do not silently serialize the whole graph. |
+| Duplicate semantic item target is ambiguous | Require stable id, source range, or item index. |
+| Patch applies but reparse fails outside the edited range | Reject or surface blocking diagnostic. |
+| Reparse succeeds but expected semantic delta is missing | Reject operation and report projection mismatch. |
+| Formatter would need whole-file rewrite for a local edit | Use local fragment insertion or return diagnostic. |
+| Public API mutates only in-memory graph state | Treat as implementation bug. |
+
+### 5. Good/Base/Bad Cases
+
+- Good: `steps.push(call("patrol.start"))` records `AddStepOp`, inserts
+  `patrol.start()` into the source `steps` array, reparses, and verifies the new
+  call fact exists.
+- Base: `move_node(node, position)` patches only editor metadata and preserves
+  all unrelated text.
+- Bad: `graph.nodes.push(node)` updates editor JSON and later emits the whole
+  graph file from memory.
+
+### 6. Tests Required
+
+Every editable CRUD feature needs tests that assert:
+
+1. The public API produces a `TextPatch`.
+2. The patch touches only the intended source range or insertion point.
+3. Comments, blank lines, and unrelated formatting are preserved.
+4. Reparse + relint + reproject happens after patch application.
+5. The semantic delta contains the expected create/update/delete/move fact.
+6. Ambiguous duplicate items require source identity instead of deleting by
+   semantic equality alone.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```cpp
+graph.events["OnStart"].steps.push_back(CallStep{"patrol.start"});
+save_graph_as_text(graph);
+```
+
+#### Correct
+
+```cpp
+auto result = edit_session.push_step(
+    FlowRef{"events.OnStart"},
+    StepSpec::call("patrol.start"));
+if (result.is_err()) return result;
+
+// push_step created a TextPatch, reparsed the source, and verified the new
+// semantic call fact before committing the new document snapshot.
+```
+
 ### Pattern: Graph Validation via Positive Checking
 
 Validate references by using projected graph/domain facts and source bindings,
