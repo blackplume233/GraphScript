@@ -46,15 +46,21 @@ JSON/TS-like object structure
 
 - 主体仍是 `key: value`、object、array、scalar、path。
 - `event OnStart {}` 这类双头 DSL header 不作为 canonical 写法。
-- `events.OnStart: { ... }` 作为 dotted key 写法，等价于嵌套 object path。
+- `Start: [...]`、`patrol.onReachedTarget: [...]` 这类 named entry 作为
+  canonical 写法；是否表示事件或回调由 schema 决定。
 - `patrol.start()` 作为 command，而不是 `{ call: "patrol.start" }`。
 - `patrol.route = route` 作为 assignment，而不是 `{ set, value }`。
 - `@comment("...")` 作为 annotation，而不是把注释全部塞进 meta object。
-- `steps` 只表达线性主干语法糖，不替代完整领域图或运行时图语义。
+- 数组本身只是 `DocumentArray`；schema 可以把某些数组解释为 executable
+  statement list。
 
 本文记录的是 DSL 表层结构和 DocumentNode 结构，不把 Graph/FlowGraph 的
 `node`、`pin`、`edge` 作为当前层基础术语。Graph 是目标投影之一，而不是
 当前 DSL grammar 的语义层。
+
+同理，`event`、`flow`、`steps`、`on`、`inputs`、`outputs`、`methods`、
+`callbacks` 都不是 grammar 关键字。它们只是普通字段名，含义由 schema、
+linter 和 projection 决定。
 
 ---
 
@@ -70,7 +76,7 @@ patrol: PatrolController {
 }
 ```
 
-声明侧用 `inputs`、`outputs`、`methods`、`callbacks` 描述它：
+声明侧可以用普通字段描述它；这些字段名由 schema 约定：
 
 ```ts
 PatrolController: object {
@@ -95,9 +101,9 @@ PatrolController: object {
 }
 ```
 
-当前层语义映射：
+schema 语义映射示例：
 
-| 文本形式 | 当前层语义 |
+| 文本形式 | schema 可解释为 |
 | --- | --- |
 | `inputs` | 对象实例的可配置输入或数据依赖 |
 | `outputs` | 对象实例可暴露的数据输出 |
@@ -112,21 +118,22 @@ DSL 层的基础语法。
 
 ---
 
-## `steps` 的定位
+## 数组与 named entry 的定位
 
-`steps` 不是通用脚本语言，也不是所有图结构的唯一表达。它只负责把“有默认
-继续出口”的命令串成线性主干：
+`steps` 不再作为语法层概念。可执行列表就是普通 array value；哪个 entry
+的 array value 表示流程入口，由 schema 决定：
 
 ```ts
-steps: [
+Start: [
     ResetRuntimeState()
     Wait(waypointDelay)
     patrol.start()
 ]
 ```
 
-如果 command 没有默认出口，后续又接了下一步，应由 linter 报错。如果 command
-有多个出口，需要写 exit block：
+如果 schema 把某个 array 解释为 executable statement list，而 command
+没有默认出口，后续又接了下一项，应由 linter 报错。如果 command 有多个
+出口，需要写 trailing object：
 
 ```ts
 streaming.load("PatrolArea") {
@@ -140,14 +147,13 @@ streaming.load("PatrolArea") {
 }
 ```
 
-callback 不应被塞进当前 `steps` 的下一行，而应写成独立 block：
+callback-like entry 不应被塞进当前 array 的下一项，而应写成独立 named
+entry：
 
 ```ts
-callbacks.patrol.onReachedTarget: {
-    steps: [
-        patrol.moveNext()
-    ]
-}
+patrol.onReachedTarget: [
+    patrol.moveNext()
+]
 ```
 
 ---
@@ -205,7 +211,7 @@ serialization 解决。
 例如：
 
 ```ts
-steps: [
+Start: [
     patrol.start()
     patrol.start()
     patrol.start()
@@ -213,7 +219,7 @@ steps: [
 ```
 
 linter 应能识别重复 command，但删除时不能只说“删掉重复项”。必须依赖
-`sourceRange`、stable id 或 steps item index，明确删除哪一条。否则视觉图
+`sourceRange`、stable id 或 array item index，明确删除哪一条。否则视觉图
 和文本 source 的双向编辑会产生误删风险。
 
 ---
@@ -225,7 +231,7 @@ linter 应能识别重复 command，但删除时不能只说“删掉重复项�
 - dotted key 与嵌套 object 的 source patch 是否稳定。
 - typed slot / typed block 的 parser 恢复能力。
 - command、assignment、annotation 的 formatter 输出规则。
-- `steps` 的默认出口检查。
+- executable array 的默认出口检查。
 - multi-exit command 到领域投影的 lowering。
 - duplicate-step / duplicate-relation linter 的 source range 定位。
 - `.d.gs` declaration 到 `.gs` asset 的跨文件引用诊断。

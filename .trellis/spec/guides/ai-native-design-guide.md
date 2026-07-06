@@ -49,17 +49,22 @@ Graph and FlowGraph are target domain projections, not the current syntax layer.
 Use current-layer terms such as:
 
 - `DocumentNode`
-- `Entry`
-- `ObjectInstance`
-- `ObjectType`
+- `DocumentObject`
+- `DocumentEntry` / `Entry`
+- `DocumentArray`
+- `TypedObject`
 - `Command`
-- `Step`
-- `Callback`
 - `Assignment`
+- `Annotation`
 
 Do not use `GraphNode`, `Pin`, `Edge`, or graph node/edge/pin language as DSL
 grammar concepts. These terms are acceptable only when explicitly describing
 how a DSL structure is projected into a Graph/FlowGraph domain view.
+
+Do not make domain field names such as `event`, `flow`, `steps`, `on`,
+`inputs`, `outputs`, `methods`, or `callbacks` grammar concepts. They may
+appear as ordinary entries, but their meaning belongs to schema, linter, and
+projection layers.
 
 ## Source Preservation Expectations
 

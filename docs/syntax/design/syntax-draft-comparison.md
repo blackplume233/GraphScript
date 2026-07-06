@@ -92,26 +92,22 @@ XibeiNpcPatrol: level {
         route: PatrolRoute
     }
 
-    objects: {
-        patrol: PatrolController {
-            leader = patrolLeader
-            route = route
-        }
+    patrol: PatrolController {
+        leader = patrolLeader
+        route = route
     }
 
-    events.OnStart: {
-        steps: [
-            patrol.route = route
-            patrol.start() {
-                completed: [
-                    Print("started")
-                ]
-                failed: [
-                    Print("failed")
-                ]
-            }
-        ]
-    }
+    Start: [
+        patrol.route = route
+        patrol.start() {
+            completed: [
+                Print("started")
+            ]
+            failed: [
+                Print("failed")
+            ]
+        }
+    ]
 }
 ```
 
@@ -122,8 +118,10 @@ XibeiNpcPatrol: level {
   assignment、annotation。
 - 避免 `event OnStart {}` 这种非 key/value header。
 - 避免 `->`、低层 `connect(...)`、低层 `bind(...)` 成为策划主语法。
-- 多入口、多出口的可调用实体以对象实例的 methods、callbacks、inputs、
-  outputs 表达；Graph/FlowGraph 只作为后续投影目标。
+- 不把 `event`、`flow`、`steps`、`on` 作为 grammar 关键字；它们最多是
+  schema 字段名。
+- 多入口、多出口的可调用实体通过 typed object、普通 entry、command 和
+  schema 字段约定表达；Graph/FlowGraph 只作为后续投影目标。
 
 ---
 
@@ -135,7 +133,7 @@ XibeiNpcPatrol: level {
 | Code review | 图结构更直观 | 结构字段更多，diff 更机械 | path + command 可读性较好 |
 | Parser 难度 | 需要自定义 grammar | 可从 JSON5 grammar 起步 | 需要 JSON-like 自定义 grammar |
 | Formatter | 需要 DSL formatter | 可接近 JSON formatter | 需要专用 formatter，但规则较小 |
-| Source patch | 需要语法节点 anchor | object path / JSON Pointer 更自然 | dotted path + source anchor |
+| Source patch | 需要语法节点 anchor | object path / JSON Pointer 更自然 | entry path + source anchor |
 | Command 表达 | `connect(a, b)` 自然 | 需 `{ op, from, to }` 或 tuple | `object.method()` / `Action()` |
 | Assignment 表达 | property/command 混合 | 需 `{ set, value }` | `target = expr` |
 | Annotation 表达 | `@Name(...)` 自然 | `meta` object | `@Name(...)` 自然 |
@@ -143,8 +141,8 @@ XibeiNpcPatrol: level {
 | JSON 兼容 | 不兼容 | 可以保持 JSON/JSON5-compatible | 不兼容严格 JSON5，但保留 object 心智 |
 | DOM/tree 渲染 | 需要 lowering | 天然 object tree | dotted key lowering 到 object path |
 | 声明文件 | 简洁 | 结构稳定但更长 | object methods/callbacks 更贴近可调用对象模型 |
-| AI patch | 需要理解 DSL | 更适合结构化 patch | path/step anchor 明确 |
-| 视觉编辑回写 | 依赖 source binding | 路径定位更直接 | path + command/assignment anchor |
+| AI patch | 需要理解 DSL | 更适合结构化 patch | entry path / array item anchor 明确 |
+| 视觉编辑回写 | 依赖 source binding | 路径定位更直接 | entry path + command/assignment anchor |
 | Runtime bake 输入 | 需要投影转换 | 更接近结构化输入 | 需要 lowering，但语义较接近 authoring |
 
 ---
@@ -172,7 +170,7 @@ commands: [
 JSON-like Authoring 路线：
 
 ```ts
-steps: [
+Start: [
     apply.target = target
     apply.start()
 ]
@@ -253,6 +251,7 @@ apply: ApplyDamage {
 - 希望保持 JSON/TS object 心智，但不能接受纯 JSON command 噪声。
 - 策划需要写 assignment、command、annotation。
 - 不希望 `event OnStart {}`、`->`、`connect/bind` 成为主语法。
+- 不希望 `on`、`events`、`steps` 这类领域字段进入 grammar。
 - 需要把多入口、多出口的可调用实体表达成对象方法、回调、属性和状态。
 
 ---

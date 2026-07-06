@@ -34,8 +34,8 @@ path，但允许少量一等语法补足游戏创作体验。
 
 - asset 文件的表层结构。
 - declaration 文件的表层结构。
-- object、event、flow、callback、steps 的写法。
-- 多入口、多出口的可调用对象如何表达为对象方法、回调和变量。
+- DocumentObject、Entry、Array、TypedObject、Call、Assignment 的写法。
+- 多入口、多出口的可调用对象如何通过普通 entry 和 schema 表达。
 - assignment、command、annotation 的标准形式。
 - 降级到结构化 IR / DocumentNode / 领域投影 fact 的方式。
 
@@ -83,7 +83,7 @@ path，但允许少量一等语法补足游戏创作体验。
 严格 JSON5 中，所有对象成员都必须是 `key: value`。这会让流程写法变成：
 
 ```json5
-steps: [
+Start: [
   { call: "patrol.start" },
   { set: "patrol.route", value: "$route" },
   { annotation: "comment", args: ["start patrol"] },
@@ -95,7 +95,7 @@ steps: [
 本文选择保留 JSON/TS 的对象结构，但允许：
 
 ```ts
-steps: [
+Start: [
     @comment("start patrol")
     patrol.route = route
     patrol.start()
@@ -113,35 +113,35 @@ name = OnStart
 body = {}
 ```
 
-本文改用 path key：
+本文不再为事件引入专用语法。事件只是 schema 解释出来的 named entry：
 
 ```ts
-events.OnStart: {
-    steps: [
+Start: [
+    patrol.start()
+]
+```
+
+如果某个 domain 需要分组，也可以用普通 object entry：
+
+```ts
+events: {
+    Start: [
         patrol.start()
     ]
 }
 ```
 
-它等价于 object path：
-
-```ts
-events: {
-    OnStart: {
-        steps: [...]
-    }
-}
-```
-
-这样既减少嵌套，又保持 `key: value` 的结构心智。
+两者在 grammar 层都只是 `Entry`，是否表示事件完全由 asset schema 决定。
+`on: { Start: [...] }`、`events.Start: [...]` 或直接 `Start: [...]` 都不应
+成为语法特权形式。
 
 ### 核心取舍
 
 - 不使用 `->`。
 - 不把 `connect(...)` / `bind(...)` 作为策划主语法。
-- `steps` 只表达线性主干，不替代完整领域图或运行时图。
-- 多入口、多出口的可调用实体在文本中表现为对象实例：方法、回调、输入、
-  输出。
+- 不把 `event`、`flow`、`steps`、`on` 作为 grammar 关键字。
+- 多入口、多出口的可调用实体在文本中表现为 typed object、普通 entry、
+  command 和 trailing object。
 - JSON-like DSL 是结构底座；Graph/FlowGraph 只是后续 domain projection。
 
 ### 层级边界与术语约束
@@ -155,17 +155,21 @@ Graph/FlowGraph 是重要目标领域，但它们的术语不应倒灌为当前 
 | 当前层术语 | 含义 |
 | --- | --- |
 | `DocumentNode` | DSL 解析后的无损文档节点。 |
-| `Entry` | `path: value` 形式的文档成员。 |
-| `ObjectInstance` | `name: Type { ... }` 表达的类型化对象实例。 |
-| `ObjectType` | `.d.gs` 中声明的对象类型。 |
+| `DocumentObject` | `{ ... }` 表达的文档对象。 |
+| `DocumentEntry` / `Entry` | `path: value` 形式的文档成员。 |
+| `DocumentArray` | `[ ... ]` 表达的文档数组；schema 可把它解释为执行序列。 |
+| `TypedObject` | `name: Type { ... }` 这种 entry value 形态。 |
 | `Command` | `callee(args)` 形式的行为或构造调用。 |
-| `Step` | `steps` 数组中的 command、assignment、let 或 keyed step。 |
-| `Callback` | 对象实例暴露的生命周期或事件出口。 |
 | `Assignment` | `target = value` 形式的数据绑定、配置或状态写入。 |
+| `Annotation` | `@name(args)` 形式的结构化注释或元信息。 |
 
-Graph/FlowGraph 术语只能出现在投影说明中，例如“某个 `ObjectInstance` 可以被
+Graph/FlowGraph 术语只能出现在投影说明中，例如“某个 `TypedObject` 可以被
 FlowGraph 投影为 GraphNode”。本文不把 `GraphNode`、`Pin`、`Edge` 作为 DSL
 grammar 的基础概念。
+
+同理，`event`、`flow`、`steps`、`callback`、`inputs`、`outputs`、`methods`
+等也不是 grammar 概念。它们可以作为普通字段名出现，但其含义由 schema、
+linter 和 projection 解释。
 
 Node-first 概念仍然可用，但它指的是内部 DocumentNode model，而不是
 GraphNode-first authoring syntax：
@@ -195,21 +199,21 @@ DocumentItem {
 其中 path 可以由嵌套 object 得到，也可以由 dotted key 得到：
 
 ```ts
-events.OnStart: { ... }
+patrol.onReachedTarget: [ ... ]
 ```
 
 等价路径：
 
 ```text
-["events", "OnStart"]
+["patrol", "onReachedTarget"]
 ```
 
 领域投影层再把这些文档事实解释成：
 
 - level / quest / dialogue / table / graph 等 asset root。
-- object instance。
-- event / flow / callback。
-- command step。
+- object instance / declaration。
+- event-like entry / reusable routine / callback-like entry。
+- executable array item。
 - assignment / data binding。
 - annotation / editor metadata。
 
@@ -268,11 +272,9 @@ XibeiNpcPatrol: level {
         patrolLeader: AActor
     }
 
-    events.OnStart: {
-        steps: [
-            Print("start")
-        ]
-    }
+    Start: [
+        Print("start")
+    ]
 }
 ```
 
@@ -293,26 +295,20 @@ XibeiNpcPatrol: level {
         waypointDelay: float = 2.0
     }
 
-    objects: {
-        patrol: PatrolController {
-            leader = patrolLeader
-            route = route
-        }
+    patrol: PatrolController {
+        leader = patrolLeader
+        route = route
     }
 
-    events.OnStart: {
-        steps: [
-            ResetRuntimeState()
-            patrol.start()
-        ]
-    }
+    Start: [
+        ResetRuntimeState()
+        patrol.start()
+    ]
 
-    callbacks.patrol.onReachedTarget: {
-        steps: [
-            Wait(waypointDelay)
-            patrol.moveNext()
-        ]
-    }
+    patrol.onReachedTarget: [
+        Wait(waypointDelay)
+        patrol.moveNext()
+    ]
 }
 ```
 
@@ -320,11 +316,12 @@ XibeiNpcPatrol: level {
 
 - `XibeiNpcPatrol: level {}` 是 asset root。
 - `inputs` 是开放块，内部使用 typed slot。
-- `objects` 是对象实例表。
-- `events.OnStart` 是 dotted key，减少 `events: { OnStart: ... }` 嵌套。
-- `steps` 是线性流程糖。
+- `patrol: PatrolController {}` 是 typed object entry。
+- `Start: [...]` 是普通 named entry；schema 可把它解释为入口流程。
+- `patrol.onReachedTarget: [...]` 是普通 dotted entry；schema 可把它解释为
+  callback-like 入口。
 - `patrol.start()` 是 command。
-- `patrol.onReachedTarget` 是对象 callback path。
+- `[...]` 是 DocumentArray；schema 可把它解释为 statement list。
 
 ---
 
@@ -412,29 +409,27 @@ XibeiNpcPatrol: level {
         alertRegroupDelay: float = 3.0
     }
 
-    objects: {
-        @comment("巡逻队主控制对象")
-        patrol: PatrolController {
-            leader = patrolLeader
-            route = route
-            moveSpeed = 300
-        }
-
-        streaming: StreamingController {
-            area = "PatrolArea"
-        }
+    @comment("巡逻队主控制对象")
+    patrol: PatrolController {
+        leader = patrolLeader
+        route = route
+        moveSpeed = 300
     }
 
-    flows.CreatePatrolTeam: {
+    streaming: StreamingController {
+        area = "PatrolArea"
+    }
+
+    CreatePatrolTeam: routine {
         inputs: {
             route: PatrolRoute
             leader: AActor = patrolLeader
         }
 
-        steps: [
+        body: [
             let anchor = GetActorLocation(leader)
 
-            parallel: [
+            parallel([
                 [
                     SpawnMonsters({
                         route = route
@@ -452,7 +447,7 @@ XibeiNpcPatrol: level {
                         route = route
                     })
                 ]
-            ]
+            ])
 
             WaitAllSpawned()
             BindTeam()
@@ -460,63 +455,55 @@ XibeiNpcPatrol: level {
         ]
     }
 
-    events.OnStart: {
-        steps: [
-            @comment("BeginPlay 初始化状态和 streaming")
-            ResetRuntimeState()
+    Start: [
+        @comment("BeginPlay 初始化状态和 streaming")
+        ResetRuntimeState()
 
-            streaming.load("PatrolArea") {
-                completed: [
-                    CreatePatrolTeam({
-                        route = route
-                        leader = patrolLeader
-                    })
-                    patrol.configure()
-                    patrol.start()
-                ]
+        streaming.load("PatrolArea") {
+            completed: [
+                CreatePatrolTeam({
+                    route = route
+                    leader = patrolLeader
+                })
+                patrol.configure()
+                patrol.start()
+            ]
 
-                failed: [
-                    Print("PatrolArea streaming failed")
-                    Wait(1.0)
-                    streaming.retry()
-                ]
-            }
-        ]
-    }
+            failed: [
+                Print("PatrolArea streaming failed")
+                Wait(1.0)
+                streaming.retry()
+            ]
+        }
+    ]
 
-    callbacks.patrol.onReachedTarget: {
-        steps: [
-            if: RouteHasNext(route) {
-                then: [
-                    AdvanceRoute(route)
-                    Wait(waypointDelay)
-                    patrol.moveNext()
-                ]
+    patrol.onReachedTarget: [
+        branch(RouteHasNext(route)) {
+            then: [
+                AdvanceRoute(route)
+                Wait(waypointDelay)
+                patrol.moveNext()
+            ]
 
-                else: [
-                    patrol.clearTarget()
-                    ResetRouteCursor(route)
-                ]
-            }
-        ]
-    }
+            else: [
+                patrol.clearTarget()
+                ResetRouteCursor(route)
+            ]
+        }
+    ]
 
-    callbacks.patrol.onAlert: {
-        steps: [
-            patrol.pause()
-            Wait(alertRegroupDelay)
-            RegroupTeam()
-            patrol.resume()
-        ]
-    }
+    patrol.onAlert: [
+        patrol.pause()
+        Wait(alertRegroupDelay)
+        RegroupTeam()
+        patrol.resume()
+    ]
 
-    events.OnEndPlay: {
-        steps: [
-            StopTimers()
-            DestroySpawnedEntities()
-            ClearReferences()
-        ]
-    }
+    EndPlay: [
+        StopTimers()
+        DestroySpawnedEntities()
+        ClearReferences()
+    ]
 }
 ```
 
@@ -524,7 +511,8 @@ XibeiNpcPatrol: level {
 
 ## Grammar 形状
 
-非正式 grammar：
+非正式 grammar。这里刻意不定义 `event`、`flow`、`steps`、`callback` 等领域
+关键字：
 
 ```text
 File             := FileItem*
@@ -549,22 +537,18 @@ BlockItem        := Entry
                   | Assignment
                   | Command
                   | Let
-                  | KeyedStep
                   | Annotation
                   | Empty
                   | Comment
 
-StepsArray       := "[" Step* "]"
-Step             := Annotation* (Command | Assignment | Let | KeyedStep)
+DocumentArray    := "[" ArrayItem* "]"
+ArrayItem        := Annotation* (Expr | Assignment | Command | Let | Entry)
 
 Command          := Callee "(" Args? ")" ExitBlock?
 Callee           := Path
 Assignment       := Path "=" Expr
 Let              := "let" Identifier "=" Expr
-KeyedStep        := Path ":" KeyedStepPayload
-KeyedStepPayload := Expr Block? | Block
-ExitBlock        := "{" ExitCase* "}"
-ExitCase         := Identifier ":" StepsArray
+ExitBlock        := Block
 
 Annotation       := "@" Path AnnotationArgs?
 AnnotationArgs   := "(" Args? ")"
@@ -577,35 +561,44 @@ Value            := String | Number | Boolean | Null | IdentifierLiteral
 IdentifierLiteral := Identifier
 ObjectLiteral    := "{" ObjectField* "}"
 ObjectField      := Identifier "=" Expr | Identifier ":" Expr
-ArrayLiteral     := "[" Expr* "]"
+ArrayLiteral     := "[" ArrayItem* "]"
 Comment          := LineComment | BlockComment
 ```
 
 本文使用逗号宽松规则：列表和参数中的逗号可由 formatter 插入或省略。实现
 时可以先选择更严格的 grammar，再由 formatter canonicalize。
 
-上面的 grammar 刻意区分了三类 `{ ... }`：
+上面的 grammar 刻意区分了两类 `{ ... }`：
 
 - `Block` 是 document / asset / declaration 的结构块。
 - `ObjectLiteral` 只出现在 expression 位置，例如 command 参数。
-- `ExitBlock` 只跟在 `Command` 后面，表示多出口 command。
+- `Command` 后面的 trailing `Block` 仍然只是 object block；schema 可以把它
+  解释为 exit cases、options、inline body 或其他结构。
 
-`KeyedStepPayload := Expr Block? | Block` 用来覆盖两类复合 step：
+数组也不叫 `steps`。任何 entry 的 value 都可以是 `DocumentArray`；schema
+可以把某些数组解释为 executable statement list：
 
 ```ts
-parallel: [
+Start: [
+    ResetRuntimeState()
+    patrol.start()
+]
+```
+
+`parallel`、`if` 这类结构不是 grammar 关键字，只是 schema 约定的 entry 或
+command 形态：
+
+```ts
+parallel([
     [SpawnMonsters()]
     [SpawnNpcs()]
-]
+])
 
-if: RouteHasNext(route) {
+branch(RouteHasNext(route)) {
     then: [patrol.moveNext()]
     else: [patrol.clearTarget()]
 }
 ```
-
-其中 `parallel` 的 payload 是 `ArrayLiteral`，`if` 的 payload 是
-`Expr + Block`。
 
 ### 词法、注释和分隔符
 
@@ -614,10 +607,11 @@ if: RouteHasNext(route) {
 - 标识符使用 ASCII identifier 作为 canonical 输出：`[A-Za-z_][A-Za-z0-9_]*`。
 - domain/schema 可以后续放宽到引号字符串，但 formatter 默认输出 bare
   identifier。
-- path 用 `.` 连接 segment：`callbacks.patrol.onReachedTarget`。
+- path 用 `.` 连接 segment：`patrol.onReachedTarget`。
 - string 使用双引号作为 formatter 输出。
 - number、boolean、null 沿用 JSON/TS 心智。
-- 行注释 `// ...` 和块注释 `/* ... */` 允许出现在 entry/step 之间。
+- 行注释 `// ...` 和块注释 `/* ... */` 允许出现在 entry / array item
+  之间。
 - 文档注释 `/// ...` 可以作为 annotation 的兼容输入，但 formatter 应优先
   输出结构化 `@comment("...")` 或保留原注释而不强制重写。
 
@@ -627,7 +621,7 @@ if: RouteHasNext(route) {
 - array item 之间允许换行分隔；formatter 默认不输出逗号。
 - call 参数之间 formatter 可以输出逗号，也可以采用换行宽松风格；实现初期
   可以先要求逗号，再由 formatter 统一。
-- `:` 表示 document entry / keyed step。
+- `:` 表示 document entry。
 - `=` 表示 assignment、default value、named argument 或 object literal field。
 - declaration、asset block 和普通 object literal 的上下文不同：`name: Type`
   在 `inputs` 中是 typed slot，在 `declarations` 中可以是 kind marker，在
@@ -712,11 +706,9 @@ HelloWorld: LevelScriptGraph {
 ### Dotted Key
 
 ```ts
-events.OnStart: {
-}
-
-callbacks.patrol.onReachedTarget: {
-}
+patrol.onReachedTarget: [
+    patrol.moveNext()
+]
 ```
 
 Dotted key 是本文的 canonical 扩展。它不符合严格 JSON5，但能减少嵌套并
@@ -726,14 +718,19 @@ Dotted key 是本文的 canonical 扩展。它不符合严格 JSON5，但能减�
 
 ```ts
 events: {
-    OnStart: {}
+    Start: [
+        patrol.moveNext()
+    ]
 }
 ```
 
-formatter 可以保留 dotted key，尤其是 `events.*`、`flows.*`、
-`callbacks.*` 这类常见 path。
+formatter 可以保留 dotted key，例如 `patrol.onReachedTarget` 或
+`dialogue.start`。
 
-### Inputs
+不过 dotted key 本身没有领域语义。`patrol.onReachedTarget` 是否是 callback、
+普通配置项还是 dialogue entry，完全由 schema 决定。
+
+### Schema-defined Entries
 
 ```ts
 inputs: {
@@ -743,27 +740,28 @@ inputs: {
 }
 ```
 
-`inputs` 是开放块。内部 entry 使用 typed slot：
+`inputs`、`params`、`objects`、`methods`、`callbacks`、`Start` 等都只是普通
+entry 名。grammar 不识别这些名字。schema 可以规定某个字段内部使用 typed
+slot：
 
 ```text
 name: Type = default?
 ```
 
-它降级为 graph/level parameter，或其他 domain 的输入字段。
+也可以规定某个字段是可执行数组、声明表、资源表或普通配置 object。
 
-### Objects
+### Typed Object Entry
 
 ```ts
-objects: {
-    patrol: PatrolController {
-        leader = patrolLeader
-        route = route
-    }
+patrol: PatrolController {
+    leader = patrolLeader
+    route = route
 }
 ```
 
-对象实例写成 `name: Type { ... }`。对象 body 中的 assignment 默认是配置
-输入或 data binding。
+Typed object entry 写成 `name: Type { ... }`。它在 grammar 层仍然只是
+`Entry(path=name, value=TypedObject(type=Type, body=...))`。是否表示对象
+实例、asset root、declaration 或 schema block，由所在位置和 schema 决定。
 
 ### Object Type Declaration
 
@@ -822,26 +820,28 @@ GetActorLocation: pure {
 }
 ```
 
-Pure declaration 不能独立作为 `steps` 中的 flow step，除非被 `let` 或其他
+Pure declaration 不能独立作为 executable array item，除非被 `let` 或其他
 data expression 引用。领域投影可以把它解释为 pure node、query 或函数。
 
-### Steps
+### Array as Statement List
 
 ```ts
-steps: [
+Start: [
     ResetRuntimeState()
     Wait(1.0)
     patrol.start()
 ]
 ```
 
-`steps` 是线性主干的语法糖，只能隐式连接具备默认继续出口的 step。
+数组是普通 `DocumentArray`。当 schema 把某个数组解释为 executable
+statement list 时，数组项可以是 command、assignment、let、entry 或带
+annotation 的语句。
 
-如果当前 step：
+如果某个 schema 使用 statement-list 语义，它的 linter 应检查：
 
 - 没有默认 exec output，且后面还有 step，应报错。
 - 有多个 exec output，必须写 exit block 或声明 `defaultExit`。
-- 是 callback 型输出，不应放在 `steps` 中，应写成 `callbacks.*` block。
+- callback-like 输出不应伪装成当前数组的下一项，应写成独立 named entry。
 
 ### Command
 
@@ -854,10 +854,10 @@ SpawnTeam({
 })
 ```
 
-Command 是一等 step。它降级为：
+Command 是一等 expression / statement。它降级为：
 
 ```text
-CallStep {
+CommandFact {
     target: Path
     args: Expr[]
     namedArgs: Assignment[]
@@ -913,8 +913,9 @@ streaming.load("PatrolArea") {
 }
 ```
 
-Exit block 的 key 是 method exit 名。每个 exit case 的值是一个 steps 数组。
-如果投影到 FlowGraph，这些 exit 可以再被解释为 exec output。
+Command 后面的 trailing object 是普通 `Block`。schema 可以把它解释为
+multi-exit cases、inline body、options 或其他结构。如果投影到 FlowGraph，
+这些 field 可以再被解释为 exec output。
 
 ### Assignment
 
@@ -956,10 +957,10 @@ SpawnTeam({
 })
 ```
 
-### Branch
+### Schema-defined Control Shape
 
 ```ts
-if: RouteHasNext(route) {
+branch(RouteHasNext(route)) {
     then: [
         AdvanceRoute(route)
         patrol.moveNext()
@@ -972,13 +973,11 @@ if: RouteHasNext(route) {
 }
 ```
 
-`if` 是 keyed step，不是 general-purpose language statement。它降级为
-领域控制结构；Graph/FlowGraph 投影可以再把它解释为 branch node。
-
-### Parallel
+`branch` 不是 grammar 关键字，只是 command + trailing object。schema 可以
+把它解释为条件分支。
 
 ```ts
-parallel: [
+parallel([
     [
         SpawnMonsters({ route = route })
     ]
@@ -988,29 +987,30 @@ parallel: [
     [
         SpawnCart({ route = route })
     ]
-]
+])
 ```
 
-`parallel` 是复合 step。每个子数组是一条子 sequence。具体 join 语义由
-domain/schema 决定，例如 all-complete join、race、或 fire-and-forget。
+`parallel` 也不是 grammar 关键字，只是普通 command，参数里包含数组。
+具体 join 语义由 domain/schema 决定，例如 all-complete join、race、或
+fire-and-forget。
 
-### Flow
+### Schema-defined Reusable Blocks
 
 ```ts
-flows.CreatePatrolTeam: {
+CreatePatrolTeam: routine {
     inputs: {
         route: PatrolRoute
     }
 
-    steps: [
+    body: [
         SpawnTeam({ route = route })
         BindTeam()
     ]
 }
 ```
 
-`flow` 是命名可复用 steps。Inline `steps` 可以被编译为子图，但只有命名
-`flows.*` 才是可复用 API。
+这里 `routine`、`inputs`、`body` 都不是 grammar 关键字。它们只是一个
+domain schema 选择的字段约定。
 
 调用：
 
@@ -1018,22 +1018,17 @@ flows.CreatePatrolTeam: {
 CreatePatrolTeam({ route = route })
 ```
 
-Flow 可以有输入、输出和本地对象，但它不自动成为事件。事件、callback 和
-其他 flow 通过 command 调用它。
-
-### Callback
+### Schema-defined Callback-like Entries
 
 ```ts
-callbacks.patrol.onReachedTarget: {
-    steps: [
-        Wait(waypointDelay)
-        patrol.moveNext()
-    ]
-}
+patrol.onReachedTarget: [
+    Wait(waypointDelay)
+    patrol.moveNext()
+]
 ```
 
-Callback 是对象生命周期出口。它不应伪装成当前 `steps` 的下一行，因为它
-不是前一个 command 的默认流出。
+这仍然只是 dotted entry + array value。schema 可以把它解释为对象生命周期
+出口、事件处理器、dialogue entry 或其他领域入口。
 
 ### Annotation
 
@@ -1042,7 +1037,7 @@ Callback 是对象生命周期出口。它不应伪装成当前 `steps` 的下�
 patrol: PatrolController {
 }
 
-steps: [
+Start: [
     @editor.position(x = 100, y = 200)
     patrol.start()
 ]
@@ -1117,51 +1112,47 @@ canonical authoring syntax。
 Surface syntax：
 
 ```ts
-events.OnStart: {
-    steps: [
-        @comment("start patrol")
-        patrol.route = route
-        patrol.start() {
-            completed: [
-                Print("started")
-            ]
-            failed: [
-                Print("failed")
-            ]
-        }
-    ]
-}
+Start: [
+    @comment("start patrol")
+    patrol.route = route
+    patrol.start() {
+        completed: [
+            Print("started")
+        ]
+        failed: [
+            Print("failed")
+        ]
+    }
+]
 ```
 
 结构化等价：
 
 ```js
 {
-  path: ["events", "OnStart"],
-  value: {
-    steps: [
-      {
-        kind: "assignment",
-        target: ["patrol", "route"],
-        value: { ref: ["route"] },
-        annotations: [
-          { name: ["comment"], args: ["start patrol"] },
+  path: ["Start"],
+  value: [
+    {
+      kind: "assignment",
+      target: ["patrol", "route"],
+      value: { ref: ["route"] },
+      annotations: [
+        { name: ["comment"], args: ["start patrol"] },
+      ],
+    },
+    {
+      kind: "call",
+      target: ["patrol", "start"],
+      trailingObject: {
+        completed: [
+          { kind: "call", target: ["Print"], args: ["started"] },
+        ],
+        failed: [
+          { kind: "call", target: ["Print"], args: ["failed"] },
         ],
       },
-      {
-        kind: "call",
-        target: ["patrol", "start"],
-        exits: {
-          completed: [
-            { kind: "call", target: ["Print"], args: ["started"] },
-          ],
-          failed: [
-            { kind: "call", target: ["Print"], args: ["failed"] },
-          ],
-        },
-      },
-    ],
-  },
+    },
+  ],
 }
 ```
 
@@ -1179,26 +1170,22 @@ AssetName: level {
         name: Type = default
     }
 
-    objects: {
-        objectName: ObjectType {
-            input = value
-        }
+    objectName: TypeName {
+        input = value
     }
 
-    events.EventName: {
-        steps: [
-            Command()
-        ]
-    }
+    EventName: [
+        Command()
+    ]
 }
 ```
 
-Formatter 可以保留 dotted key：
+Formatter 可以保留 dotted key，但它不应把特定前缀当成 grammar：
 
 ```ts
-events.OnStart: {}
-flows.CreateTeam: {}
-callbacks.patrol.onAlert: {}
+patrol.onAlert: []
+dialogue.start: {}
+rows.goblin: {}
 ```
 
 Formatter 不应输出：
@@ -1216,13 +1203,14 @@ a -> b
 
 Canonicalization 还应处理：
 
-- `events: { OnStart: ... }` 可以保留，也可以折叠为 `events.OnStart: ...`。
+- `patrol: { onAlert: ... }` 可以保留，也可以折叠为
+  `patrol.onAlert: ...`。
 - 一行 object literal 可以在参数较多时展开成多行。
 - `/// comment` 可以保留原样；如果需要结构化 metadata，输出
   `@comment("...")`。
 - 旧语法 `connect` / `bind` 在迁移时应 lowering 成 command、assignment、
-  callback 或 explicit relation IR；formatter 不应直接把旧语法原样作为目标
-  canonical 输出。
+  callback-like entry 或 explicit relation IR；formatter 不应直接把旧语法
+  原样作为目标 canonical 输出。
 
 ---
 
@@ -1235,16 +1223,18 @@ Canonicalization 还应处理：
   标红。
 - 未声明类型或对象：typed slot、typed block、command target 无法解析时，
   指向对应 token。
-- `steps` 连续性错误：没有默认 flow output 的 step 后面又接了下一步。
-- 多出口 command 缺少必要 exit case，或 exit case 名称不存在。
-- callback 被写进普通 `steps`，例如把生命周期输出当作当前流程下一步。
-- 重复语句：同一个 `steps` block 中出现完全相同的 command/assignment 且
+- executable array 连续性错误：没有默认 flow output 的 command 后面又接了
+  下一项。
+- 多出口 command 缺少必要 trailing object field，或 field 名称不存在。
+- callback-like entry 被写进当前 executable array，例如把生命周期输出当作
+  当前流程下一步。
+- 重复语句：同一个 executable array 中出现完全相同的 command/assignment 且
   没有 annotation 或稳定 id 区分时，应报 duplicate diagnostic。
 - 重复关系：同一 source 到同一 target 的重复绑定或重复投影关系应报错，而
   不是静默合并。
 
 重复语句的删除不能只靠语义相等。编辑器和自动修复必须使用 `sourceRange`、
-stable id 或同一 `steps` 数组中的 item index 来定位具体要删哪一条。也就是
+stable id 或同一 array 中的 item index 来定位具体要删哪一条。也就是
 说，linter 可以说“这三条相同”，但 quick fix 必须能指定“删除第 2 条”。
 
 诊断输出建议包含：
@@ -1266,8 +1256,9 @@ Diagnostic {
 
 ## 领域扩展性
 
-本文语法不把所有游戏资产都塞进某一种 graph domain。`steps` 只是 flow-like
-domain 的字段。其他领域可以用同一 object/path/value 结构表达自己的内容：
+本文语法不把所有游戏资产都塞进某一种 graph domain。可执行数组、入口名、
+对象表、参数表都只是 schema 约定。其他领域可以用同一 object/path/value
+结构表达自己的内容：
 
 ```ts
 RescueNpc: quest {
@@ -1316,7 +1307,7 @@ MonsterSpawnTable: table {
 
 本文不是严格 JSON5。以下能力均不属于 JSON5：
 
-- dotted key：`events.OnStart: {}`
+- dotted key：`patrol.onReachedTarget: []`
 - typed slot：`route: PatrolRoute`
 - typed block：`patrol: PatrolController {}`
 - command：`patrol.start()`
@@ -1350,11 +1341,11 @@ MonsterSpawnTable: table {
 - `AssetName: level {}` asset root。
 - dotted key path。
 - typed slot / typed block 的 JSON-like grammar。
-- command expression 作为 canonical step。
-- assignment step 到 data binding / runtime action 的 lowering。
-- annotation 附着到任意 entry/step。
-- object method/callback 声明模型。
-- `steps` 的 linear sugar、multi-exit、parallel、branch lowering。
+- command expression 作为 canonical expression / statement。
+- assignment statement 到 data binding / runtime action 的 lowering。
+- annotation 附着到任意 entry / array item。
+- schema-defined object method / callback-like entry 声明模型。
+- executable array、multi-exit trailing object、parallel、branch lowering。
 - formatter 输出本文 canonical syntax。
 
 ---
@@ -1363,8 +1354,8 @@ MonsterSpawnTable: table {
 
 - 顶层 asset root 应写 `AssetName: level {}`，还是 `level: AssetName {}`？
 - schema/type 与 domain/kind 同时存在时，header 如何保持不歧义？
-- dotted key 是否允许任意深度，还是只允许特定字段如 `events.*`？
-- `steps` 中逗号是完全可选，还是 formatter 输出时统一省略？
+- dotted key 是否允许任意深度？
+- executable array 中逗号是完全可选，还是 formatter 输出时统一省略？
 - `parallel` 的 join 语义由语法指定，还是完全交给 schema？
 - assignment 到 data input 与 runtime state write 如何在 declaration 中声明？
 - `let` 是否允许解构，例如 `let { location } = GetActorTransform(actor)`？
