@@ -122,8 +122,8 @@ XibeiNpcPatrol: level {
   assignment、annotation。
 - 避免 `event OnStart {}` 这种非 key/value header。
 - 避免 `->`、低层 `connect(...)`、低层 `bind(...)` 成为策划主语法。
-- 多入多出 FlowGraph 节点以对象实例的 methods、callbacks、inputs、
-  outputs 表达。
+- 多入口、多出口的可调用实体以对象实例的 methods、callbacks、inputs、
+  outputs 表达；Graph/FlowGraph 只作为后续投影目标。
 
 ---
 
@@ -142,7 +142,7 @@ XibeiNpcPatrol: level {
 | 语法糖 | 支持空间大 | canonical 语法糖少 | 少量固定扩展 |
 | JSON 兼容 | 不兼容 | 可以保持 JSON/JSON5-compatible | 不兼容严格 JSON5，但保留 object 心智 |
 | DOM/tree 渲染 | 需要 lowering | 天然 object tree | dotted key lowering 到 object path |
-| 声明文件 | 简洁 | 结构稳定但更长 | object methods/callbacks 更贴近 FlowGraph |
+| 声明文件 | 简洁 | 结构稳定但更长 | object methods/callbacks 更贴近可调用对象模型 |
 | AI patch | 需要理解 DSL | 更适合结构化 patch | path/step anchor 明确 |
 | 视觉编辑回写 | 依赖 source binding | 路径定位更直接 | path + command/assignment anchor |
 | Runtime bake 输入 | 需要投影转换 | 更接近结构化输入 | 需要 lowering，但语义较接近 authoring |
@@ -253,7 +253,7 @@ apply: ApplyDamage {
 - 希望保持 JSON/TS object 心智，但不能接受纯 JSON command 噪声。
 - 策划需要写 assignment、command、annotation。
 - 不希望 `event OnStart {}`、`->`、`connect/bind` 成为主语法。
-- 需要多入多出 FlowGraph 节点映射成对象方法、回调、属性和状态。
+- 需要把多入口、多出口的可调用实体表达成对象方法、回调、属性和状态。
 
 ---
 
@@ -286,11 +286,11 @@ apply: ApplyDamage {
 
 下一步应对同一组场景做原型比较：
 
-- 添加节点。
+- 添加对象实例。
 - 修改属性。
 - 添加 command。
-- 重连 edge。
-- 重命名 node。
+- 重连投影关系。
+- 重命名对象实例。
 - declaration 改名。
 - 保留注释和局部格式。
 

@@ -41,6 +41,26 @@ language shape:
 Do not push broad review standards or Agent workflow instructions into
 `docs/syntax/`; keep those in `.trellis/spec/`.
 
+### DSL Layer Terminology Boundary
+
+Syntax drafts describe the DSL surface and its lossless `DocumentNode` model.
+Graph and FlowGraph are target domain projections, not the current syntax layer.
+
+Use current-layer terms such as:
+
+- `DocumentNode`
+- `Entry`
+- `ObjectInstance`
+- `ObjectType`
+- `Command`
+- `Step`
+- `Callback`
+- `Assignment`
+
+Do not use `GraphNode`, `Pin`, `Edge`, or graph node/edge/pin language as DSL
+grammar concepts. These terms are acceptable only when explicitly describing
+how a DSL structure is projected into a Graph/FlowGraph domain view.
+
 ## Source Preservation Expectations
 
 For parser, document model, patch, or formatter work:

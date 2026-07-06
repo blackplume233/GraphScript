@@ -3,7 +3,7 @@
 > 状态：目标语法草稿。
 >
 > 目的：把 GraphScript 收敛为一种接近 JSON/TS 对象结构、但适合游戏关卡、
-> 任务流程、节点声明和图投影的手写语法。本文不是当前解析器的实现契约。
+> 任务流程、对象声明和领域投影的手写 DSL。本文不是当前解析器的实现契约。
 
 ---
 
@@ -35,9 +35,9 @@ path，但允许少量一等语法补足游戏创作体验。
 - asset 文件的表层结构。
 - declaration 文件的表层结构。
 - object、event、flow、callback、steps 的写法。
-- 多入多出 FlowGraph 节点如何映射到对象方法、回调和变量。
+- 多入口、多出口的可调用对象如何表达为对象方法、回调和变量。
 - assignment、command、annotation 的标准形式。
-- 降级到结构化 IR / DocumentNode / FlowGraph fact 的方式。
+- 降级到结构化 IR / DocumentNode / 领域投影 fact 的方式。
 
 不在本文范围内：
 
@@ -50,7 +50,7 @@ path，但允许少量一等语法补足游戏创作体验。
 
 本文约定：
 
-- `.d.gs` 主要承载 declaration、schema、node type、domain type。
+- `.d.gs` 主要承载 declaration、schema、object type、domain type。
 - `.gs` 主要承载具体 asset 实例，例如 level、quest、dialogue、table。
 - 同一套表层语法同时服务声明文件和资产文件，差异由顶层字段和 domain/schema
   解释。
@@ -70,7 +70,7 @@ path，但允许少量一等语法补足游戏创作体验。
 本文需要对齐的稳定原则：
 
 - 文本仍是 canonical source。
-- 图、任务、对话、表格等都是序列化文档之上的领域投影。
+- Graph、任务、对话、表格等都是序列化文档之上的领域投影。
 - 视觉编辑必须能回写到 source-bound document operation。
 - 语法草稿不能暗示当前解析器已经实现该语法。
 
@@ -139,9 +139,43 @@ events: {
 
 - 不使用 `->`。
 - 不把 `connect(...)` / `bind(...)` 作为策划主语法。
-- `steps` 只表达线性主干，不替代完整 FlowGraph。
-- 多入多出节点在文本中表现为对象实例：方法、回调、输入、输出。
-- JSON-like 是结构底座；FlowGraph 只是一个 domain projection。
+- `steps` 只表达线性主干，不替代完整领域图或运行时图。
+- 多入口、多出口的可调用实体在文本中表现为对象实例：方法、回调、输入、
+  输出。
+- JSON-like DSL 是结构底座；Graph/FlowGraph 只是后续 domain projection。
+
+### 层级边界与术语约束
+
+本文当前讨论的是 **DSL 表层结构** 和它对应的 **DocumentNode 文档模型**。
+Graph/FlowGraph 是重要目标领域，但它们的术语不应倒灌为当前 DSL 层的基础
+概念。
+
+本文使用的当前层术语：
+
+| 当前层术语 | 含义 |
+| --- | --- |
+| `DocumentNode` | DSL 解析后的无损文档节点。 |
+| `Entry` | `path: value` 形式的文档成员。 |
+| `ObjectInstance` | `name: Type { ... }` 表达的类型化对象实例。 |
+| `ObjectType` | `.d.gs` 中声明的对象类型。 |
+| `Command` | `callee(args)` 形式的行为或构造调用。 |
+| `Step` | `steps` 数组中的 command、assignment、let 或 keyed step。 |
+| `Callback` | 对象实例暴露的生命周期或事件出口。 |
+| `Assignment` | `target = value` 形式的数据绑定、配置或状态写入。 |
+
+Graph/FlowGraph 术语只能出现在投影说明中，例如“某个 `ObjectInstance` 可以被
+FlowGraph 投影为 GraphNode”。本文不把 `GraphNode`、`Pin`、`Edge` 作为 DSL
+grammar 的基础概念。
+
+Node-first 概念仍然可用，但它指的是内部 DocumentNode model，而不是
+GraphNode-first authoring syntax：
+
+```text
+DSL source
+  -> Lossless DocumentNode
+  -> Semantic facts / Domain facts
+  -> Graph / Quest / Dialogue / Table projection
+```
 
 ---
 
@@ -170,9 +204,9 @@ events.OnStart: { ... }
 ["events", "OnStart"]
 ```
 
-FlowGraph domain 再把这些文档事实解释成：
+领域投影层再把这些文档事实解释成：
 
-- graph / level / quest / dialogue 等 asset root。
+- level / quest / dialogue / table / graph 等 asset root。
 - object instance。
 - event / flow / callback。
 - command step。
@@ -658,7 +692,7 @@ XibeiNpcPatrol: level {
 - value type/kind `level` 是 asset domain。
 - body 是 asset document。
 
-Graph-like asset 可以写成：
+如果某个领域需要图式资产，可以写成：
 
 ```ts
 HelloWorld: graph {
@@ -731,9 +765,9 @@ objects: {
 对象实例写成 `name: Type { ... }`。对象 body 中的 assignment 默认是配置
 输入或 data binding。
 
-### Node Declaration
+### Object Type Declaration
 
-多入多出的 FlowGraph 节点在声明中表现为 object type：
+多入口、多出口的可调用实体在当前 DSL 层表现为 object type：
 
 ```ts
 PatrolController: object {
@@ -761,17 +795,20 @@ PatrolController: object {
 }
 ```
 
-映射到 FlowGraph：
+当前层解释：
 
-| 声明字段 | FlowGraph 解释 |
+| 声明字段 | 当前 DSL / DocumentNode 解释 |
 | --- | --- |
-| `inputs` | data input pins / configurable fields |
-| `outputs` | data output pins |
-| `methods` | exec input pins |
-| `methods.*.exits` | method call 的 exec output pins |
-| `callbacks` | lifecycle exec output pins |
+| `inputs` | 对象实例的可配置输入或数据依赖。 |
+| `outputs` | 对象实例可暴露的数据输出。 |
+| `methods` | 对象实例可调用的方法入口。 |
+| `methods.*.exits` | 方法调用可能产生的命名出口。 |
+| `callbacks` | 对象实例暴露的生命周期或事件出口。 |
 
-### Pure Node Declaration
+FlowGraph 投影可以把这些字段解释为 data pins、exec pins、node callbacks
+或 edges，但这些只是投影结果，不是当前 DSL grammar 的基础概念。
+
+### Pure Function Declaration
 
 ```ts
 GetActorLocation: pure {
@@ -785,8 +822,8 @@ GetActorLocation: pure {
 }
 ```
 
-Pure node 不能独立作为 `steps` 中的 flow step，除非被 `let` 或其他 data
-expression 引用。
+Pure declaration 不能独立作为 `steps` 中的 flow step，除非被 `let` 或其他
+data expression 引用。领域投影可以把它解释为 pure node、query 或函数。
 
 ### Steps
 
@@ -833,7 +870,8 @@ CallStep {
 patrol.start()
 ```
 
-映射到对象实例 `patrol` 的 method `start`，也就是 FlowGraph exec input pin。
+映射到对象实例 `patrol` 的 method `start`。如果投影到 FlowGraph，该 method
+可以再被解释为 exec input。
 
 ### Object Literal 与 Named Arguments
 
@@ -875,8 +913,8 @@ streaming.load("PatrolArea") {
 }
 ```
 
-Exit block 的 key 是 exec output pin 名。每个 exit case 的值是一个 steps
-数组。
+Exit block 的 key 是 method exit 名。每个 exit case 的值是一个 steps 数组。
+如果投影到 FlowGraph，这些 exit 可以再被解释为 exec output。
 
 ### Assignment
 
@@ -904,10 +942,10 @@ let anchor = GetActorLocation(patrolLeader)
 let target = patrol.currentTarget
 ```
 
-`let` 命名一个 data expression 或 pure node 输出。它不是一般脚本变量；它
-主要用于把数据边命名，便于后续绑定和图显示。
+`let` 命名一个 data expression 或 pure declaration 的输出。它不是一般脚本
+变量；它主要用于把数据依赖命名，便于后续绑定和领域投影显示。
 
-多输出 pure node：
+多输出 pure declaration：
 
 ```ts
 let anchor = GetActorTransform(patrolLeader)
@@ -935,7 +973,7 @@ if: RouteHasNext(route) {
 ```
 
 `if` 是 keyed step，不是 general-purpose language statement。它降级为
-FlowGraph branch/domain control node。
+领域控制结构；Graph/FlowGraph 投影可以再把它解释为 branch node。
 
 ### Parallel
 
@@ -1183,14 +1221,14 @@ Canonicalization 还应处理：
 - `/// comment` 可以保留原样；如果需要结构化 metadata，输出
   `@comment("...")`。
 - 旧语法 `connect` / `bind` 在迁移时应 lowering 成 command、assignment、
-  callback 或 explicit edge IR；formatter 不应直接把旧语法原样作为目标
+  callback 或 explicit relation IR；formatter 不应直接把旧语法原样作为目标
   canonical 输出。
 
 ---
 
 ## 诊断与 Linter 边界
 
-语法本身只规定可解析结构，领域 linter 负责检查图语义。目标 linter 至少应
+语法本身只规定可解析结构，领域 linter 负责检查投影语义。目标 linter 至少应
 覆盖：
 
 - import 解析失败：例如 `ue_core.d.gs` 找不到时，应在 import 字符串所在行
@@ -1202,8 +1240,8 @@ Canonicalization 还应处理：
 - callback 被写进普通 `steps`，例如把生命周期输出当作当前流程下一步。
 - 重复语句：同一个 `steps` block 中出现完全相同的 command/assignment 且
   没有 annotation 或稳定 id 区分时，应报 duplicate diagnostic。
-- 重复边：同一 exec/data source 到同一 target 的重复绑定应报错，而不是
-  静默合并。
+- 重复关系：同一 source 到同一 target 的重复绑定或重复投影关系应报错，而
+  不是静默合并。
 
 重复语句的删除不能只靠语义相等。编辑器和自动修复必须使用 `sourceRange`、
 stable id 或同一 `steps` 数组中的 item index 来定位具体要删哪一条。也就是
@@ -1228,8 +1266,8 @@ Diagnostic {
 
 ## 领域扩展性
 
-本文语法不把所有游戏资产都塞进 FlowGraph。`steps` 只是 flow-like domain 的
-字段。其他领域可以用同一 object/path/value 结构表达自己的内容：
+本文语法不把所有游戏资产都塞进某一种 graph domain。`steps` 只是 flow-like
+domain 的字段。其他领域可以用同一 object/path/value 结构表达自己的内容：
 
 ```ts
 RescueNpc: quest {
@@ -1249,7 +1287,7 @@ RescueNpc: quest {
 
 ```ts
 GuardGreeting: dialogue {
-    nodes.start: {
+    entries.start: {
         text = "站住。"
         choices: [
             { text = "我只是路过", next = pass }

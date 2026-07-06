@@ -22,9 +22,10 @@
 - 大体保留 JSON 或 TypeScript 风格的 object、array、path 心智。
 - 不把严格 JSON5 当作唯一目标，因为 command、assignment、annotation 在
   纯 JSON5 中会变得啰嗦。
-- 支持多入多出 FlowGraph 节点，但不要把策划作者暴露在低层 pin 连接细节中。
-- 后续语法不只服务 FlowGraph，也要能扩展到 quest、dialogue、table、ability
-  等游戏资产。
+- 支持多入口、多出口的可调用对象，但不要把策划作者暴露在某个领域投影的
+  低层连接细节中。
+- 后续语法不只服务 Graph/FlowGraph 投影，也要能扩展到 quest、dialogue、
+  table、ability 等游戏资产。
 
 ---
 
@@ -49,13 +50,18 @@ JSON/TS-like object structure
 - `patrol.start()` 作为 command，而不是 `{ call: "patrol.start" }`。
 - `patrol.route = route` 作为 assignment，而不是 `{ set, value }`。
 - `@comment("...")` 作为 annotation，而不是把注释全部塞进 meta object。
-- `steps` 只表达线性主干语法糖，不替代完整 FlowGraph 语义。
+- `steps` 只表达线性主干语法糖，不替代完整领域图或运行时图语义。
+
+本文记录的是 DSL 表层结构和 DocumentNode 结构，不把 Graph/FlowGraph 的
+`node`、`pin`、`edge` 作为当前层基础术语。Graph 是目标投影之一，而不是
+当前 DSL grammar 的语义层。
 
 ---
 
-## 多入多出节点的映射
+## 多入口多出口对象的映射
 
-多入多出的节点不直接映射成一堆裸 pin，而是视为一个对象实例：
+多入口、多出口的可调用实体不直接映射成某个领域投影的一堆裸连接点，而是
+视为一个对象实例：
 
 ```ts
 patrol: PatrolController {
@@ -89,17 +95,20 @@ PatrolController: object {
 }
 ```
 
-语义映射：
+当前层语义映射：
 
-| 文本形式 | 图语义 |
+| 文本形式 | 当前层语义 |
 | --- | --- |
-| `inputs` | data input pins / configurable fields |
-| `outputs` | data output pins |
-| `methods` | exec input pins |
-| `methods.*.exits` | exec output pins |
-| `callbacks` | lifecycle exec output pins |
+| `inputs` | 对象实例的可配置输入或数据依赖 |
+| `outputs` | 对象实例可暴露的数据输出 |
+| `methods` | 对象实例可调用的方法入口 |
+| `methods.*.exits` | 方法调用可能产生的命名出口 |
+| `callbacks` | 对象实例暴露的生命周期或事件出口 |
 | `object.input = value` | data binding / initializer |
 | `object.method()` | exec call |
+
+FlowGraph 可以把这些结构投影成 node、pin、edge，但这是投影层解释，不是当前
+DSL 层的基础语法。
 
 ---
 
@@ -161,7 +170,7 @@ SpawnTeam({
 })
 ```
 
-`let` 用于命名数据表达式或 pure node 输出，不作为一般脚本变量系统：
+`let` 用于命名数据表达式或 pure declaration 输出，不作为一般脚本变量系统：
 
 ```ts
 let anchor = GetActorLocation(patrolLeader)
@@ -181,7 +190,7 @@ SpawnTeam({
 - 当前 formatter 已能输出该语法。
 - 当前 graph editor 已能完整读写该语法。
 - 低层 `connect(...)` / `bind(...)` 立即废弃。
-- 所有游戏资产都必须通过 FlowGraph 表达。
+- 所有游戏资产都必须通过 Graph/FlowGraph 表达。
 - 这套语法必须严格兼容 JSON5。
 
 这些内容需要后续 prototype、fixture 和迁移计划验证。
@@ -190,7 +199,7 @@ SpawnTeam({
 
 ## Linter 约束记录
 
-本次讨论中特别记录了一类领域 linter 问题：重复语句和重复边不能只靠
+本次讨论中特别记录了一类领域 linter 问题：重复语句和重复关系不能只靠
 serialization 解决。
 
 例如：
@@ -217,8 +226,8 @@ linter 应能识别重复 command，但删除时不能只说“删掉重复项�
 - typed slot / typed block 的 parser 恢复能力。
 - command、assignment、annotation 的 formatter 输出规则。
 - `steps` 的默认出口检查。
-- multi-exit command 到 graph projection 的 lowering。
-- duplicate-step / duplicate-edge linter 的 source range 定位。
+- multi-exit command 到领域投影的 lowering。
+- duplicate-step / duplicate-relation linter 的 source range 定位。
 - `.d.gs` declaration 到 `.gs` asset 的跨文件引用诊断。
 - 同一份资产在文本编辑和图编辑之间的增删改查是否可逆。
 
