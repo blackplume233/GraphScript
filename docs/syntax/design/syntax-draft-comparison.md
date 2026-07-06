@@ -277,7 +277,7 @@ apply: ApplyDamage {
 
 ## 当前建议
 
-短期建议保留两份草稿并行：
+短期建议保留三份草稿并行，但以 JSON-like Authoring 作为当前主线：
 
 - 类型化表层语法用于验证人类 authoring 体验。
 - JSON 超集路线用于验证 editor/AI patch/structured source 体验。

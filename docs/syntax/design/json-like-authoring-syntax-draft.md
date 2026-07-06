@@ -493,57 +493,85 @@ XibeiNpcPatrol: level {
 非正式 grammar：
 
 ```text
-File          := Item*
-Item          := Import | Entry | Annotation* Entry | Empty | Comment
-Import        := "import" ":" ArrayLiteral
+File             := FileItem*
+FileItem         := Import | Entry | Annotation* Entry | Empty | Comment
+Import           := "import" ":" ArrayLiteral
 
-Entry         := Path ":" EntryValue
-EntryValue    := Block
-               | TypedBlock
-               | TypedSlot
-               | Value
+Entry            := Path ":" EntryValue
+EntryValue       := TypedBlock
+                  | TypedSlot
+                  | Block
+                  | Expr
 
-Path          := Identifier ("." Identifier)*
-TypeRef       := Path
-TypedBlock    := TypeRef Block
-TypedSlot     := TypeRef Default?
-Default       := "=" Expr
-Block         := "{" ItemOrStatement* "}"
+Path             := Identifier ("." Identifier)*
+TypeRef          := Path
+TypedBlock       := TypeRef Block
+TypedSlot        := TypeRef Default?
+Default          := "=" Expr
+Block            := "{" BlockItem* "}"
 
-ItemOrStatement := Item
-                 | Assignment
-                 | Command
-                 | Let
-                 | KeyedStep
-                 | Annotation
+BlockItem        := Entry
+                  | Annotation* Entry
+                  | Assignment
+                  | Command
+                  | Let
+                  | KeyedStep
+                  | Annotation
+                  | Empty
+                  | Comment
 
-StepsArray    := "[" Step* "]"
-Step          := Annotation* (Command | Assignment | Let | KeyedStep)
+StepsArray       := "[" Step* "]"
+Step             := Annotation* (Command | Assignment | Let | KeyedStep)
 
-Command       := Callee "(" Args? ")" ExitBlock?
-Callee        := Path
-Assignment    := Path "=" Expr
-Let           := "let" Identifier "=" Expr
-KeyedStep     := Path ":" ExprOrBlock
-ExprOrBlock   := Expr | Block
-ExitBlock     := "{" ExitCase* "}"
-ExitCase      := Identifier ":" StepsArray
+Command          := Callee "(" Args? ")" ExitBlock?
+Callee           := Path
+Assignment       := Path "=" Expr
+Let              := "let" Identifier "=" Expr
+KeyedStep        := Path ":" KeyedStepPayload
+KeyedStepPayload := Expr Block? | Block
+ExitBlock        := "{" ExitCase* "}"
+ExitCase         := Identifier ":" StepsArray
 
-Annotation    := "@" Path AnnotationArgs?
-AnnotationArgs := "(" Args? ")"
-Args          := Expr (","? Expr)* | NamedArg (","? NamedArg)*
-NamedArg      := Identifier "=" Expr
-Expr          := Value | Path | Command | ObjectLiteral | ArrayLiteral
-Value         := String | Number | Boolean | Null | IdentifierLiteral
+Annotation       := "@" Path AnnotationArgs?
+AnnotationArgs   := "(" Args? ")"
+Args             := PositionalArgs | NamedArgs
+PositionalArgs   := Expr (","? Expr)*
+NamedArgs        := NamedArg (","? NamedArg)*
+NamedArg         := Identifier "=" Expr
+Expr             := Value | Path | Command | ObjectLiteral | ArrayLiteral
+Value            := String | Number | Boolean | Null | IdentifierLiteral
 IdentifierLiteral := Identifier
-ObjectLiteral := "{" ObjectField* "}"
-ObjectField   := Identifier "=" Expr | Identifier ":" Expr
-ArrayLiteral  := "[" Expr* "]"
-Comment       := LineComment | BlockComment
+ObjectLiteral    := "{" ObjectField* "}"
+ObjectField      := Identifier "=" Expr | Identifier ":" Expr
+ArrayLiteral     := "[" Expr* "]"
+Comment          := LineComment | BlockComment
 ```
 
 本文使用逗号宽松规则：列表和参数中的逗号可由 formatter 插入或省略。实现
 时可以先选择更严格的 grammar，再由 formatter canonicalize。
+
+上面的 grammar 刻意区分了三类 `{ ... }`：
+
+- `Block` 是 document / asset / declaration 的结构块。
+- `ObjectLiteral` 只出现在 expression 位置，例如 command 参数。
+- `ExitBlock` 只跟在 `Command` 后面，表示多出口 command。
+
+`KeyedStepPayload := Expr Block? | Block` 用来覆盖两类复合 step：
+
+```ts
+parallel: [
+    [SpawnMonsters()]
+    [SpawnNpcs()]
+]
+
+if: RouteHasNext(route) {
+    then: [patrol.moveNext()]
+    else: [patrol.clearTarget()]
+}
+```
+
+其中 `parallel` 的 payload 是 `ArrayLiteral`，`if` 的 payload 是
+`Expr + Block`。
 
 ### 词法、注释和分隔符
 
@@ -567,6 +595,9 @@ Comment       := LineComment | BlockComment
   可以先要求逗号，再由 formatter 统一。
 - `:` 表示 document entry / keyed step。
 - `=` 表示 assignment、default value、named argument 或 object literal field。
+- declaration、asset block 和普通 object literal 的上下文不同：`name: Type`
+  在 `inputs` 中是 typed slot，在 `declarations` 中可以是 kind marker，在
+  expression object literal 中则不是 source-level entry。
 
 ---
 
