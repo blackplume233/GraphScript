@@ -51,6 +51,8 @@ JSON/TS-like object structure
 - `patrol.start()` 作为 command，而不是 `{ call: "patrol.start" }`。
 - `patrol.route = route` 作为 assignment，而不是 `{ set, value }`。
 - `@comment("...")` 作为 annotation，而不是把注释全部塞进 meta object。
+- 参数声明写成 `params: { message: FString }` 这类普通 entry，不再使用
+  `@graph.input param message: FString;` 作为目标语法。
 - 数组本身只是 `DocumentArray`；schema 可以把某些数组解释为 executable
   statement list。
 
@@ -58,9 +60,9 @@ JSON/TS-like object structure
 `node`、`pin`、`edge` 作为当前层基础术语。Graph 是目标投影之一，而不是
 当前 DSL grammar 的语义层。
 
-同理，`event`、`flow`、`steps`、`on`、`inputs`、`outputs`、`methods`、
-`callbacks` 都不是 grammar 关键字。它们只是普通字段名，含义由 schema、
-linter 和 projection 决定。
+同理，`event`、`flow`、`steps`、`on`、`param`、`inputs`、`outputs`、
+`methods`、`callbacks` 都不是 grammar 关键字。它们只是普通字段名，含义由
+schema、linter 和 projection 决定。
 
 ---
 

@@ -139,7 +139,7 @@ events: {
 
 - 不使用 `->`。
 - 不把 `connect(...)` / `bind(...)` 作为策划主语法。
-- 不把 `event`、`flow`、`steps`、`on` 作为 grammar 关键字。
+- 不把 `event`、`flow`、`steps`、`on`、`param` 作为 grammar 关键字。
 - 多入口、多出口的可调用实体在文本中表现为 typed object、普通 entry、
   command 和 trailing object。
 - JSON-like DSL 是结构底座；Graph/FlowGraph 只是后续 domain projection。
@@ -167,7 +167,7 @@ Graph/FlowGraph 术语只能出现在投影说明中，例如“某个 `TypedObj
 FlowGraph 投影为 GraphNode”。本文不把 `GraphNode`、`Pin`、`Edge` 作为 DSL
 grammar 的基础概念。
 
-同理，`event`、`flow`、`steps`、`callback`、`inputs`、`outputs`、`methods`
+同理，`event`、`flow`、`steps`、`callback`、`param`、`inputs`、`outputs`、`methods`
 等也不是 grammar 概念。它们可以作为普通字段名出现，但其含义由 schema、
 linter 和 projection 解释。
 
@@ -749,6 +749,21 @@ name: Type = default?
 ```
 
 也可以规定某个字段是可执行数组、声明表、资源表或普通配置 object。
+
+旧语法里的声明命令不是目标 canonical syntax：
+
+```ts
+@graph.input
+param message: FString;
+```
+
+目标语法应写成普通 entry：
+
+```ts
+params: {
+    message: FString
+}
+```
 
 ### Typed Object Entry
 

@@ -118,7 +118,7 @@ XibeiNpcPatrol: level {
   assignment、annotation。
 - 避免 `event OnStart {}` 这种非 key/value header。
 - 避免 `->`、低层 `connect(...)`、低层 `bind(...)` 成为策划主语法。
-- 不把 `event`、`flow`、`steps`、`on` 作为 grammar 关键字；它们最多是
+- 不把 `event`、`flow`、`steps`、`on`、`param` 作为 grammar 关键字；它们最多是
   schema 字段名。
 - 多入口、多出口的可调用实体通过 typed object、普通 entry、command 和
   schema 字段约定表达；Graph/FlowGraph 只作为后续投影目标。
@@ -251,7 +251,7 @@ apply: ApplyDamage {
 - 希望保持 JSON/TS object 心智，但不能接受纯 JSON command 噪声。
 - 策划需要写 assignment、command、annotation。
 - 不希望 `event OnStart {}`、`->`、`connect/bind` 成为主语法。
-- 不希望 `on`、`events`、`steps` 这类领域字段进入 grammar。
+- 不希望 `on`、`events`、`steps`、`param` 这类领域字段进入 grammar。
 - 需要把多入口、多出口的可调用实体表达成对象方法、回调、属性和状态。
 
 ---
