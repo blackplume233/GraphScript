@@ -1,0 +1,9 @@
+{
+  "name": "graphscript-workspace",
+  "private": true,
+  "scripts": {
+    "sample": ".\\build\\Release\\gs.exe serve -i samples\\graph-assets\\levelscript_complex.gs -I samples\\graph-assets\\ue_core.d.gs -I samples\\graph-assets\\levelscript_nodes.d.gs -p 8080",
+    "sample:levelscript": ".\\build\\Release\\gs.exe serve -i samples\\graph-assets\\levelscript_complex.gs -I samples\\graph-assets\\ue_core.d.gs -I samples\\graph-assets\\levelscript_nodes.d.gs -p 8080",
+    "sample:hello": ".\\build\\Release\\gs.exe serve -i samples\\graph-assets\\minimal.gs -I samples\\graph-assets\\ue_core.d.gs -p 8080"
+  }
+}
